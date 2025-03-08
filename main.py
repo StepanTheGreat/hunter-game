@@ -9,6 +9,7 @@ RAYS = 128
 RAY_GAP = math.radians(FOV/RAYS)
 RAY_DISTANCE = 700
 FLOOR_Y = 0.80 # A fraction of the screen. It means that the floor starts at this percentage of the screen
+WALL_HEIGHT = 10
 
 COLOR_MAP = {
     1: (120, 120, 120),
@@ -16,6 +17,9 @@ COLOR_MAP = {
     3: (50, 200, 50),
     4: (50, 50, 200)
 }
+
+def clamp(value: int | float, mn: int|float, mx: int|float) -> int:
+    return min(max(value, mn), mx)
 
 class Player:
     HITBOX_SIZE = 16
@@ -121,6 +125,7 @@ while not quitted:
     for ray in range(RAYS):
         ray_angle = player_angle - math.radians(FOV)/2 + ray * RAY_GAP
         ray_direction = pg.Vector2(math.cos(ray_angle), math.sin(ray_angle))
+
         ray_distance = 0
         tile = None
         while ray_distance < RAY_DISTANCE:
@@ -133,14 +138,14 @@ while not quitted:
             if found_tile != 0:
                 tile = found_tile
                 break
-        
+
         if not tile: continue
 
-        dist = ray_distance
-        z = 1-dist/RAY_DISTANCE
+        ray_distance *= math.cos(player_angle-ray_angle) # Fish-eye effect
+        dist = config.H/ray_distance
         color = COLOR_MAP[tile]
-        color = tuple([channel*z for channel in color])
-        rect_h = int(z*config.H)
+        # color = tuple([channel*z for channel in color])
+        rect_h = int(dist*WALL_HEIGHT)
         # pg.draw.line(screen, (255, 0, 0), player_pos, player_pos+ray_direction*ray_distance, 1)
         pg.draw.rect(screen, color, (ray*rect_w, config.H//2-rect_h//2, rect_w, rect_h))
 
