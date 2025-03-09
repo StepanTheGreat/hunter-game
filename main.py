@@ -2,14 +2,13 @@ import pygame as pg
 import config
 import math
 
-TILE_SIZE = 64
+TILE_SIZE = 32
 
 FOV = 90
-RAYS = 128
+RAYS = config.W//10
 RAY_GAP = math.radians(FOV/RAYS)
-RAY_DISTANCE = 700
-FLOOR_Y = 0.80 # A fraction of the screen. It means that the floor starts at this percentage of the screen
-WALL_HEIGHT = 10
+RAY_DISTANCE = 20
+WALL_HEIGHT = 15
 
 COLOR_MAP = {
     1: (120, 120, 120),
@@ -18,12 +17,17 @@ COLOR_MAP = {
     4: (50, 50, 200)
 }
 
+# A map that maps tiles to their (height, transparent)
+TRANSPARENT_TILES = set([
+    2
+])
+
 def clamp(value: int | float, mn: int|float, mx: int|float) -> int:
     return min(max(value, mn), mx)
 
 class Player:
-    HITBOX_SIZE = 16
-    SPEED = 230
+    HITBOX_SIZE = 12
+    SPEED = 340
     ROTATION_SPEED = 4
 
     def __init__(self, pos: tuple[float, float]):
@@ -67,7 +71,7 @@ class Player:
             self.angle = math.pi
 
     def draw(self, surface: pg.Surface):
-        pg.draw.rect(surface, (0, 255, 0), self.rect)
+        pg.draw.circle(surface, (0, 255, 0), self.pos, Player.HITBOX_SIZE//2)
 
     def collide(self, rect: pg.Rect):
         if self.rect.colliderect(rect):
@@ -86,16 +90,16 @@ screen = pg.display.set_mode((config.W, config.H))
 clock = pg.time.Clock()
 quitted = False
 
-player = Player((255, 360))
+player = Player((2*TILE_SIZE, 2*TILE_SIZE))
 tiles = [
-    [1, 1, 0, 1, 0, 0, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 2],
+    [2, 2, 1, 2, 1, 1, 2, 2],
+    [2, 0, 0, 0, 0, 0, 0, 2],
     [3, 0, 0, 2, 0, 0, 0, 2],
     [3, 0, 0, 4, 4, 4, 0, 2],
     [3, 0, 0, 0, 0, 0, 0, 2],
-    [1, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 3],
-    [1, 1, 0, 1, 0, 0, 3, 1]
+    [2, 0, 0, 0, 0, 0, 0, 2],
+    [2, 0, 0, 0, 0, 0, 0, 3],
+    [3, 3, 2, 3, 2, 2, 3, 3]
 ]
 tilemap_rect = pg.Rect(0, 0, len(tiles)*TILE_SIZE, len(tiles)*TILE_SIZE)
 tilemap_rects = []
@@ -120,34 +124,87 @@ while not quitted:
     player_pos = player.get_pos()
     player_angle = player.get_angle()
 
+    # The position of the player mapped to the grid
+    player_grid_pos = pg.Vector2(
+        player_pos.x/TILE_SIZE,
+        player_pos.y/TILE_SIZE
+    )
+    # The position of the player inside a grid cell, from 0 to 1
+    player_cell_pos = pg.Vector2(
+        math.ceil(player_grid_pos.x)-player_grid_pos.x,
+        math.ceil(player_grid_pos.y)-player_grid_pos.y,
+    )
+
     rect_w = config.W//RAYS
 
+    ray_angle = player_angle-math.radians(FOV/2)-RAY_GAP
     for ray in range(RAYS):
-        ray_angle = player_angle - math.radians(FOV)/2 + ray * RAY_GAP
+        ray_angle += RAY_GAP
+        ray_angle = round(ray_angle, 4)
         ray_direction = pg.Vector2(math.cos(ray_angle), math.sin(ray_angle))
+        
+        # Here we calculate the hypothenuse for each axis.
+        # Basically, to move by unit 1 (our grid cell size), how many "steps" do we need with our
+        # axis direction?
+        # The infinity here is used purely to avoid division by zero
+        ray_step = pg.Vector2(
+            abs(1 / ray_direction.x) if ray_direction.x != 0 else float('inf'),
+            abs(1 / ray_direction.y) if ray_direction.y != 0 else float('inf')
+        )
 
+        # A grid integer coordinate. We start with the player position
+        grid_pos = [int(player_grid_pos.x), int(player_grid_pos.y)]
+        # A fixed integer grid vector direction, for traversing the grid
+        grid_direction = (
+            1 if ray_direction.x > 0 else -1,
+            1 if ray_direction.y > 0 else -1
+        )
+        # Not a vector, but instead a 2 value map that allows us to compare 2 axis
+        # In DDA, we move and check the smallest axis, then increase its value
+        traversed_axis = pg.Vector2(0, 0)
+        if ray_direction.x > 0:
+            traversed_axis.x = (grid_pos[0]+1-player_grid_pos.x) * ray_step.x
+        else:
+            traversed_axis.x = (player_grid_pos.x-grid_pos[0]) * ray_step.x
+
+        if ray_direction.y > 0:
+            traversed_axis.y = (grid_pos[1]+1-player_grid_pos.y) * ray_step.y
+        else:
+            traversed_axis.y = (player_grid_pos.y-grid_pos[1]) * ray_step.y
+        
+        # A hit stack stores these values: (tile, distance)
+        hit_stack = []
         ray_distance = 0
-        tile = None
         while ray_distance < RAY_DISTANCE:
-            ray_pos = player_pos+ray_direction*ray_distance
-            ray_pos = (int(ray_pos.x), int(ray_pos.y))
-            ray_distance += 1
-            if not tilemap_rect.collidepoint(ray_pos):
-                continue
-            found_tile = tiles[ray_pos[1]//TILE_SIZE][ray_pos[0]//TILE_SIZE]
-            if found_tile != 0:
-                tile = found_tile
-                break
+            ray_distance = min(min(traversed_axis.x, traversed_axis.y), RAY_DISTANCE)
+            if traversed_axis.x <= traversed_axis.y:
+                traversed_axis.x += ray_step.x
+                grid_pos[0] += grid_direction[0]
+            else:
+                traversed_axis.y += ray_step.y
+                grid_pos[1] += grid_direction[1]
 
-        if not tile: continue
+            if 0 <= grid_pos[0] < len(tiles) and 0 <= grid_pos[1] < len(tiles):
+                if (found_tile := tiles[grid_pos[1]][grid_pos[0]]) != 0:
+                    hit_stack.append((found_tile, ray_distance))
+                    if not (found_tile in TRANSPARENT_TILES):
+                        break
+        
+        while hit_stack:
+            tile, ray_distance = hit_stack.pop()
 
-        ray_distance *= math.cos(player_angle-ray_angle) # Fish-eye effect
-        dist = config.H/ray_distance
-        color = COLOR_MAP[tile]
-        # color = tuple([channel*z for channel in color])
-        rect_h = int(dist*WALL_HEIGHT)
-        # pg.draw.line(screen, (255, 0, 0), player_pos, player_pos+ray_direction*ray_distance, 1)
-        pg.draw.rect(screen, color, (ray*rect_w, config.H//2-rect_h//2, rect_w, rect_h))
+            # Fish-eye effect
+            ray_distance *= math.cos(player_angle-ray_angle)
+
+            tile_ray_distance = ray_distance*TILE_SIZE
+            ray_hit = player_pos+ray_direction*tile_ray_distance
+            
+            dist = config.H/tile_ray_distance
+            color = COLOR_MAP[tile]
+            color = tuple([int(channel*(1-ray_distance/RAY_DISTANCE)) for channel in color])
+            rect_h = int(dist*TILE_SIZE)
+            # Rendering the rectangle
+            pg.draw.rect(screen, color, (ray*rect_w, config.H//2-rect_h//2, rect_w, rect_h))
 
     for rect in tilemap_rects:
         pg.draw.rect(screen, (255, 255, 255), rect)
