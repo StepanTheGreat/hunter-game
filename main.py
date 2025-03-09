@@ -6,6 +6,7 @@ TILE_SIZE = 32
 
 FOV = 90
 RAYS = config.W//5
+# RAYS = 10
 ALMOST_ZERO = 10**-5
 RAY_GAP = math.radians(FOV/RAYS)
 RAY_DISTANCE = 20
@@ -98,6 +99,8 @@ pg.display.set_caption(config.CAPTION)
 screen = pg.display.set_mode((config.W, config.H))
 clock = pg.time.Clock()
 quitted = False
+
+brick_texture = pg.image.load("brick.jpg").convert_alpha()
 
 minimap_surf = pg.Surface((config.W, config.H), pg.SRCALPHA)
 
@@ -198,12 +201,15 @@ while not quitted:
         # A hit stack stores these values: (tile, distance)
         tile = None
         ray_distance = 0
+        y_side = False
         while tile is None and 0 <= ray_distance < RAY_DISTANCE:
             ray_distance = min(min(traversed_axis.x, traversed_axis.y), RAY_DISTANCE)
             if traversed_axis.x <= traversed_axis.y:
+                y_side = False
                 traversed_axis.x += ray_step.x
                 grid_x += grid_direction[0]
             else:
+                y_side = True
                 traversed_axis.y += ray_step.y
                 grid_y += grid_direction[1]
 
@@ -211,6 +217,7 @@ while not quitted:
                 if (found_tile := tiles[grid_y][grid_x]) != 0:
                     tile = found_tile
         
+        og_distance = ray_distance
         if tile is not None:
             # Fish-eye effect
             ray_distance *= math.cos(player_angle-ray_angle)
@@ -225,12 +232,24 @@ while not quitted:
             
             dist = config.H/tile_ray_distance
             color = COLOR_MAP[tile]
-            color = tuple([int(channel*(1-ray_distance/RAY_DISTANCE)) for channel in color])
+            # color = tuple([int(channel*(1-ray_distance/RAY_DISTANCE)) for channel in color])
+            if y_side:
+                color = tuple([int(channel//2) for channel in color])
             rect_h = int(dist*TILE_SIZE)
             # Rendering the rectangle
+            # screen.blit(brick_texture.subsurface())
+            pg.draw.line(screen, (255, 0, 0), player_pos, ray_hit, 1)
+            pg.draw.circle(screen, (0, 255, 0), ray_hit, 2)
             pg.draw.rect(screen, color, (ray*rect_w, config.H//2-rect_h//2, rect_w, rect_h))
+            # tw, th = brick_texture.get_size()
+            # cell_dist = math.ceil(og_distance)-og_distance
+            # sub_texture = brick_texture.subsurface(cell_dist * tw, 0, min(int(cell_dist*tw)-1, int(cell_dist*tw)+5), th)
+            # screen.blit(brick_texture, (ray*rect_w, config.H//2-rect_h//2))
+        else:
+            pg.draw.line(screen, (255, 0, 0), player_pos, player_pos + ray_direction*RAY_DISTANCE*TILE_SIZE, 1)
 
     player.draw(minimap_surf)
+    screen.blit(minimap_surf, (0, 0))
     pg.display.flip()
 
 pg.quit()
