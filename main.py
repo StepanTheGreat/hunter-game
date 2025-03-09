@@ -2,13 +2,13 @@ import pygame as pg
 import config, raycaster
 import math
 
-pg.init()
+from pygame import _sdl2 as sdl2
 
 TILE_SIZE = 32
 
 FOV = 90
-RAYS = config.W//5
-# RAYS = 10
+# RAYS = config.W//5
+RAYS = 100
 RAY_GAP = math.radians(FOV/RAYS)
 RAY_DISTANCE = 20
 WALL_HEIGHT = 15
@@ -34,7 +34,7 @@ def clamp(value: int, mn: int, mx: int) -> int:
 
 class Player:
     HITBOX_SIZE = 12
-    SPEED = 340
+    SPEED = 200
     ROTATION_SPEED = 4
 
     def __init__(self, pos: tuple[float, float]):
@@ -96,12 +96,14 @@ class Player:
     
     def get_pos(self) -> pg.Vector2:
         return pg.Vector2(self.pos)
- 
-pg.display.set_caption(config.CAPTION)
-screen = pg.display.set_mode((config.W, config.H))
+
+window = sdl2.Window(config.CAPTION, (config.W, config.H))
+renderer = sdl2.Renderer(window, 0, accelerated=True, vsync=True)
 clock = pg.time.Clock()
+cursor_grabbed = False
 quitted = False
 
+texture = sdl2.Texture.from_surface(renderer, pg.image.load("brick.jpg"))
 
 minimap_surf = pg.Surface((config.W, config.H), pg.SRCALPHA)
 
@@ -134,13 +136,26 @@ while not quitted:
     for event in pg.event.get():
         if event.type == pg.QUIT:
             quitted = True
+        elif event.type == pg.KEYDOWN:
+            if event.key == pg.K_ESCAPE:
+                cursor_grabbed = not cursor_grabbed
+                pg.mouse.set_visible(not cursor_grabbed)
+        elif event.type == pg.MOUSEMOTION:
+            if cursor_grabbed:
+                pass
+                #player.angle += event.rel[0] * dt * Player.ROTATION_SPEED
+
+    if cursor_grabbed:
+        pg.mouse.set_pos((config.W//2, config.H//2))
 
     player.update(dt)
     for rect in tilemap_rects:
         player.collide(rect)
 
-    screen.fill((0, 0, 0))
-    minimap_surf.fill((0, 0, 0, 0))
+    renderer.draw_color = (0, 0, 0)
+    renderer.clear()
+    # screen.fill((0, 0, 0))
+    # minimap_surf.fill((0, 0, 0, 0))
 
     for rect in tilemap_rects:
         pg.draw.rect(minimap_surf, (255, 255, 255), (rect.x, rect.y, rect.w, rect.h))
@@ -169,12 +184,24 @@ while not quitted:
         if is_y_side:
             color = tuple([int(channel//2) for channel in color])
         rect_h = int(dist*TILE_SIZE)
+
         # Rendering the rectangle
-        pg.draw.rect(screen, color, (ray*LINE_WIDTH, config.H//2-rect_h//2, LINE_WIDTH, rect_h))
+        # renderer.draw_color = color
+        # renderer.fill_rect((ray*LINE_WIDTH, config.H//2-rect_h//2, LINE_WIDTH, rect_h))
 
-    player.draw(minimap_surf)
-    screen.blit(minimap_surf, (0, 0))
+        if not is_y_side:
+            texture_x = int((ray_hit.y-math.floor(ray_hit.y))*texture.width)-1
+        else:
+            texture_x = int((ray_hit.x-math.floor(ray_hit.x))*texture.width)-1
 
-    pg.display.flip()
+        texture_w = max(min(texture.width-texture_x, LINE_WIDTH), 0)
+        renderer.blit(texture, pg.Rect(ray*LINE_WIDTH-LINE_WIDTH/2, config.H/2-rect_h/2, LINE_WIDTH, rect_h), pg.Rect(texture_x, 0, texture_w, texture.height))
+        # pg.draw.rect(screen, color, (ray*LINE_WIDTH, config.H//2-rect_h//2, LINE_WIDTH, rect_h))
+
+    # player.draw(minimap_surf)
+    # screen.blit(minimap_surf, (0, 0))
+
+    renderer.present()
+    # pg.display.flip()
 
 pg.quit()

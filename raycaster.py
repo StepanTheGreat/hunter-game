@@ -132,8 +132,8 @@ def cast_ray(tilemap: TileMap, caster: Caster) -> list[(int, int, float, pg.Vect
             if ray_distance == 0:
                 ray_distance = ALMOST_ZERO
 
-            ray_hit = caster_pos+ray_direction*ray_distance
             ray_distance *= math.cos(caster_angle-ray_angle)
+            ray_hit = caster_pos+ray_direction*ray_distance
 
             results.append((ray, tile, ray_distance, ray_hit, y_side))
 
