@@ -4,7 +4,7 @@ import math
 ALMOST_ZERO = 10**-5
 
 class TileMap:
-    def __init__(self, width: int, height: int, tiles: list[list[int | None]] = None):
+    def __init__(self, width: int, height: int, tiles: list = None):
         self.width = width
         self.height = height
         # Generate an empty tileset
@@ -18,7 +18,7 @@ class TileMap:
     def get_size(self) -> tuple[int, int]:
         return (self.width, self.height)
     
-    def get_tiles(self) -> list[list[None | int]]:
+    def get_tiles(self) -> list:
         return self.tiles
 
 class Caster:

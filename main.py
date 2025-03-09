@@ -2,6 +2,8 @@ import pygame as pg
 import config, raycaster
 import math
 
+pg.init()
+
 TILE_SIZE = 32
 
 FOV = 90
@@ -27,7 +29,7 @@ TRANSPARENT_TILES = set([
     2
 ])
 
-def clamp(value: int | float, mn: int|float, mx: int|float) -> int:
+def clamp(value: int, mn: int, mx: int) -> int:
     return min(max(value, mn), mx)
 
 class Player:
@@ -96,7 +98,6 @@ class Player:
         return pg.Vector2(self.pos)
  
 pg.display.set_caption(config.CAPTION)
-
 screen = pg.display.set_mode((config.W, config.H))
 clock = pg.time.Clock()
 quitted = False
