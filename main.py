@@ -1,19 +1,22 @@
 import pygame as pg
 import config, raycaster
 import math
+from mipmap import generate_mipmaps, get_mipmap_rect
 
 from pygame import _sdl2 as sdl2
 
 TILE_SIZE = 32
 
-FOV = 90
-RAYS = config.W//3
-# RAYS = 100
+FOV = 80
+RAYS = config.W//2
+
+assert config.W % RAYS == 0, "The screen width should be divisible by the number of rays"
+# RAYS = 60
 RAY_GAP = math.radians(FOV/RAYS)
 RAY_DISTANCE = 20
 WALL_HEIGHT = 15
 
-LINE_WIDTH = config.W//RAYS
+LINE_WIDTH = config.W/RAYS
 
 TILEMAP_SIZE = 256
 
@@ -103,7 +106,8 @@ clock = pg.time.Clock()
 cursor_grabbed = False
 quitted = False
 
-texture = sdl2.Texture.from_surface(renderer, pg.transform.scale(pg.image.load("brick.jpg"), (128, 128)))
+mipmapped = generate_mipmaps(pg.image.load("images/water_texture.png"), True)
+texture = sdl2.Texture.from_surface(renderer, mipmapped)
 
 minimap_surf = pg.Surface((config.W, config.H), pg.SRCALPHA)
 
@@ -130,7 +134,6 @@ for y, row in enumerate(tiles):
 tilemap = raycaster.TileMap(8, 8, tiles)
 caster = raycaster.Caster(player.get_pos(), player.get_angle(), RAYS, FOV, RAY_DISTANCE)
 
-
 while not quitted:
     dt = clock.tick(config.FPS) / 1000
     for event in pg.event.get():
@@ -152,15 +155,17 @@ while not quitted:
     for rect in tilemap_rects:
         player.collide(rect)
 
-    renderer.draw_color = (0, 0, 0, 1)
+    renderer.draw_color = (0, 0, 0, 255)
     renderer.clear()
     # screen.fill((0, 0, 0))
     # minimap_surf.fill((0, 0, 0, 0))
 
-    renderer.draw_color = (1, 1, 1, 1)
-    for rect in tilemap_rects:
-        renderer.fill_rect((rect.x, rect.y, rect.w, rect.h))
-        # pg.draw.rect(minimap_surf, (255, 255, 255), (rect.x, rect.y, rect.w, rect.h))
+    renderer.draw_color = (40, 40, 200, 255)
+    renderer.fill_rect((0, 0, config.W, config.H//2))
+
+    renderer.draw_color = (120, 120, 120, 255)
+    renderer.fill_rect((0, config.H//2, config.W, config.H//2))
+
 
     player_pos = player.get_pos()
 
@@ -174,32 +179,39 @@ while not quitted:
 
     caster.set_pos(player_grid_pos)
     caster.set_angle(player.get_angle())
-    raycast_results = raycaster.cast_ray(tilemap, caster)
-
-    quads = [] # [quad]
-    current_quad = None # (topleft, topright, bottomleft, bottomright)
-    current_tile = None # ((pos_x, pos_y), is_y_side)
+    raycast_results = raycaster.cast_rays(tilemap, caster)
     for (ray, tile, distance, true_distance, ray_hit, is_y_side, grid_pos) in raycast_results:
-        tile_ray_distance = distance*TILE_SIZE
-
         # We're using euclidian distance here, since we need proper texture mapping
-        tile_ray_hit = ray_hit
+
+        # ray_angle = player.get_angle()-math.radians(caster.fov/2) + ray * caster.ray_gap    
         
-        dist = config.H/tile_ray_distance
-        color = COLOR_MAP[tile]
-        color = tuple([int(channel*(1-distance/RAY_DISTANCE)) for channel in color])
-        if is_y_side:
-            color = tuple([int(channel//2) for channel in color])
-        rect_h = int(dist*TILE_SIZE)
+        # distance *= math.cos(ray_angle-player.get_angle())
+
+        dist = config.H/distance
+        rect_h = int(dist)
+        texture_region = get_mipmap_rect((texture.width, texture.height), rect_h)
 
         if not is_y_side:
-            texture_x = int((ray_hit.y-math.floor(ray_hit.y))*texture.width)
+            texture_x = (ray_hit.y-math.floor(ray_hit.y))*texture_region.width
         else:
-            texture_x = int((ray_hit.x-math.floor(ray_hit.x))*texture.width)
+            texture_x = (ray_hit.x-math.floor(ray_hit.x))*texture_region.width
 
-        texture_w = (LINE_WIDTH/texture.width)*texture.width
-        renderer.blit(texture, pg.Rect(ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h), pg.Rect(texture_x-texture_w//2, 0, texture_w, texture.height))
+        # Texture rendering requires there to be enough rays, to be able to draw the entire scene 
+        # using 1-width stripes. If this isn't the case - the result will be highly blurry.
+        # 
+        # I'm not interpolating texture width here due to floating point and ray precision issues, 
+        # which makes it extremely unreliable. I'm basically putting more rays to solve the problem in this case  
+        renderer.blit(
+            texture, 
+            pg.Rect(ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h), 
+            pg.Rect(texture_region.x+texture_x, 0, 1, texture_region.height)
+        )
         # pg.draw.rect(screen, color, (ray*LINE_WIDTH, config.H//2-rect_h//2, LINE_WIDTH, rect_h))
+
+    renderer.draw_color = (255, 255, 255, 255)
+    for rect in tilemap_rects:
+        pass
+        renderer.fill_rect((rect.x, rect.y, rect.w, rect.h))
 
     # player.draw(minimap_surf)
     # screen.blit(minimap_surf, (0, 0))
