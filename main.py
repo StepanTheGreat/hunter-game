@@ -7,8 +7,8 @@ from pygame import _sdl2 as sdl2
 TILE_SIZE = 32
 
 FOV = 90
-# RAYS = config.W//5
-RAYS = 100
+RAYS = config.W//3
+# RAYS = 100
 RAY_GAP = math.radians(FOV/RAYS)
 RAY_DISTANCE = 20
 WALL_HEIGHT = 15
@@ -103,7 +103,7 @@ clock = pg.time.Clock()
 cursor_grabbed = False
 quitted = False
 
-texture = sdl2.Texture.from_surface(renderer, pg.image.load("brick.jpg"))
+texture = sdl2.Texture.from_surface(renderer, pg.transform.scale(pg.image.load("brick.jpg"), (128, 128)))
 
 minimap_surf = pg.Surface((config.W, config.H), pg.SRCALPHA)
 
@@ -152,13 +152,15 @@ while not quitted:
     for rect in tilemap_rects:
         player.collide(rect)
 
-    renderer.draw_color = (0, 0, 0)
+    renderer.draw_color = (0, 0, 0, 1)
     renderer.clear()
     # screen.fill((0, 0, 0))
     # minimap_surf.fill((0, 0, 0, 0))
 
+    renderer.draw_color = (1, 1, 1, 1)
     for rect in tilemap_rects:
-        pg.draw.rect(minimap_surf, (255, 255, 255), (rect.x, rect.y, rect.w, rect.h))
+        renderer.fill_rect((rect.x, rect.y, rect.w, rect.h))
+        # pg.draw.rect(minimap_surf, (255, 255, 255), (rect.x, rect.y, rect.w, rect.h))
 
     player_pos = player.get_pos()
 
@@ -174,9 +176,14 @@ while not quitted:
     caster.set_angle(player.get_angle())
     raycast_results = raycaster.cast_ray(tilemap, caster)
 
-    for (ray, tile, distance, ray_hit, is_y_side) in raycast_results:
+    quads = [] # [quad]
+    current_quad = None # (topleft, topright, bottomleft, bottomright)
+    current_tile = None # ((pos_x, pos_y), is_y_side)
+    for (ray, tile, distance, true_distance, ray_hit, is_y_side, grid_pos) in raycast_results:
         tile_ray_distance = distance*TILE_SIZE
-        tile_ray_hit = ray_hit*tile_ray_distance
+
+        # We're using euclidian distance here, since we need proper texture mapping
+        tile_ray_hit = ray_hit
         
         dist = config.H/tile_ray_distance
         color = COLOR_MAP[tile]
@@ -185,17 +192,13 @@ while not quitted:
             color = tuple([int(channel//2) for channel in color])
         rect_h = int(dist*TILE_SIZE)
 
-        # Rendering the rectangle
-        # renderer.draw_color = color
-        # renderer.fill_rect((ray*LINE_WIDTH, config.H//2-rect_h//2, LINE_WIDTH, rect_h))
-
         if not is_y_side:
-            texture_x = int((ray_hit.y-math.floor(ray_hit.y))*texture.width)-1
+            texture_x = int((ray_hit.y-math.floor(ray_hit.y))*texture.width)
         else:
-            texture_x = int((ray_hit.x-math.floor(ray_hit.x))*texture.width)-1
+            texture_x = int((ray_hit.x-math.floor(ray_hit.x))*texture.width)
 
-        texture_w = max(min(texture.width-texture_x, LINE_WIDTH), 0)
-        renderer.blit(texture, pg.Rect(ray*LINE_WIDTH-LINE_WIDTH/2, config.H/2-rect_h/2, LINE_WIDTH, rect_h), pg.Rect(texture_x, 0, texture_w, texture.height))
+        texture_w = (LINE_WIDTH/texture.width)*texture.width
+        renderer.blit(texture, pg.Rect(ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h), pg.Rect(texture_x-texture_w//2, 0, texture_w, texture.height))
         # pg.draw.rect(screen, color, (ray*LINE_WIDTH, config.H//2-rect_h//2, LINE_WIDTH, rect_h))
 
     # player.draw(minimap_surf)
