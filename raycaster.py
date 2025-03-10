@@ -55,7 +55,7 @@ class Caster:
     def set_angle(self, angle: float):
         self.angle = angle
 
-def cast_ray(tilemap: TileMap, caster: Caster) -> list[(int, int, float, float, pg.Vector2, False)]:
+def cast_rays(tilemap: TileMap, caster: Caster) -> list[(int, int, float, float, pg.Vector2, False)]:
     """Cast a ray and return a list of results. A result is a tuple of: 
     ```
     (
@@ -143,10 +143,10 @@ def cast_ray(tilemap: TileMap, caster: Caster) -> list[(int, int, float, float, 
             if ray_distance == 0:
                 ray_distance = ALMOST_ZERO
 
-            true_distannce = ray_distance
-            ray_hit = caster_pos+ray_direction*true_distannce
-            ray_distance *= math.cos(caster_angle-ray_angle)
+            true_distance = ray_distance
+            ray_hit = caster_pos+ray_direction*ray_distance
+            ray_distance *= math.cos(ray_angle-caster_angle)
 
-            results.append((ray, tile, ray_distance, true_distannce, ray_hit, y_side, (grid_x, grid_y)))
+            results.append((ray, tile, ray_distance, true_distance, ray_hit, y_side, (grid_x, grid_y)))
 
     return results
