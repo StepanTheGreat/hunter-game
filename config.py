@@ -1,3 +1,3 @@
 CAPTION = "Maze Runner"
-W, H = 880, 640
+W, H = 1280, 640
 FPS = 60
