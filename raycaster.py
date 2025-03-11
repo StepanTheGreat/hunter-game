@@ -7,6 +7,7 @@ class TileMap:
     def __init__(self, width: int, height: int, tiles: list = None):
         self.width = width
         self.height = height
+        self.transparent_tiles = set()
         # Generate an empty tileset
         if tiles is not None:
             assert len(tiles) == self.width
@@ -20,6 +21,14 @@ class TileMap:
     
     def get_tiles(self) -> list:
         return self.tiles
+    
+    def add_transparent_tiles(self, *tiles: int):
+        "A transparent tile is the one that allows the ray to continue passing through"
+        for tile in tiles:
+            self.transparent_tiles.add(tile)
+
+    def is_transparent(self, tile: int) -> bool:
+        return tile in self.transparent_tiles
 
 class Caster:
     """
@@ -55,7 +64,7 @@ class Caster:
     def set_angle(self, angle: float):
         self.angle = angle
 
-def cast_rays(tilemap: TileMap, caster: Caster) -> list[(int, int, float, float, pg.Vector2, False)]:
+def cast_rays(tilemap: TileMap, caster: Caster) -> list[list[(int, int, float, float, pg.Vector2, False)]]:
     """Cast a ray and return a list of results. A result is a tuple of: 
     ```
     (
@@ -121,10 +130,11 @@ def cast_rays(tilemap: TileMap, caster: Caster) -> list[(int, int, float, float,
         else:
             traversed_axis.y = (caster_pos.y-grid_y) * ray_step.y
 
-        tile = None
+        hit_stack = []
         ray_distance = 0
         y_side = False
-        while tile is None and 0 <= ray_distance < caster.max_ray_distance:
+        ignore_tile = None
+        while ray_distance < caster.max_ray_distance:
             ray_distance = min(min(traversed_axis.x, traversed_axis.y), caster.max_ray_distance)
             if traversed_axis.x <= traversed_axis.y:
                 y_side = False
@@ -136,17 +146,29 @@ def cast_rays(tilemap: TileMap, caster: Caster) -> list[(int, int, float, float,
                 grid_y += grid_direction[1]
 
             if 0 <= grid_x < map_w and 0 <= grid_y < map_h:
-                if (found_tile := tiles[grid_y][grid_x]) != None:
-                    tile = found_tile
+                if (tile := tiles[grid_y][grid_x]) != None:
+                    
+                    if tile == ignore_tile:
+                        continue
+
+                    if ray_distance == 0:
+                        ray_distance = ALMOST_ZERO
+
+                    true_distance = ray_distance
+                    ray_hit = caster_pos+ray_direction*ray_distance
+                    ray_distance *= math.cos(ray_angle-caster_angle)
+
+                    hit_stack.append((tile, ray_distance, true_distance, ray_hit, y_side, (grid_x, grid_y)))
+
+                    if tilemap.is_transparent(tile):
+                        ignore_tile = tile
+                    else:
+                        # We hit a static tile, time to stop
+                        break
+                else:
+                    ignore_tile = None
         
-        if tile is not None:
-            if ray_distance == 0:
-                ray_distance = ALMOST_ZERO
-
-            true_distance = ray_distance
-            ray_hit = caster_pos+ray_direction*ray_distance
-            ray_distance *= math.cos(ray_angle-caster_angle)
-
-            results.append((ray, tile, ray_distance, true_distance, ray_hit, y_side, (grid_x, grid_y)))
+        if hit_stack:
+            results.append((ray, hit_stack))
 
     return results

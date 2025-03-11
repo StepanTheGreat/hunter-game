@@ -20,20 +20,12 @@ LINE_WIDTH = config.W/RAYS
 
 TILEMAP_SIZE = 256
 
-COLOR_MAP = {
-    1: (120, 120, 120),
-    2: (200, 50, 50),
-    3: (50, 200, 50),
-    4: (50, 50, 200)
-}
-
-# A map that maps tiles to their (height, transparent)
-TRANSPARENT_TILES = set([
-    2
-])
-
 def clamp(value: int, mn: int, mx: int) -> int:
     return min(max(value, mn), mx)
+
+def load_texture(renderer: sdl2.Renderer, path: str, smooth_mipmap: bool = False) -> sdl2.Texture:
+    mipmapped = generate_mipmaps(pg.image.load(path), smooth_mipmap)
+    return sdl2.Texture.from_surface(renderer, mipmapped)
 
 class Player:
     HITBOX_SIZE = 12
@@ -84,9 +76,11 @@ class Player:
         elif self.angle < -math.pi:
             self.angle = math.pi
 
-    def draw(self, surface: pg.Surface):
+    def draw(self, renderer: sdl2.Renderer):
         # pg.draw.circle(surface, (0, 255, 0), self.pos+MARGIN, Player.HITBOX_SIZE//2)
-        pg.draw.circle(surface, (0, 255, 0), self.pos, 2)
+        renderer.draw_color = (0, 255, 0, 255)
+        renderer.fill_rect(self.rect)
+        # pg.draw.circle(surface, (0, 255, 0), self.pos, 2)
 
 
     def collide(self, rect: pg.Rect):
@@ -102,21 +96,28 @@ class Player:
 
 window = sdl2.Window(config.CAPTION, (config.W, config.H))
 renderer = sdl2.Renderer(window, 0, accelerated=True, vsync=True)
+
 clock = pg.time.Clock()
 cursor_grabbed = False
 quitted = False
 
-mipmapped = generate_mipmaps(pg.image.load("images/water_texture.png"), True)
-texture = sdl2.Texture.from_surface(renderer, mipmapped)
+color_map = {}
 
-minimap_surf = pg.Surface((config.W, config.H), pg.SRCALPHA)
+color_map[1] = load_texture(renderer, "images/water_texture.png")
+color_map[1].alpha = 128
+color_map[2] = load_texture(renderer, "images/brick.jpg")
+color_map[3] = (200, 200, 120, 255)
+color_map[4] = (20, 200, 125, 255)
 
 player = Player((10*TILE_SIZE, 10*TILE_SIZE))
+enemy = load_texture(renderer, "images/meteorite.png")
+enemy_pos = pg.Vector2(3*TILE_SIZE, 0)
+
 tiles = [
-    [2, 2, 0, 0, 0, 0, 2, 2],
+    [1, 1, 0, 0, 0, 0, 2, 2],
     [2, 0, 0, 0, 0, 0, 0, 2],
-    [3, 0, 0, 2, 0, 0, 0, 2],
-    [3, 0, 0, 4, 4, 4, 0, 2],
+    [3, 0, 0, 2, 0, 0, 0, 1],
+    [1, 0, 0, 4, 1, 1, 0, 1],
     [3, 0, 0, 0, 0, 0, 0, 2],
     [2, 0, 0, 0, 0, 0, 0, 2],
     [2, 0, 0, 0, 0, 0, 0, 3],
@@ -134,6 +135,8 @@ for y, row in enumerate(tiles):
 tilemap = raycaster.TileMap(8, 8, tiles)
 caster = raycaster.Caster(player.get_pos(), player.get_angle(), RAYS, FOV, RAY_DISTANCE)
 
+tilemap.add_transparent_tiles(1)
+
 while not quitted:
     dt = clock.tick(config.FPS) / 1000
     for event in pg.event.get():
@@ -146,7 +149,6 @@ while not quitted:
         elif event.type == pg.MOUSEMOTION:
             if cursor_grabbed:
                 pass
-                #player.angle += event.rel[0] * dt * Player.ROTATION_SPEED
 
     if cursor_grabbed:
         pg.mouse.set_pos((config.W//2, config.H//2))
@@ -157,8 +159,6 @@ while not quitted:
 
     renderer.draw_color = (0, 0, 0, 255)
     renderer.clear()
-    # screen.fill((0, 0, 0))
-    # minimap_surf.fill((0, 0, 0, 0))
 
     renderer.draw_color = (40, 40, 200, 255)
     renderer.fill_rect((0, 0, config.W, config.H//2))
@@ -180,43 +180,50 @@ while not quitted:
     caster.set_pos(player_grid_pos)
     caster.set_angle(player.get_angle())
     raycast_results = raycaster.cast_rays(tilemap, caster)
-    for (ray, tile, distance, true_distance, ray_hit, is_y_side, grid_pos) in raycast_results:
-        # We're using euclidian distance here, since we need proper texture mapping
+    for (ray, hitstack) in raycast_results:
+        while hitstack:
+            (tile, distance, true_distance, ray_hit, is_y_side, grid_pos) = hitstack.pop()
+            tile_material = color_map[tile] 
 
-        # ray_angle = player.get_angle()-math.radians(caster.fov/2) + ray * caster.ray_gap    
-        
-        # distance *= math.cos(ray_angle-player.get_angle())
+            dist = config.H/distance
+            rect_h = int(dist)
 
-        dist = config.H/distance
-        rect_h = int(dist)
-        texture_region = get_mipmap_rect((texture.width, texture.height), rect_h)
+            # renderer.draw_color = (255, 0, 0, 255)
+            # renderer.draw_line(player_pos, ray_hit*TILE_SIZE)
 
-        if not is_y_side:
-            texture_x = (ray_hit.y-math.floor(ray_hit.y))*texture_region.width
-        else:
-            texture_x = (ray_hit.x-math.floor(ray_hit.x))*texture_region.width
+            if type(tile_material) == tuple:
+                color = tile_material
+                renderer.draw_color = color
+                renderer.fill_rect((ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h))
+                # It's a color tile, simply fill it with color
+            else:
+                # Else it's a texture
+                texture = tile_material
 
-        # Texture rendering requires there to be enough rays, to be able to draw the entire scene 
-        # using 1-width stripes. If this isn't the case - the result will be highly blurry.
-        # 
-        # I'm not interpolating texture width here due to floating point and ray precision issues, 
-        # which makes it extremely unreliable. I'm basically putting more rays to solve the problem in this case  
-        renderer.blit(
-            texture, 
-            pg.Rect(ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h), 
-            pg.Rect(texture_region.x+texture_x, 0, 1, texture_region.height)
-        )
-        # pg.draw.rect(screen, color, (ray*LINE_WIDTH, config.H//2-rect_h//2, LINE_WIDTH, rect_h))
+                texture_region = get_mipmap_rect((texture.width, texture.height), rect_h)
+
+                if not is_y_side:
+                    texture_x = (ray_hit.y-math.floor(ray_hit.y))*texture_region.width
+                else:
+                    texture_x = (ray_hit.x-math.floor(ray_hit.x))*texture_region.width
+                
+                # Texture rendering requires there to be enough rays to be able to draw the entire scene 
+                # using 1-width stripes. If this isn't the case - the result will be highly blurry.
+                # 
+                # I'm not interpolating texture width here due to floating point and ray precision issues, 
+                # which makes it extremely unreliable. I'm basically putting more rays to solve the problem in this case  
+                renderer.blit(
+                    texture, 
+                    pg.Rect(ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h), 
+                    pg.Rect(texture_region.x+texture_x, 0, 1, texture_region.height)
+                )
 
     renderer.draw_color = (255, 255, 255, 255)
     for rect in tilemap_rects:
-        pass
         renderer.fill_rect((rect.x, rect.y, rect.w, rect.h))
 
-    # player.draw(minimap_surf)
-    # screen.blit(minimap_surf, (0, 0))
+    player.draw(renderer)
 
     renderer.present()
-    # pg.display.flip()
 
 pg.quit()
