@@ -1,5 +1,10 @@
 import pygame as pg
-import config, raycaster
+import numpy as np
+import config
+
+# from raycaster import TileMap, Caster, cast_rays
+from native import TileMap, Caster, cast_rays
+
 import math
 from mipmap import generate_mipmaps, get_mipmap_rect
 
@@ -8,17 +13,16 @@ from pygame import _sdl2 as sdl2
 TILE_SIZE = 32
 
 FOV = 80
-RAYS = config.W//2
+RAYS = config.W//1
+# RAYS = 3
 
-assert config.W % RAYS == 0, "The screen width should be divisible by the number of rays"
+# assert config.W % RAYS == 0, "The screen width should be divisible by the number of rays"
 # RAYS = 60
 RAY_GAP = math.radians(FOV/RAYS)
 RAY_DISTANCE = 20
 WALL_HEIGHT = 15
 
 LINE_WIDTH = config.W/RAYS
-
-TILEMAP_SIZE = 256
 
 def clamp(value: int, mn: int, mx: int) -> int:
     return min(max(value, mn), mx)
@@ -40,10 +44,6 @@ class Player:
         self.angle = 0
         
         self._sync_hitbox()
-
-    def _clamp_position(self):
-        self.pos.x = min(max(self.pos.x, 0), TILEMAP_SIZE*TILE_SIZE)
-        self.pos.y = min(max(self.pos.y, 0), TILEMAP_SIZE*TILE_SIZE)
 
     def _sync_hitbox(self):
         "Syncronize the player's rect with its position. This function will also center the position of the hitbox"
@@ -93,6 +93,9 @@ class Player:
     
     def get_pos(self) -> pg.Vector2:
         return pg.Vector2(self.pos)
+    
+    def get_pos_tuple(self) -> tuple[float, float]:
+        return (self.pos.x, self.pos.y)
 
 window = sdl2.Window(config.CAPTION, (config.W, config.H))
 renderer = sdl2.Renderer(window, 0, accelerated=True, vsync=True)
@@ -121,21 +124,21 @@ tiles = [
     [3, 0, 0, 0, 0, 0, 0, 2],
     [2, 0, 0, 0, 0, 0, 0, 2],
     [2, 0, 0, 0, 0, 0, 0, 3],
-    [3, 3, 0, 0, 0, 0, 3, 3],
+    [1, 3, 0, 0, 0, 0, 3, 3],
 ]
-tiles = [[i if i != 0 else None for i in row] for row in tiles]
 
-tilemap_rect = pg.Rect(0, 0, len(tiles)*TILE_SIZE, len(tiles)*TILE_SIZE)
 tilemap_rects = []
 for y, row in enumerate(tiles):
     for x, tile in enumerate(row):
-        if tile is not None:
+        if tile != 0:
             tilemap_rects.append(pg.Rect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE))
 
-tilemap = raycaster.TileMap(8, 8, tiles)
-caster = raycaster.Caster(player.get_pos(), player.get_angle(), RAYS, FOV, RAY_DISTANCE)
+tilemap = TileMap(8, 8, tiles)
 
-tilemap.add_transparent_tiles(1)
+player_pos = player.get_pos()/TILE_SIZE
+caster = Caster((player_pos.x, player_pos.y), player.get_angle(), RAYS, FOV, RAY_DISTANCE)
+
+tilemap.add_transparent_tile(1)
 
 while not quitted:
     dt = clock.tick(config.FPS) / 1000
@@ -149,6 +152,8 @@ while not quitted:
         elif event.type == pg.MOUSEMOTION:
             if cursor_grabbed:
                 pass
+    
+    pg.display.set_caption(str(math.floor(clock.get_fps())))
 
     if cursor_grabbed:
         pg.mouse.set_pos((config.W//2, config.H//2))
@@ -177,19 +182,23 @@ while not quitted:
         player_pos.y/TILE_SIZE,
     )
 
-    caster.set_pos(player_grid_pos)
+    caster.set_pos(player_grid_pos.x, player_grid_pos.y)
     caster.set_angle(player.get_angle())
-    raycast_results = raycaster.cast_rays(tilemap, caster)
-    for (ray, hitstack) in raycast_results:
+    raycast_results = cast_rays(tilemap, caster)
+
+    # Because the rays are given to us from the closest to the farthest, we will maintain a simple stack
+    # that we will fill until no more rays appear.
+    # If a different ray index appears - we draw from last to first all hit tiles, empty the stack, then set
+    # the hitstack_ray to this new ray
+    for ray, hitstack in enumerate(raycast_results):
         while hitstack:
-            (tile, distance, true_distance, ray_hit, is_y_side, grid_pos) = hitstack.pop()
+            (tile, distance, ray_dir_x, ray_dir_y, is_y_side) = hitstack.pop()
+            
+            ray_hit = player_grid_pos+ pg.Vector2(ray_dir_x, ray_dir_y) * distance
             tile_material = color_map[tile] 
 
             dist = config.H/distance
             rect_h = int(dist)
-
-            # renderer.draw_color = (255, 0, 0, 255)
-            # renderer.draw_line(player_pos, ray_hit*TILE_SIZE)
 
             if type(tile_material) == tuple:
                 color = tile_material

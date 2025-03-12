@@ -1,1 +1,8 @@
 __pycache__
+
+# game profiling
+profile.txt 
+
+# Rust compiler stuff
+native/target
+native/Cargo.lock

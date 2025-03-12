@@ -1,7 +1,7 @@
 import pygame as pg
 import math
 
-ALMOST_ZERO = 10**-5
+ALMOST_ZERO = 0.0001
 
 class TileMap:
     def __init__(self, width: int, height: int, tiles: list = None):
@@ -22,10 +22,9 @@ class TileMap:
     def get_tiles(self) -> list:
         return self.tiles
     
-    def add_transparent_tiles(self, *tiles: int):
+    def add_transparent_tile(self, tile: int):
         "A transparent tile is the one that allows the ray to continue passing through"
-        for tile in tiles:
-            self.transparent_tiles.add(tile)
+        self.transparent_tiles.add(tile)
 
     def is_transparent(self, tile: int) -> bool:
         return tile in self.transparent_tiles
@@ -37,13 +36,13 @@ class Caster:
     """
     def __init__(
             self, 
-            pos: pg.Vector2, 
+            pos: tuple[float, float], 
             angle: float, 
             rays: int, 
             fov: int, 
             max_ray_distance: int
             ):
-        self.pos = pos.copy() # The position is in tile coordinates 
+        self.pos = pos # The position is in tile coordinates 
         self.angle = angle
         self.fov = fov
 
@@ -58,32 +57,31 @@ class Caster:
         assert max_ray_distance > 0
         self.max_ray_distance = max_ray_distance
 
-    def set_pos(self, new_pos: pg.Vector2):
-        self.pos = new_pos
+    def set_pos(self, x: float, y: float):
+        self.pos = (x, y)
 
     def set_angle(self, angle: float):
         self.angle = angle
 
-def cast_rays(tilemap: TileMap, caster: Caster) -> list[list[(int, int, float, float, pg.Vector2, False)]]:
+def cast_rays(tilemap: TileMap, caster: Caster) -> list[list[(int, float, float, float, False)]]:
     """Cast a ray and return a list of results. A result is a tuple of: 
     ```
     (
-        (tile_x, tile_y), 
         data (ID of the tile), 
         distance, 
-        true_distance, 
-        ray_hit_pos, 
+        ray_hit_pos_x,
+        ray_hit_pos_y, 
         is_y_side
     )
     ```
     """
-    caster_pos = caster.pos
+    caster_pos = pg.Vector2(*caster.pos)
     caster_angle = caster.angle
 
     tiles = tilemap.get_tiles()
     map_w, map_h = tilemap.get_size()
 
-    results = []
+    results = [[] for _ in range(caster.rays)]
     for ray in range(caster.rays):
         ray_angle = caster_angle-math.radians(caster.fov/2) + ray * caster.ray_gap
         ray_direction = pg.Vector2(math.cos(ray_angle), math.sin(ray_angle))
@@ -130,7 +128,8 @@ def cast_rays(tilemap: TileMap, caster: Caster) -> list[list[(int, int, float, f
         else:
             traversed_axis.y = (caster_pos.y-grid_y) * ray_step.y
 
-        hit_stack = []
+        # print(traversed_axis.x, traversed_axis.y)
+
         ray_distance = 0
         y_side = False
         ignore_tile = None
@@ -146,7 +145,7 @@ def cast_rays(tilemap: TileMap, caster: Caster) -> list[list[(int, int, float, f
                 grid_y += grid_direction[1]
 
             if 0 <= grid_x < map_w and 0 <= grid_y < map_h:
-                if (tile := tiles[grid_y][grid_x]) != None:
+                if (tile := tiles[grid_y][grid_x]) != 0:
                     
                     if tile == ignore_tile:
                         continue
@@ -154,11 +153,11 @@ def cast_rays(tilemap: TileMap, caster: Caster) -> list[list[(int, int, float, f
                     if ray_distance == 0:
                         ray_distance = ALMOST_ZERO
 
-                    true_distance = ray_distance
-                    ray_hit = caster_pos+ray_direction*ray_distance
+                    # ray_hit = caster_pos+ray_direction*ray_distance
                     ray_distance *= math.cos(ray_angle-caster_angle)
 
-                    hit_stack.append((tile, ray_distance, true_distance, ray_hit, y_side, (grid_x, grid_y)))
+                    results[ray].append((tile, ray_distance, ray_direction.x, ray_direction.y, y_side))
+                    # results[ray].append((tile, ray_distance, ray_hit.x, ray_hit.y, y_side))
 
                     if tilemap.is_transparent(tile):
                         ignore_tile = tile
@@ -167,8 +166,4 @@ def cast_rays(tilemap: TileMap, caster: Caster) -> list[list[(int, int, float, f
                         break
                 else:
                     ignore_tile = None
-        
-        if hit_stack:
-            results.append((ray, hit_stack))
-
     return results
