@@ -1,5 +1,9 @@
 import pygame as pg
+import numpy as np
+from OpenGL.GL import *
 import config
+
+from ctypes import c_void_p
 
 # from raycaster import TileMap, Caster, cast_rays
 from bin.native import TileMap, Caster, cast_rays
@@ -22,11 +26,27 @@ WALL_HEIGHT = 15
 
 LINE_WIDTH = config.W/RAYS
 
+VERTICIES = np.array([
+    #pos          color
+     0.0,   0.5,  1.0, 0.0, 0.0,
+    -0.25, -0.5,  0.0, 1.0, 0.0,
+     0.25, -0.5,  0.0, 0.0, 1.0 
+], dtype=np.float32)
+
 def clamp(value: int, mn: int, mx: int) -> int:
     return min(max(value, mn), mx)
 
 def load_texture(renderer: sdl2.Renderer, path: str) -> sdl2.Texture:
     return sdl2.Texture.from_surface(renderer, pg.image.load(path))
+
+def load_str(path: str) -> str:
+    contents = None
+    with open(path, "r") as file:
+        contents = file.read()
+    return contents
+
+SHADER_VERTEX = load_str("shaders/main.vert")
+SHADER_FRAGMENT = load_str("shaders/main.frag")
 
 class Player:
     HITBOX_SIZE = 12
@@ -94,22 +114,20 @@ class Player:
     def get_pos_tuple(self) -> tuple[float, float]:
         return (self.pos.x, self.pos.y)
 
-window = sdl2.Window(config.CAPTION, (config.W, config.H))
-renderer = sdl2.Renderer(window, 0, accelerated=True, vsync=True)
-
+screen = pg.display.set_mode((config.W, config.H), vsync=True, flags=pg.OPENGL|pg.DOUBLEBUF)
 clock = pg.time.Clock()
 cursor_grabbed = False
 quitted = False
 
 color_map = {}
 
-color_map[1] = load_texture(renderer, "images/window.png")
-color_map[2] = load_texture(renderer, "images/brick.jpg")
-color_map[3] = (200, 200, 120, 255)
-color_map[4] = (20, 200, 125, 255)
+# color_map[1] = load_texture(renderer, "images/window.png")
+# color_map[2] = load_texture(renderer, "images/brick.jpg")
+# color_map[3] = (200, 200, 120, 255)
+# color_map[4] = (20, 200, 125, 255)
 
 player = Player((10*TILE_SIZE, 10*TILE_SIZE))
-enemy = load_texture(renderer, "images/meteorite.png")
+# enemy = load_texture(renderer, "images/meteorite.png")
 enemy_pos = pg.Vector2(3*TILE_SIZE, 0)
 
 tiles = [
@@ -137,15 +155,17 @@ caster = Caster((player_pos.x, player_pos.y), player.get_angle(), RAYS, FOV, RAY
 tilemap.add_transparent_tile(1)
 
 def fill_rect(color: tuple, ray: int, rect_h: float):
-    renderer.draw_color = color
-    renderer.fill_rect((ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h))
+    pass
+    # renderer.draw_color = color
+    # renderer.fill_rect((ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h))
 
 def blit_texture(texture: sdl2.Texture, ray: int, rect_h: float, texture_x: float):
-    renderer.blit(
-        texture, 
-        pg.Rect(ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h), 
-        pg.Rect(texture_x, 0, 1, texture.height)
-    )
+    pass
+    # renderer.blit(
+    #     texture, 
+    #     pg.Rect(ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h), 
+    #     pg.Rect(texture_x, 0, 1, texture.height)
+    # )
 
 def render_rays(raycast_results: list):
     for ray, hitstack in enumerate(raycast_results):
@@ -182,36 +202,62 @@ def render_rays(raycast_results: list):
                 #     pg.Rect(texture_x, 0, 1, texture.height)
                 # )
 
+vbo = glGenBuffers(1)
+glBindBuffer(GL_ARRAY_BUFFER, vbo)
+glBufferData(GL_ARRAY_BUFFER, len(VERTICIES)*4, VERTICIES, GL_STATIC_DRAW)
+
+vao = glGenVertexArrays(1)
+glBindVertexArray(vao)
+
+# vec2 position
+glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5*4, c_void_p(0))
+glEnableVertexAttribArray(0)
+# vec3 color
+glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5*4, c_void_p(2*4))
+glEnableVertexAttribArray(1)
+
+vertex_shader = glCreateShader(GL_VERTEX_SHADER)
+glShaderSource(vertex_shader, SHADER_VERTEX)
+glCompileShader(vertex_shader)
+
+fragment_shader = glCreateShader(GL_FRAGMENT_SHADER)
+glShaderSource(fragment_shader, SHADER_FRAGMENT)
+glCompileShader(fragment_shader)
+
+shader_program = glCreateProgram()
+glAttachShader(shader_program, vertex_shader)
+glAttachShader(shader_program, fragment_shader)
+
+glLinkProgram(shader_program)
+
+glClearColor(0.0, 0.0, 0.0, 1.0)
+
 while not quitted:
     dt = clock.tick(config.FPS) / 1000
     for event in pg.event.get():
         if event.type == pg.QUIT:
             quitted = True
-        elif event.type == pg.KEYDOWN:
-            if event.key == pg.K_ESCAPE:
-                cursor_grabbed = not cursor_grabbed
-                pg.mouse.set_visible(not cursor_grabbed)
-        elif event.type == pg.MOUSEMOTION:
-            if cursor_grabbed:
-                pass
     
-    window.title = str(math.floor(clock.get_fps()))
-
-    if cursor_grabbed:
-        pg.mouse.set_pos((config.W//2, config.H//2))
+    pg.display.set_caption(
+        str(math.floor(clock.get_fps()))
+    )
 
     player.update(dt)
     for rect in tilemap_rects:
         player.collide(rect)
 
-    renderer.draw_color = (0, 0, 0, 255)
-    renderer.clear()
+    glClear(GL_COLOR_BUFFER_BIT)
 
-    renderer.draw_color = (40, 40, 200, 255)
-    renderer.fill_rect((0, 0, config.W, config.H//2))
+    glBindBuffer(GL_ARRAY_BUFFER, vbo)
+    glBindVertexArray(vao)
+    glUseProgram(shader_program)
+    glDrawArrays(GL_TRIANGLES, 0, 3)
 
-    renderer.draw_color = (120, 120, 120, 255)
-    renderer.fill_rect((0, config.H//2, config.W, config.H//2))
+    # renderer.draw_color = (40, 40, 200, 255)
+    # renderer.fill_rect((0, 0, config.W, config.H//2))
+
+    # renderer.draw_color = (120, 120, 120, 255)
+    # renderer.fill_rect((0, config.H//2, config.W, config.H//2))
 
 
     player_pos = player.get_pos()
@@ -224,22 +270,23 @@ while not quitted:
         player_pos.y/TILE_SIZE,
     )
 
-    caster.set_pos(player_grid_pos.x, player_grid_pos.y)
-    caster.set_angle(player.get_angle())
-    raycast_results = cast_rays(tilemap, caster)
+    # caster.set_pos(player_grid_pos.x, player_grid_pos.y)
+    # caster.set_angle(player.get_angle())
+    # raycast_results = cast_rays(tilemap, caster)
 
     # Because the rays are given to us from the closest to the farthest, we will maintain a simple stack
     # that we will fill until no more rays appear.
     # If a different ray index appears - we draw from last to first all hit tiles, empty the stack, then set
     # the hitstack_ray to this new ray
-    render_rays(raycast_results)
+    # render_rays(raycast_results)
 
-    renderer.draw_color = (255, 255, 255, 255)
-    for rect in tilemap_rects:
-        renderer.fill_rect((rect.x, rect.y, rect.w, rect.h))
+    # renderer.draw_color = (255, 255, 255, 255)
+    # for rect in tilemap_rects:
+    #     renderer.fill_rect((rect.x, rect.y, rect.w, rect.h))
 
-    player.draw(renderer)
+    # player.draw(renderer)
 
-    renderer.present()
+    # renderer.present()
+    pg.display.flip()
 
 pg.quit()
