@@ -216,14 +216,14 @@ pub fn cast_rays(tilemap: &TileMap, caster: &Caster) -> Vec<Vec<RayResult>> {
                     ray_distance = ALMOST_ZERO
                 }
 
-                // let ray_hit = Vec2::new(
-                //     caster_pos.x-ray_direction.x*ray_distance,
-                //     caster_pos.y-ray_direction.y*ray_distance
-                // );
+                let ray_hit = Vec2::new(
+                    caster_pos.x+ray_direction.x*ray_distance,
+                    caster_pos.y+ray_direction.y*ray_distance
+                );
 
                 ray_distance *= (ray_angle-caster.angle).cos();
 
-                results[ray as usize].push((tile, ray_distance, ray_direction.x, ray_direction.y, y_side));
+                results[ray as usize].push((tile, ray_distance, ray_hit.x, ray_hit.y, y_side));
                 
                 if transparent_tiles.contains(&tile) {
                     ignore_tile = Some(tile);

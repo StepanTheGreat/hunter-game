@@ -192,9 +192,9 @@ while not quitted:
     # the hitstack_ray to this new ray
     for ray, hitstack in enumerate(raycast_results):
         while hitstack:
-            (tile, distance, ray_dir_x, ray_dir_y, is_y_side) = hitstack.pop()
-            
-            ray_hit = player_grid_pos+ pg.Vector2(ray_dir_x, ray_dir_y) * distance
+            (tile, distance, ray_hit_x, ray_hit_y, is_y_side) = hitstack.pop()
+
+            ray_hit = pg.Vector2(ray_hit_x, ray_hit_y)            
             tile_material = color_map[tile] 
 
             dist = config.H/distance
