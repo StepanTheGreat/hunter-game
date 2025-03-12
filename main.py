@@ -1,12 +1,10 @@
 import pygame as pg
-import numpy as np
 import config
 
 # from raycaster import TileMap, Caster, cast_rays
-from native import TileMap, Caster, cast_rays
+from bin.native import TileMap, Caster, cast_rays
 
 import math
-from mipmap import generate_mipmaps, get_mipmap_rect
 
 from pygame import _sdl2 as sdl2
 
@@ -27,9 +25,8 @@ LINE_WIDTH = config.W/RAYS
 def clamp(value: int, mn: int, mx: int) -> int:
     return min(max(value, mn), mx)
 
-def load_texture(renderer: sdl2.Renderer, path: str, smooth_mipmap: bool = False) -> sdl2.Texture:
-    mipmapped = generate_mipmaps(pg.image.load(path), smooth_mipmap)
-    return sdl2.Texture.from_surface(renderer, mipmapped)
+def load_texture(renderer: sdl2.Renderer, path: str) -> sdl2.Texture:
+    return sdl2.Texture.from_surface(renderer, pg.image.load(path))
 
 class Player:
     HITBOX_SIZE = 12
@@ -106,8 +103,7 @@ quitted = False
 
 color_map = {}
 
-color_map[1] = load_texture(renderer, "images/water_texture.png")
-color_map[1].alpha = 128
+color_map[1] = load_texture(renderer, "images/window.png")
 color_map[2] = load_texture(renderer, "images/brick.jpg")
 color_map[3] = (200, 200, 120, 255)
 color_map[4] = (20, 200, 125, 255)
@@ -139,6 +135,55 @@ player_pos = player.get_pos()/TILE_SIZE
 caster = Caster((player_pos.x, player_pos.y), player.get_angle(), RAYS, FOV, RAY_DISTANCE)
 
 tilemap.add_transparent_tile(1)
+
+def fill_rect(color: tuple, ray: int, rect_h: float):
+    renderer.draw_color = color
+    renderer.fill_rect((ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h))
+
+def blit_texture(texture: sdl2.Texture, ray: int, rect_h: float, texture_x: float):
+    renderer.blit(
+        texture, 
+        pg.Rect(ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h), 
+        pg.Rect(texture_x, 0, 1, texture.height)
+    )
+
+def render_rays(raycast_results: list):
+    for ray, hitstack in enumerate(raycast_results):
+        for (tile, distance, ray_hit_x, ray_hit_y, is_y_side) in reversed(hitstack):
+            ray_hit = pg.Vector2(ray_hit_x, ray_hit_y)            
+            tile_material = color_map[tile] 
+
+            dist = config.H/distance
+            rect_h = int(dist)
+
+            if type(tile_material) == tuple:
+                color = tile_material
+                fill_rect(color, ray, rect_h)
+                # renderer.draw_color = color
+                # renderer.fill_rect((ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h))
+                # It's a color tile, simply fill it with color
+            else:
+                # Else it's a texture
+                texture = tile_material
+
+                # texture_region = get_mipmap_rect((texture.width, texture.height), rect_h)
+
+                if not is_y_side:
+                    texture_x = (ray_hit.y-math.floor(ray_hit.y))*texture.width
+                else:
+                    texture_x = (ray_hit.x-math.floor(ray_hit.x))*texture.width
+                
+                # Texture rendering requires there to be enough rays to be able to draw the entire scene 
+                # using 1-width stripes. If this isn't the case - the result will be highly blurry.
+                # 
+                # I'm not interpolating texture width here due to floating point and ray precision issues, 
+                # which makes it extremely unreliable. I'm basically putting more rays to solve the problem in this case  
+                blit_texture(texture, ray, rect_h, texture_x)
+                # renderer.blit(
+                #     texture, 
+                #     pg.Rect(ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h), 
+                #     pg.Rect(texture_x, 0, 1, texture.height)
+                # )
 
 while not quitted:
     dt = clock.tick(config.FPS) / 1000
@@ -190,42 +235,7 @@ while not quitted:
     # that we will fill until no more rays appear.
     # If a different ray index appears - we draw from last to first all hit tiles, empty the stack, then set
     # the hitstack_ray to this new ray
-    for ray, hitstack in enumerate(raycast_results):
-        while hitstack:
-            (tile, distance, ray_hit_x, ray_hit_y, is_y_side) = hitstack.pop()
-
-            ray_hit = pg.Vector2(ray_hit_x, ray_hit_y)            
-            tile_material = color_map[tile] 
-
-            dist = config.H/distance
-            rect_h = int(dist)
-
-            if type(tile_material) == tuple:
-                color = tile_material
-                renderer.draw_color = color
-                renderer.fill_rect((ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h))
-                # It's a color tile, simply fill it with color
-            else:
-                # Else it's a texture
-                texture = tile_material
-
-                texture_region = get_mipmap_rect((texture.width, texture.height), rect_h)
-
-                if not is_y_side:
-                    texture_x = (ray_hit.y-math.floor(ray_hit.y))*texture_region.width
-                else:
-                    texture_x = (ray_hit.x-math.floor(ray_hit.x))*texture_region.width
-                
-                # Texture rendering requires there to be enough rays to be able to draw the entire scene 
-                # using 1-width stripes. If this isn't the case - the result will be highly blurry.
-                # 
-                # I'm not interpolating texture width here due to floating point and ray precision issues, 
-                # which makes it extremely unreliable. I'm basically putting more rays to solve the problem in this case  
-                renderer.blit(
-                    texture, 
-                    pg.Rect(ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h), 
-                    pg.Rect(texture_region.x+texture_x, 0, 1, texture_region.height)
-                )
+    render_rays(raycast_results)
 
     renderer.draw_color = (255, 255, 255, 255)
     for rect in tilemap_rects:
