@@ -150,7 +150,6 @@ def blit_texture(texture: sdl2.Texture, ray: int, rect_h: float, texture_x: floa
 def render_rays(raycast_results: list):
     for ray, hitstack in enumerate(raycast_results):
         for (tile, distance, ray_hit_x, ray_hit_y, is_y_side) in reversed(hitstack):
-            ray_hit = pg.Vector2(ray_hit_x, ray_hit_y)            
             tile_material = color_map[tile] 
 
             dist = config.H/distance
@@ -167,11 +166,9 @@ def render_rays(raycast_results: list):
                 texture = tile_material
 
                 # texture_region = get_mipmap_rect((texture.width, texture.height), rect_h)
-
-                if not is_y_side:
-                    texture_x = (ray_hit.y-math.floor(ray_hit.y))*texture.width
-                else:
-                    texture_x = (ray_hit.x-math.floor(ray_hit.x))*texture.width
+                
+                # This can be replaced with math.floor if neccessary
+                texture_x = (ray_hit_x-int(ray_hit_x))*texture.width if is_y_side else (ray_hit_y-int(ray_hit_y))*texture.width
                 
                 # Texture rendering requires there to be enough rays to be able to draw the entire scene 
                 # using 1-width stripes. If this isn't the case - the result will be highly blurry.
@@ -198,7 +195,7 @@ while not quitted:
             if cursor_grabbed:
                 pass
     
-    pg.display.set_caption(str(math.floor(clock.get_fps())))
+    window.title = str(math.floor(clock.get_fps()))
 
     if cursor_grabbed:
         pg.mouse.set_pos((config.W//2, config.H//2))
