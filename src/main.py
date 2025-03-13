@@ -5,26 +5,11 @@ import config
 
 from ctypes import c_void_p
 
-# from raycaster import TileMap, Caster, cast_rays
-from bin.native import TileMap, Caster, cast_rays
-
 import math
-
-from pygame import _sdl2 as sdl2
 
 TILE_SIZE = 32
 
 FOV = 80
-RAYS = config.W//1
-# RAYS = 3
-
-# assert config.W % RAYS == 0, "The screen width should be divisible by the number of rays"
-# RAYS = 60
-RAY_GAP = math.radians(FOV/RAYS)
-RAY_DISTANCE = 20
-WALL_HEIGHT = 15
-
-LINE_WIDTH = config.W/RAYS
 
 VERTICIES = np.array([
     #pos          color
@@ -32,12 +17,6 @@ VERTICIES = np.array([
     -0.25, -0.5,  0.0, 1.0, 0.0,
      0.25, -0.5,  0.0, 0.0, 1.0 
 ], dtype=np.float32)
-
-def clamp(value: int, mn: int, mx: int) -> int:
-    return min(max(value, mn), mx)
-
-def load_texture(renderer: sdl2.Renderer, path: str) -> sdl2.Texture:
-    return sdl2.Texture.from_surface(renderer, pg.image.load(path))
 
 def load_str(path: str) -> str:
     contents = None
@@ -93,7 +72,7 @@ class Player:
         elif self.angle < -math.pi:
             self.angle = math.pi
 
-    def draw(self, renderer: sdl2.Renderer):
+    def draw(self):
         # pg.draw.circle(surface, (0, 255, 0), self.pos+MARGIN, Player.HITBOX_SIZE//2)
         renderer.draw_color = (0, 255, 0, 255)
         renderer.fill_rect(self.rect)
@@ -110,16 +89,25 @@ class Player:
     
     def get_pos(self) -> pg.Vector2:
         return pg.Vector2(self.pos)
-    
-    def get_pos_tuple(self) -> tuple[float, float]:
-        return (self.pos.x, self.pos.y)
 
-screen = pg.display.set_mode((config.W, config.H), vsync=True, flags=pg.OPENGL|pg.DOUBLEBUF)
+screen = pg.display.set_mode((config.W, config.H), vsync=True, flags=pg.OPENGL | pg.DOUBLEBUF)
 clock = pg.time.Clock()
-cursor_grabbed = False
 quitted = False
 
-color_map = {}
+aspect_ratio = H/W
+fov  = np.pi / 3.0
+zfar = 1024
+znear = 0.1
+zdiff = zfar-znear
+f = 1/np.tan(fov/2*2/np.pi)
+
+projection = np.array([
+	[f*aspect_ratio, 0, 0, 0],
+	[0, f, 0, 0],
+	[0, 0, (zfar+znear)/zdiff, 1],
+	[0, 0, -(2*zfar*znear)/zdiff, 0]
+], dtype=np.float32)
+
 
 # color_map[1] = load_texture(renderer, "images/window.png")
 # color_map[2] = load_texture(renderer, "images/brick.jpg")
