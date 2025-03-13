@@ -136,20 +136,10 @@ caster = Caster((player_pos.x, player_pos.y), player.get_angle(), RAYS, FOV, RAY
 
 tilemap.add_transparent_tile(1)
 
-def fill_rect(color: tuple, ray: int, rect_h: float):
-    renderer.draw_color = color
-    renderer.fill_rect((ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h))
-
-def blit_texture(texture: sdl2.Texture, ray: int, rect_h: float, texture_x: float):
-    renderer.blit(
-        texture, 
-        pg.Rect(ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h), 
-        pg.Rect(texture_x, 0, 1, texture.height)
-    )
-
 def render_rays(raycast_results: list):
+    draw_lines = 0
     for ray, hitstack in enumerate(raycast_results):
-        for (tile, distance, ray_hit_x, ray_hit_y, is_y_side) in reversed(hitstack):
+        for (tile, distance, ray_hit_x, ray_hit_y, is_y_side, _, _) in reversed(hitstack):
             tile_material = color_map[tile] 
 
             dist = config.H/distance
@@ -157,9 +147,9 @@ def render_rays(raycast_results: list):
 
             if type(tile_material) == tuple:
                 color = tile_material
-                fill_rect(color, ray, rect_h)
-                # renderer.draw_color = color
-                # renderer.fill_rect((ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h))
+                renderer.draw_color = color
+                renderer.fill_rect((ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h))
+                draw_lines += 1
                 # It's a color tile, simply fill it with color
             else:
                 # Else it's a texture
@@ -175,12 +165,13 @@ def render_rays(raycast_results: list):
                 # 
                 # I'm not interpolating texture width here due to floating point and ray precision issues, 
                 # which makes it extremely unreliable. I'm basically putting more rays to solve the problem in this case  
-                blit_texture(texture, ray, rect_h, texture_x)
-                # renderer.blit(
-                #     texture, 
-                #     pg.Rect(ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h), 
-                #     pg.Rect(texture_x, 0, 1, texture.height)
-                # )
+                renderer.blit(
+                    texture, 
+                    pg.Rect(ray*LINE_WIDTH, config.H/2-rect_h/2, LINE_WIDTH, rect_h), 
+                    pg.Rect(texture_x, 0, 1, texture.height)
+                )
+                draw_lines += 1
+    print(f"{draw_lines} draw lines!")
 
 while not quitted:
     dt = clock.tick(config.FPS) / 1000
