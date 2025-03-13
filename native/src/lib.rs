@@ -108,7 +108,7 @@ impl Caster {
     }
 }
 
-type RayResult = (i32, f64, f64, f64, bool);
+type RayResult = (i32, f64, f64, f64, bool, i32, i32);
 
 #[pyfunction]
 pub fn cast_rays(tilemap: &TileMap, caster: &Caster) -> Vec<Vec<RayResult>> {
@@ -223,7 +223,7 @@ pub fn cast_rays(tilemap: &TileMap, caster: &Caster) -> Vec<Vec<RayResult>> {
 
                 ray_distance *= (ray_angle-caster.angle).cos();
 
-                results[ray as usize].push((tile, ray_distance, ray_hit.x, ray_hit.y, y_side));
+                results[ray as usize].push((tile, ray_distance, ray_hit.x, ray_hit.y, y_side, grid_x, grid_y));
                 
                 if transparent_tiles.contains(&tile) {
                     ignore_tile = Some(tile);
