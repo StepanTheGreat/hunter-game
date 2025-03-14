@@ -13,10 +13,10 @@ ZFAR = 1024
 ZNEAR = 0.1
 
 VERTICIES = np.array([
-    #pos          color
-     0.0,   0.5,  1.0, 0.0, 0.0,
-    -0.25, -0.5,  0.0, 1.0, 0.0,
-     0.25, -0.5,  0.0, 0.0, 1.0 
+    #pos               color
+     0.0,   0.5, 5,  1.0, 0.0, 0.0,
+    -0.25, -0.5, 5,  0.0, 1.0, 0.0,
+     0.25, -0.5, 5,  0.0, 0.0, 1.0 
 ], dtype=np.float32)
 
 def load_str(path: str) -> str:
@@ -27,6 +27,16 @@ def load_str(path: str) -> str:
 
 SHADER_VERTEX = load_str("../shaders/main.vert")
 SHADER_FRAGMENT = load_str("../shaders/main.frag")
+
+def perspective_matrix(aspect_ratio: float, fov: float, zfar: float, znear: float) -> np.ndarray:
+    zdiff = zfar-znear
+    f = 1/np.tan(fov/2*2/np.pi)
+    return np.array([
+        f*aspect_ratio, 0, 0, 0,
+        0, f, 0, 0,
+        0, 0, (zfar+znear)/zdiff, 1,
+        0, 0, -(2*zfar*znear)/zdiff, 0
+    ], dtype=np.float32)
 
 class Player:
     HITBOX_SIZE = 12
@@ -97,23 +107,12 @@ ctx = gl.get_context()
 clock = pg.time.Clock()
 quitted = False
 
-zdiff = ZFAR-ZNEAR
-f = 1/np.tan(FOV/2*2/np.pi)
-
-projection = np.array([
-	[f*ASPECT_RATIO, 0, 0, 0],
-	[0, f, 0, 0],
-	[0, 0, (ZFAR+ZNEAR)/zdiff, 1],
-	[0, 0, -(2*ZFAR*ZNEAR)/zdiff, 0]
-], dtype=np.float32)
-
-
 # color_map[1] = load_texture(renderer, "images/window.png")
 # color_map[2] = load_texture(renderer, "images/brick.jpg")
 # color_map[3] = (200, 200, 120, 255)
 # color_map[4] = (20, 200, 125, 255)
 
-player = Player((10*TILE_SIZE, 10*TILE_SIZE))
+player = Player((0, 0))
 # enemy = load_texture(renderer, "images/meteorite.png")
 enemy_pos = pg.Vector2(3*TILE_SIZE, 0)
 
@@ -142,6 +141,16 @@ program = ctx.program(
     SHADER_VERTEX,
     SHADER_FRAGMENT,
 )
+
+projection = perspective_matrix(ASPECT_RATIO, FOV, ZFAR, ZNEAR)
+
+program["projection"] = projection
+program["camera"] = np.array([
+    1, 0, 0, 0,
+    0, 1, 0, 0,
+    0, 0, 1, 0,
+    0, 0, 0, 1
+])
 
 vao = ctx.vertex_array(program, vbo, "position", "color")
 
