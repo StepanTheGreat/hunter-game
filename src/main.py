@@ -71,53 +71,83 @@ def rot_mat(x: int, y: int, z: int):
 
     return (rx @ ry @ rz)
 
-def gen_tile_geometry(coords: tuple[int, int], start_index: int, size: float) -> tuple[np.ndarray, np.ndarray]:
+def gen_tile_geometry(
+    coords: tuple[int, int], 
+    start_index: int, 
+    size: float, 
+    neighbours: tuple[bool, bool, bool, bool]
+) -> tuple[np.ndarray, np.ndarray, int]:
+    """ 
+    This function generates geometry for a tile. It generates a tile mesh, constructs its verticies and
+    generates an index buffer, both of which will be returned at the end of the call.
+
+    ## Arguments:
+        `coords`: x, y integer coordinates of the tile on the map (0, 0 is top-left)
+        `start_index`: the starting indice for the index buffer
+        `size`: a floating point scalar to size the mesh
+        `neighbours`: a 4-sized tuple of neighbours `[top, left, right, bottom]`. It's used to cull unused geometry, 
+        so True means a neighbour exists, and False - it doesn't.
+
+    This function will sacrifice useless verticies (4 tile corners) for the sake of conveniency.
+    Theoretically this shouldn't be a serious problem, since most culling should be done for the verticies outside,
+    but this is simply a notice.
+    """
     # The coordinates are topleft
     ind = start_index
     s = size
     x, y = coords
     x, y = x*s, y*s
+    top_neighbour, left_neighbour, right_neighbour, bottom_neighbour = neighbours
 
-    verts = np.array([], dtype=np.float32)
+    quad_indices = lambda cind: [cind, cind+1, cind+2, cind+1, cind+2, cind+3]
+
+    # The incrementing index, that will be returned later
+    verticies = np.array([], dtype=np.float32)
+    indices = np.array([], dtype=np.uint32)
+    current_index = 0
 
     # from topleft to topright
-    top = np.array([
+    # if top_neighbour:
+    verticies = np.append(verticies, np.array([
         x,   s, y,        1, 0, 0,
         x+s, s, y,        0, 1, 0,
         x,   0, y,        0, 0, 1,
         x+s, 0, y,        1, 0, 0
-    ], dtype=np.float32)
+    ]))
+    indices = np.append(indices, quad_indices(ind))
+    current_index += 4
 
-    bottom = np.array([
+    # if bottom_neighbour:
+    verticies = np.append(verticies, np.array([
         x,   s, y+s,    1, 0, 0,
         x+s, s, y+s,    0, 1, 0,
         x,   0, y+s,    0, 0, 1,
         x+s, 0, y+s,    1, 0, 0,
-    ], dtype=np.float32)
+    ]))
+    indices = np.append(indices, quad_indices(ind+current_index))
+    current_index += 4
 
-    left = np.array([
+    # if left_neighbour:
+    verticies = np.append(verticies, np.array([
         x, s, y,        1, 0, 0,
         x, s, y+s,      0, 1, 0,
         x, 0, y,        0, 0, 1,
         x, 0, y+s,      1, 0, 0,
-    ], dtype=np.float32)
+    ]))
+    indices = np.append(indices, quad_indices(ind+current_index))
+    current_index += 4
 
-    right = np.array([
+    # if right_neighbour:
+    verticies = np.append(verticies, np.array([
         x+s, s, y,      1, 0, 0,
         x+s, s, y+s,    0, 1, 0,
         x+s, 0, y,      0, 0, 1,
         x+s, 0, y+s,    1, 0, 0,
-    ], dtype=np.float32)
+    ]))
+    indices = np.append(indices, quad_indices(ind+current_index))
+    current_index += 4
 
-    verts = np.append(top, (bottom, left, right))
-    indices = np.array([ind+i for i in (
-        0, 1, 2, 1, 2, 3, # top
-        4, 5, 6, 5, 6, 7, # bottom
-        8, 9, 10, 9, 10, 11, # left
-        12, 13, 14, 13, 14, 15 # right
-    )], dtype=np.uint32)
-
-    return verts, indices
+    return verticies, indices, current_index
 
 
 class Player:
@@ -212,6 +242,7 @@ player = Player((0, 0))
 # enemy = load_texture(renderer, "images/meteorite.png")
 enemy_pos = pg.Vector2(3*TILE_SIZE, 0)
 
+tiles_w, tiles_h = 8, 8
 tiles = [
     [1, 1, 0, 0, 0, 0, 2, 2],
     [2, 0, 0, 0, 0, 0, 0, 2],
@@ -232,14 +263,24 @@ for y, row in enumerate(tiles):
 
 tilemap_verticies = np.array([], dtype=np.float32)
 tilemap_indices = np.array([], dtype=np.uint32)
-# A simple counter that simplifies index generation
-tiles_added = 0
+current_index = 0
 
 for y, row in enumerate(tiles):
     for x, tile in enumerate(row):
         if tile != 0:
-            tile_verts, tile_inds = gen_tile_geometry((x, y), tiles_added*16, TILE_SIZE)
-            tiles_added += 1
+            left_neighbour = (x > 0 and tiles[y][x-1] != 0) or x == 0
+            right_neighbour = (x < tiles_w-1 and tiles[y][x+1] != 0) or x == tiles_w-1
+            top_neighbour = (y > 0 and tiles[y-1][x] != 0) or y == 0
+            bottom_neighbour = (y < tiles_h-1 and tiles[y+1][x] != 0) or y == tiles_h-1
+
+            tile_verts, tile_inds, new_index = gen_tile_geometry(
+                (x, y), 
+                current_index, 
+                TILE_SIZE,
+                [1, 1, 1, 1]
+                # [top_neighbour, left_neighbour, right_neighbour, bottom_neighbour]
+            )
+            current_index += new_index
             tilemap_verticies = np.append(tilemap_verticies, tile_verts)
             tilemap_indices = np.append(tilemap_indices, tile_inds)
 
