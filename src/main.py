@@ -166,6 +166,9 @@ color_map[2] = load_texture(ctx, "../images/brick.jpg", 3)
 color_map[3] = (0.8, 0.8, 0.55)
 color_map[4] = (0.12, 0.8, 0.6)
 
+color_map[1].filter = (gl.NEAREST, gl.NEAREST)
+color_map[2].filter = (gl.NEAREST, gl.NEAREST)
+
 player = Player((0, 0))
 # enemy = load_texture(renderer, "images/meteorite.png")
 enemy_pos = pg.Vector2(3*TILE_SIZE, 0)
