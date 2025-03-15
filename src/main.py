@@ -99,53 +99,54 @@ def gen_tile_geometry(
     x, y = x*s, y*s
     top_neighbour, left_neighbour, right_neighbour, bottom_neighbour = neighbours
 
-    quad_indices = lambda cind: [cind, cind+1, cind+2, cind+1, cind+2, cind+3]
+    quad_indices = lambda cind: np.array([cind, cind+1, cind+2, cind+1, cind+2, cind+3], dtype=np.uint32)
 
     # The incrementing index, that will be returned later
     verticies = np.array([], dtype=np.float32)
     indices = np.array([], dtype=np.uint32)
     current_index = 0
 
-    # from topleft to topright
-    # if top_neighbour:
-    verticies = np.append(verticies, np.array([
-        x,   s, y,        1, 0, 0,
-        x+s, s, y,        0, 1, 0,
-        x,   0, y,        0, 0, 1,
-        x+s, 0, y,        1, 0, 0
-    ]))
-    indices = np.append(indices, quad_indices(ind))
-    current_index += 4
+    if not top_neighbour:
+        verticies = np.append(verticies, np.array([
+            x,   s, y,        1, 0, 0,
+            x+s, s, y,        0, 1, 0,
+            x,   0, y,        0, 0, 1,
+            x+s, 0, y,        1, 0, 0
+        ], dtype=np.float32))
+        indices = np.append(indices, quad_indices(ind))
+        current_index += 4
 
-    # if bottom_neighbour:
-    verticies = np.append(verticies, np.array([
-        x,   s, y+s,    1, 0, 0,
-        x+s, s, y+s,    0, 1, 0,
-        x,   0, y+s,    0, 0, 1,
-        x+s, 0, y+s,    1, 0, 0,
-    ]))
-    indices = np.append(indices, quad_indices(ind+current_index))
-    current_index += 4
+    if not bottom_neighbour:
+        verticies = np.append(verticies, np.array([
+            x,   s, y+s,    1, 0, 0,
+            x+s, s, y+s,    0, 1, 0,
+            x,   0, y+s,    0, 0, 1,
+            x+s, 0, y+s,    1, 0, 0,
+        ], dtype=np.float32))
+        indices = np.append(indices, quad_indices(ind+current_index))
+        current_index += 4
 
-    # if left_neighbour:
-    verticies = np.append(verticies, np.array([
-        x, s, y,        1, 0, 0,
-        x, s, y+s,      0, 1, 0,
-        x, 0, y,        0, 0, 1,
-        x, 0, y+s,      1, 0, 0,
-    ]))
-    indices = np.append(indices, quad_indices(ind+current_index))
-    current_index += 4
+    if not left_neighbour:
+        verticies = np.append(verticies, np.array([
+            x, s, y,        1, 0, 0,
+            x, s, y+s,      0, 1, 0,
+            x, 0, y,        0, 0, 1,
+            x, 0, y+s,      1, 0, 0,
+        ], dtype=np.float32))
+        indices = np.append(indices, quad_indices(ind+current_index))
+        current_index += 4
 
-    # if right_neighbour:
-    verticies = np.append(verticies, np.array([
-        x+s, s, y,      1, 0, 0,
-        x+s, s, y+s,    0, 1, 0,
-        x+s, 0, y,      0, 0, 1,
-        x+s, 0, y+s,    1, 0, 0,
-    ]))
-    indices = np.append(indices, quad_indices(ind+current_index))
-    current_index += 4
+    if not right_neighbour:
+        verticies = np.append(verticies, np.array([
+            x+s, s, y,      1, 0, 0,
+            x+s, s, y+s,    0, 1, 0,
+            x+s, 0, y,      0, 0, 1,
+            x+s, 0, y+s,    1, 0, 0,
+        ], dtype=np.float32))
+        indices = np.append(indices, quad_indices(ind+current_index))
+        current_index += 4
+
+    print(indices)
 
     return verticies, indices, current_index
 
@@ -268,17 +269,17 @@ current_index = 0
 for y, row in enumerate(tiles):
     for x, tile in enumerate(row):
         if tile != 0:
-            left_neighbour = (x > 0 and tiles[y][x-1] != 0) or x == 0
-            right_neighbour = (x < tiles_w-1 and tiles[y][x+1] != 0) or x == tiles_w-1
-            top_neighbour = (y > 0 and tiles[y-1][x] != 0) or y == 0
-            bottom_neighbour = (y < tiles_h-1 and tiles[y+1][x] != 0) or y == tiles_h-1
+            left_neighbour = (x > 0 and tiles[y][x-1] != 0)
+            right_neighbour = (x < tiles_w-1 and tiles[y][x+1] != 0)
+            top_neighbour = (y > 0 and tiles[y-1][x] != 0)
+            bottom_neighbour = (y < tiles_h-1 and tiles[y+1][x] != 0)
 
             tile_verts, tile_inds, new_index = gen_tile_geometry(
                 (x, y), 
                 current_index, 
                 TILE_SIZE,
-                [1, 1, 1, 1]
-                # [top_neighbour, left_neighbour, right_neighbour, bottom_neighbour]
+                # [1, 1, 1, 1]
+                [top_neighbour, left_neighbour, right_neighbour, bottom_neighbour]
             )
             current_index += new_index
             tilemap_verticies = np.append(tilemap_verticies, tile_verts)
