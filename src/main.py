@@ -7,7 +7,7 @@ import batch
 from objects.player import Player
 import math
 
-TILE_SIZE = 32
+TILE_SIZE = 48
 
 FOV = 90
 ASPECT_RATIO = config.H/config.W
@@ -40,39 +40,6 @@ def perspective_matrix(aspect_ratio: float, fov: float, zfar: float, znear: floa
         0, 0, (zfar+znear)/zdiff, 1,
         0, 0, -(2*zfar*znear)/zdiff, 0
     ], dtype=np.float32)
-
-def rot_mat(x: int, y: int, z: int):
-    "Generate a rotation matrix for 3 coordinates IN DEGREES (not radians)"
-    # Convert degrees to radians
-    x = np.radians(x)
-    y = np.radians(y)
-    z = np.radians(z)
-
-    # Define X-axis rotation matrix
-    rx = np.array([
-        [1, 0, 0, 0],
-        [0, np.cos(x), -np.sin(x), 0],
-        [0, np.sin(x), np.cos(x), 0],
-        [0, 0, 0, 1]
-    ], dtype=np.float32)
-
-    # Define Y-axis rotation matrix
-    ry = np.array([
-        [np.cos(y), 0, np.sin(y), 0],
-        [0, 1, 0, 0],
-        [-np.sin(y), 0, np.cos(y), 0],
-        [0, 0, 0, 1]
-    ], dtype=np.float32)
-
-    # Define Z-axis rotation matrix
-    rz = np.array([
-        [np.cos(z), -np.sin(z), 0, 0],
-        [np.sin(z), np.cos(z), 0, 0],
-        [0, 0, 1, 0],
-        [0, 0, 0, 1]
-    ], dtype=np.float32)
-
-    return (rx @ ry @ rz)
 
 def gen_tile_geometry(
     coords: tuple[int, int], 
@@ -156,8 +123,8 @@ ctx = gl.get_context()
 clock = pg.time.Clock()
 quitted = False
 
-white_surf = pg.Surface((1, 1))
-white_surf.fill((255, 255, 255))
+white_surf = pg.Surface((1, 1), pg.SRCALPHA)
+white_surf.fill((255, 255, 255, 255))
 white_texture = ctx.texture(white_surf.get_size(), 4, white_surf.get_view("1"))
 
 color_map = {}
@@ -231,6 +198,8 @@ static_batcher.sync()
 
 ctx.enable(gl.DEPTH_TEST)
 
+ctx.enable(gl.SRC_ALPHA | gl.ONE_MINUS_SRC_ALPHA)
+
 projection = perspective_matrix(ASPECT_RATIO, FOV, ZFAR, ZNEAR)
 pipeline["projection"] = projection
 
@@ -251,7 +220,7 @@ while not quitted:
 
     ctx.clear(0, 0, 0, 1)
 
-    pipeline["texture"] = 0
+    pipeline["material"] = 0
     for group_texture, group in static_batcher.get_batches():
         group_texture.use()
         group.render(gl.TRIANGLES)
