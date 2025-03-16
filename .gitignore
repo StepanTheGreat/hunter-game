@@ -6,3 +6,5 @@ profile.txt
 # Rust compiler stuff
 native/target
 native/Cargo.lock
+
+config.json
