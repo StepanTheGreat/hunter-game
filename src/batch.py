@@ -113,7 +113,7 @@ class BatchGroup:
             if not obj is None:
                 obj.release()
 
-    def render(self, mode: int | None = None, vertices: int = -1, first: int = 0):
+    def render(self, mode: int = None, vertices: int = -1, first: int = 0):
         assert self.is_sync(), "The group isn't syncronized"
         self.vao.render(mode=mode, vertices=vertices, first=first)
 
@@ -122,7 +122,7 @@ class StaticBatcher:
         self.groups: dict[gl.Texture, BatchGroup] = {}
         self.is_syncronized: bool = True
 
-    def get_group(self, texture: gl.Texture) -> BatchGroup | None:
+    def get_group(self, texture: gl.Texture) -> BatchGroup:
         """Get a batch group by texture"""
         return self.groups.get(texture)
 
