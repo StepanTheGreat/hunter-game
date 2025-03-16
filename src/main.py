@@ -261,6 +261,11 @@ sprite_program["material"] = 0
 pipeline["projection"] = projection
 sprite_program["projection"] = projection
 
+# An array of 3x3 matrices
+sprite_rotations = np.zeros((256, 4), dtype=np.float32)
+# An array of 2 axis vectors
+sprite_positions = np.zeros((256, 2), dtype=np.float32)
+
 while not quitted:
     dt = clock.tick(conf.fps) / 1000
     for event in pg.event.get():
@@ -294,12 +299,17 @@ while not quitted:
         group.render(gl.TRIANGLES)
 
     # Now draw sprites
+    sprite_positions[0] = np.array([meteorite_pos.x, meteorite_pos.y], dtype=np.float32)
+    sprite_rotations[0] = meteorite_rot.flatten()
+
     sprite_program["camera_rot"] = player_camera_rot
     sprite_program["camera_pos"] = player_camera_pos
-    sprite_program["sprite_rot"] = meteorite_rot.flatten()
-    sprite_program["sprite_pos"] = np.array([meteorite_pos.x, meteorite_pos.y], dtype=np.float32)
+    
+    sprite_program["sprite_rot"] = sprite_rotations
+    sprite_program["sprite_pos"] = sprite_positions
+
     meteorite_texture.use()
-    sprite_vao.render()
+    sprite_vao.render(instances=1)
 
     for group_texture, group in transparent_static_batcher.get_batches():
         group_texture.use()
