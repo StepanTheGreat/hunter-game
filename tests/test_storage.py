@@ -23,6 +23,6 @@ def _():
 
     assert s.get(int) == 35
 
-    s.remove(int)
+    assert s.remove(int) == 35
 
     assert s.get(int) is None
