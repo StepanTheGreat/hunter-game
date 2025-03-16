@@ -166,6 +166,8 @@ color_map[2] = load_texture(ctx, "../images/brick.jpg", 3)
 color_map[3] = (0.8, 0.8, 0.55)
 color_map[4] = (0.12, 0.8, 0.6)
 
+transparent_tiles = set([1])
+
 color_map[1].filter = (gl.NEAREST, gl.NEAREST)
 color_map[2].filter = (gl.NEAREST, gl.NEAREST)
 
@@ -198,6 +200,7 @@ pipeline = batch.Pipeline(
 )
 
 static_batcher = batch.StaticBatcher()
+transparent_static_batcher = batch.StaticBatcher()
 
 for y, row in enumerate(tiles):
     for x, tile in enumerate(row):
@@ -220,7 +223,8 @@ for y, row in enumerate(tiles):
             )
 
             if len(tile_verts) > 0 and len(tile_inds) > 0:
-                static_batcher.push_geometry(
+                batcher = transparent_static_batcher if tile in transparent_tiles else static_batcher
+                batcher.push_geometry(
                     texture,
                     tile_verts,
                     tile_inds,
@@ -228,8 +232,10 @@ for y, row in enumerate(tiles):
                 )
 
 static_batcher.sync()
+transparent_static_batcher.sync()
 
 ctx.enable(gl.DEPTH_TEST)
+# ctx.enable(gl.CULL_FACE)
 
 projection = perspective_matrix(ASPECT_RATIO, FOV, ZFAR, ZNEAR)
 pipeline["projection"] = projection
@@ -252,9 +258,11 @@ while not quitted:
     ctx.clear(0, 0, 0, 1)
 
     pipeline["texture"] = 0
-    for group_texture, group in static_batcher.get_batches():
-        group_texture.use()
-        group.render(gl.TRIANGLES)
+
+    for batcher in (static_batcher, transparent_static_batcher):
+        for group_texture, group in batcher.get_batches():
+            group_texture.use()
+            group.render(gl.TRIANGLES)
     
     pg.display.flip()
 
