@@ -1,6 +1,5 @@
 import pygame as pg
 import numpy as np
-import math
 
 class Player:
     HITBOX_SIZE = 12
@@ -30,10 +29,10 @@ class Player:
         forward_vel = pg.Vector2(0, 0)
         left_right_vel = pg.Vector2(0, 0)
         if forward != 0:
-            forward_vel = pg.Vector2(math.cos(self.angle), math.sin(self.angle)) * forward
+            forward_vel = pg.Vector2(np.cos(self.angle), np.sin(self.angle)) * forward
         if left_right != 0:
-            left_right_angle = self.angle+math.pi/2*left_right
-            left_right_vel = pg.Vector2(math.cos(left_right_angle), math.sin(left_right_angle))
+            left_right_angle = self.angle+np.pi/2*left_right
+            left_right_vel = pg.Vector2(np.cos(left_right_angle), np.sin(left_right_angle))
         vel = left_right_vel+forward_vel
         if vel.length_squared() != 0.0:
             vel.normalize_ip()
@@ -44,10 +43,10 @@ class Player:
 
         angle_vel = keys[pg.K_RIGHT]-keys[pg.K_LEFT]
         self.angle += angle_vel * Player.ROTATION_SPEED * dt
-        if self.angle > math.pi:
-            self.angle = -math.pi
-        elif self.angle < -math.pi:
-            self.angle = math.pi
+        if self.angle > np.pi:
+            self.angle = -np.pi
+        elif self.angle < -np.pi:
+            self.angle = np.pi
 
     def draw(self):
         pass
@@ -69,7 +68,7 @@ class Player:
         return pg.Vector2(self.pos)
 
     def camera_rotation(self) -> np.ndarray:
-        direction = pg.Vector3(-math.cos(self.angle), 0, -math.sin(self.angle))
+        direction = pg.Vector3(-np.cos(self.angle), 0, -np.sin(self.angle))
         up = pg.Vector3(0, 1, 0)
         right = up.cross(direction)
 
