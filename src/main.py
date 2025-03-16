@@ -193,7 +193,6 @@ pipeline = batch.Pipeline(
 )
 
 static_batcher = batch.StaticBatcher()
-transparent_static_batcher = batch.StaticBatcher()
 
 def has_neighbour(tiles: list, tile_size: tuple[int, int], pos: tuple[int, int], tile: int) -> bool:
     w, h = tile_size
@@ -232,8 +231,7 @@ for y, row in enumerate(tiles):
             )
 
             if len(tile_verts) > 0 and len(tile_inds) > 0:
-                batcher = transparent_static_batcher if tile in transparent_tiles else static_batcher
-                batcher.push_geometry(
+                static_batcher.push_geometry(
                     texture,
                     tile_verts,
                     tile_inds,
@@ -241,7 +239,6 @@ for y, row in enumerate(tiles):
                 )
 
 static_batcher.sync()
-transparent_static_batcher.sync()
 
 sprite_program = ctx.program(SPRITE_SHADER_VERTEX, SPRITE_SHADER_FRAGMENT)
 sprite_vbo = ctx.buffer(QUAD_VERTICIES)
@@ -292,8 +289,7 @@ while not quitted:
 
     ctx.clear(0, 0, 0, 1)
 
-    # Draw normal tiles
-
+    # Draw all our tiles
     for group_texture, group in static_batcher.get_batches():
         group_texture.use()
         group.render(gl.TRIANGLES)
@@ -310,10 +306,6 @@ while not quitted:
 
     meteorite_texture.use()
     sprite_vao.render(instances=1)
-
-    for group_texture, group in transparent_static_batcher.get_batches():
-        group_texture.use()
-        group.render(gl.TRIANGLES)
     
     pg.display.flip()
 
