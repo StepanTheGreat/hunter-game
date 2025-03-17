@@ -1,6 +1,4 @@
-import json
-import typing
-import dataclasses
+import json, typing, dataclasses
 
 class TypedDataclassTypeMismatch(Exception):
     "An exception that gets raised when a type mismatch occurs between the constructed typed dataclass and its class definition"

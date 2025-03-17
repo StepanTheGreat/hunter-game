@@ -1,5 +1,5 @@
 import pygame as pg
-import plugin, resources
+import plugin
 
 class ClockPlugin(plugin.Plugin):
     def __init__(self, fps: int):
@@ -44,5 +44,5 @@ class Clock:
     def get_fps(self) -> float:
         return self.clock.get_fps()
     
-def update_time(resources: resources.Resources):
+def update_time(resources: plugin.Resources):
     resources[Clock].update()
