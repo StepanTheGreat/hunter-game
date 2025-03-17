@@ -290,6 +290,7 @@ while not quitted:
 
     ctx.clear(0, 0, 0, 1)
 
+    ctx.enable(gl.CULL_FACE)
     # Draw all our tiles
     for group_texture, group in static_batcher.get_batches():
         group_texture.use()
@@ -304,6 +305,7 @@ while not quitted:
     sprite_program["sprite_positions"] = sprite_positions
     sprite_program["sprite_sizes"] = sprite_sizes
 
+    ctx.disable(gl.CULL_FACE)
     meteorite_texture.use()
     sprite_vao.render(instances=1)
     

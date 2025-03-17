@@ -10,7 +10,7 @@ from typing import Optional
 # Will tell the intellisense that any type that I use in my argument, will also be returned by the function. 
 R = TypeVar("R")
 
-class Storage:
+class Resources:
     """
     Inspired by ECS Resources, a storage can store arbitrary values by their types. 
     It's a unique storage, thus only one item of a specific type can be stored at the same time.

@@ -19,8 +19,13 @@ void main()
     vec2 sprite_pos = sprite_positions[gl_InstanceID];
     vec2 sprite_size = sprite_sizes[gl_InstanceID];
 
-    // We're adding sprite_pos.y+camera_pos.z, because 
-    float player_sprite_angle = atan(sprite_pos.x-camera_pos.x, sprite_pos.y+camera_pos.z);
+    // Swapping the Y component with X in arctangent produces a slightly different angle, which in turn
+    // produces the "billboard" effect, always looking at the player
+    float player_sprite_angle = atan(
+        camera_pos.x-sprite_pos.x,
+        -camera_pos.z+sprite_pos.y
+    );
+
     mat2 sprite_rot = mat2(
         cos(player_sprite_angle), -sin(player_sprite_angle),
         sin(player_sprite_angle),  cos(player_sprite_angle)
