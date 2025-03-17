@@ -28,10 +28,10 @@ ZNEAR = 0.1
 
 T = TILE_SIZE
 QUAD_VERTICIES = np.array([
-    -0.5*T, T, 0,     0, 0,
-     0.5*T, T, 0,     1, 0,
-    -0.5*T, 0, 0,     0, 1,
-     0.5*T, 0, 0,     1, 1
+    -0.5, 1, 0,     0, 0,
+     0.5, 1, 0,     1, 0,
+    -0.5, 0, 0,     0, 1,
+     0.5, 0, 0,     1, 1
 ], dtype=np.float32)
 
 QUAD_INDICES = np.array([0, 1, 2, 1, 3, 2], dtype=np.uint32)
@@ -258,10 +258,13 @@ sprite_program["material"] = 0
 pipeline["projection"] = projection
 sprite_program["projection"] = projection
 
-# An array of 3x3 matrices
-sprite_rotations = np.zeros((256, 4), dtype=np.float32)
 # An array of 2 axis vectors
 sprite_positions = np.zeros((256, 2), dtype=np.float32)
+
+# An array of 2 axis vectors
+sprite_sizes = np.zeros((256, 2), dtype=np.float32)
+
+sprite_sizes[0] = np.array([TILE_SIZE, TILE_SIZE], dtype=np.float32)
 
 while not quitted:
     dt = clock.tick(conf.fps) / 1000
@@ -272,14 +275,12 @@ while not quitted:
     pg.display.set_caption(str(np.floor(clock.get_fps())))
 
     player.update(dt)
+    meteorite_dir = (player.get_pos()-meteorite_pos)
+    if meteorite_dir.length_squared() != 0:
+        meteorite_dir.normalize_ip()
+    meteorite_pos += meteorite_dir * 50 * dt
     # for rect in tilemap_rects:
     #     player.collide(rect)
-
-    meteorite_angle = np.arctan2(meteorite_pos.x-player.pos.x, meteorite_pos.y-player.pos.y)
-    meteorite_rot = np.array([
-        [np.cos(meteorite_angle), -np.sin(meteorite_angle)],
-        [np.sin(meteorite_angle), np.cos(meteorite_angle)]
-    ], dtype=np.float32)
 
     player_camera_rot = player.camera_rotation().flatten()
     player_camera_pos = player.camera_pos()
@@ -296,13 +297,12 @@ while not quitted:
 
     # Now draw sprites
     sprite_positions[0] = np.array([meteorite_pos.x, meteorite_pos.y], dtype=np.float32)
-    sprite_rotations[0] = meteorite_rot.flatten()
 
     sprite_program["camera_rot"] = player_camera_rot
     sprite_program["camera_pos"] = player_camera_pos
     
-    sprite_program["sprite_rot"] = sprite_rotations
-    sprite_program["sprite_pos"] = sprite_positions
+    sprite_program["sprite_positions"] = sprite_positions
+    sprite_program["sprite_sizes"] = sprite_sizes
 
     meteorite_texture.use()
     sprite_vao.render(instances=1)

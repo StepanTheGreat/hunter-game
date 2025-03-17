@@ -79,4 +79,4 @@ class Player:
         ], dtype=np.float32)
     
     def camera_pos(self) -> np.ndarray:
-        return np.array([self.pos.x, Player.CAMERA_HEIGHT, -self.pos.y])
+        return np.array([self.pos.x, Player.CAMERA_HEIGHT, self.pos.y])
