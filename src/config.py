@@ -30,23 +30,25 @@ def typed_dataclass(cls: object) -> object:
     This is especially important when deserializing JSON objects.
     """
     cls.__post_init__ = __typed_post_init
-    cls.__is_typed_dataclass__ = True
+    cls.__is_typed_dataclass = True
     cls = dataclasses.dataclass(cls)
     return cls
 
 def load_config(dclass: C, json_s: str) -> C:
     "Load a config from a json string. The class in the first argument has to be a dataclass"
 
-    assert dclass.__dict__.get("__is_typed_dataclass__"), "Only typed dataclasses can be loaded from JSON"
+    assert dclass.__dict__.get("__is_typed_dataclass"), "Only typed dataclasses can be loaded from JSON"
 
     loaded = json.loads(json_s)
+    
     return dclass(**loaded)
 
 def load_config_file(dclass: C, json_path: str) -> C:
     "The same as `load_config`, but for directly loading from the file system"
 
-    assert dclass.__dict__.get("__is_typed_dataclass__"), "Only typed dataclasses can be loaded from JSON"
+    assert dclass.__dict__.get("__is_typed_dataclass"), "Only typed dataclasses can be loaded from JSON"
 
     with open(json_path, "rb") as file:
         loaded = json.load(file)
+
     return dclass(**loaded)    
