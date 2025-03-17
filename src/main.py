@@ -107,37 +107,37 @@ def gen_tile_geometry(
             x,   0, y,        r, g, b,      0, 1,
             x+s, 0, y,        r, g, b,      1, 1
         ], dtype=np.float32))
-        indices = np.append(indices, np.array([cind+1, cind, cind+2, cind+1, cind+2, cind+3], dtype=np.uint32))
+        indices = np.append(indices, np.array([cind, cind+1, cind+2, cind+2, cind+1, cind+3], dtype=np.uint32))
         cind += 4
 
     if not bottom_neighbour:
         verticies = np.append(verticies, np.array([
-            x,   s, y+s,    r, g, b,    0, 0,
-            x+s, s, y+s,    r, g, b,    1, 0,
-            x,   0, y+s,    r, g, b,    0, 1,
-            x+s, 0, y+s,    r, g, b,    1, 1,
+            x,   s, y-s,    r, g, b,    0, 0,
+            x+s, s, y-s,    r, g, b,    1, 0,
+            x,   0, y-s,    r, g, b,    0, 1,
+            x+s, 0, y-s,    r, g, b,    1, 1,
         ], dtype=np.float32))
-        indices = np.append(indices, np.array([cind, cind+1, cind+2, cind+2, cind+1, cind+3], dtype=np.uint32))
+        indices = np.append(indices, np.array([cind+1, cind, cind+2, cind+1, cind+2, cind+3], dtype=np.uint32))
         cind += 4
 
     if not left_neighbour:
         verticies = np.append(verticies, np.array([
             x, s, y,        r, g, b,    0, 0,
-            x, s, y+s,      r, g, b,    1, 0,
+            x, s, y-s,      r, g, b,    1, 0,
             x, 0, y,        r, g, b,    0, 1,
-            x, 0, y+s,      r, g, b,    1, 1,
+            x, 0, y-s,      r, g, b,    1, 1,
         ], dtype=np.float32))
-        indices = np.append(indices, np.array([cind, cind+1, cind+2, cind+2, cind+1, cind+3], dtype=np.uint32))
+        indices = np.append(indices, np.array([cind+1, cind, cind+2, cind+1, cind+2, cind+3], dtype=np.uint32))
         cind += 4
 
     if not right_neighbour:
         verticies = np.append(verticies, np.array([
             x+s, s, y,      r, g, b,    0, 0,
-            x+s, s, y+s,    r, g, b,    1, 0,
+            x+s, s, y-s,    r, g, b,    1, 0,
             x+s, 0, y,      r, g, b,    0, 1,
-            x+s, 0, y+s,    r, g, b,    1, 1,
+            x+s, 0, y-s,    r, g, b,    1, 1,
         ], dtype=np.float32))
-        indices = np.append(indices, np.array([cind+1, cind, cind+2, cind+1, cind+2, cind+3], dtype=np.uint32))
+        indices = np.append(indices, np.array([cind, cind+1, cind+2, cind+2, cind+1, cind+3], dtype=np.uint32))
         cind += 4
 
     return verticies, indices
@@ -163,10 +163,10 @@ transparent_tiles = set([1])
 color_map[1].filter = (gl.NEAREST, gl.NEAREST)
 color_map[2].filter = (gl.NEAREST, gl.NEAREST)
 
-player = Player((0, 0))
+player = Player((3*TILE_SIZE, 0))
 
 meteorite_texture = load_texture(ctx, "../images/character.png")
-meteorite_pos = pg.Vector2(0, 0)
+meteorite_pos = pg.Vector2(3*TILE_SIZE, 0)
 
 tiles_w, tiles_h = 8, 8
 tiles = [
@@ -184,7 +184,7 @@ tilemap_rects = []
 for y, row in enumerate(tiles):
     for x, tile in enumerate(row):
         if tile != 0:
-            tilemap_rects.append(pg.Rect(x*TILE_SIZE, -y*TILE_SIZE, TILE_SIZE, TILE_SIZE))
+            tilemap_rects.append(pg.Rect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE))
 
 pipeline = batch.Pipeline(
     ctx, 
@@ -224,7 +224,7 @@ for y, row in enumerate(tiles):
             texture = material if type(material) is gl.Texture else white_texture 
 
             tile_verts, tile_inds = gen_tile_geometry(
-                (x, y), 
+                (x, -y), 
                 TILE_SIZE,
                 color,
                 [top_neighbour, left_neighbour, right_neighbour, bottom_neighbour]
@@ -279,8 +279,8 @@ while not quitted:
     if meteorite_dir.length_squared() != 0:
         meteorite_dir.normalize_ip()
     meteorite_pos += meteorite_dir * 50 * dt
-    # for rect in tilemap_rects:
-    #     player.collide(rect)
+    for rect in tilemap_rects:
+        player.collide(rect)
 
     player_camera_rot = player.camera_rotation().flatten()
     player_camera_pos = player.camera_pos()
@@ -296,7 +296,7 @@ while not quitted:
         group.render(gl.TRIANGLES)
 
     # Now draw sprites
-    sprite_positions[0] = np.array([meteorite_pos.x, meteorite_pos.y], dtype=np.float32)
+    sprite_positions[0] = np.array([meteorite_pos.x, -meteorite_pos.y], dtype=np.float32)
 
     sprite_program["camera_rot"] = player_camera_rot
     sprite_program["camera_pos"] = player_camera_pos

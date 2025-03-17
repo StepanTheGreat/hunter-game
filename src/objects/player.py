@@ -65,7 +65,7 @@ class Player:
         return self.angle
     
     def get_pos(self) -> pg.Vector2:
-        return pg.Vector2(self.pos)
+        return self.pos.copy()
 
     def camera_rotation(self) -> np.ndarray:
         direction = pg.Vector3(-np.cos(self.angle), 0, -np.sin(self.angle))
@@ -79,4 +79,4 @@ class Player:
         ], dtype=np.float32)
     
     def camera_pos(self) -> np.ndarray:
-        return np.array([self.pos.x, Player.CAMERA_HEIGHT, self.pos.y])
+        return np.array([self.pos.x, Player.CAMERA_HEIGHT, -self.pos.y])
