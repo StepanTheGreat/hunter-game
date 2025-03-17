@@ -1,4 +1,4 @@
-import src.config as config
+import config
 import dataclasses
 from ward import test, raises
 

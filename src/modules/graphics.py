@@ -1,11 +1,20 @@
 import moderngl as gl
-from app import Plugin, Schedule
+
+from plugin import Plugin, Schedule
 from resources import Resources
 
 CLEAR_COLOR = (0, 0, 0, 1)
 
+class GraphicsPlugin(Plugin):
+    "A plugin responsible for managing a ModernGL context"
+
+    "A graphics plugin responsible for storing the graphics context and clearing the screen"
+    def build(self, app):
+        app.insert_resource(GraphicsContext())
+        app.add_systems(Schedule.PreRender, clear_screen)
+
 class GraphicsContext:
-    "The global ModernGL context. It should ONLY be initialized after the window is created"
+    "The global ModernGL context and screen"
     def __init__(self):
         self.ctx: gl.Context = gl.get_context()
 
@@ -16,11 +25,4 @@ class GraphicsContext:
         self.ctx.clear(*color)
 
 def clear_screen(resources: Resources):
-    gfx = resources.get(GraphicsContext)
-    gfx.clear(CLEAR_COLOR)
-    
-class GraphicsPlugin(Plugin):
-    "A graphics plugin responsible for storing the graphics context and clearing the screen"
-    def build(self, app):
-        app.insert_resource(GraphicsContext(gl.get_context()))
-        app.add_systems(Schedule.PreRender, clear_screen)
+    resources[GraphicsContext].clear(CLEAR_COLOR)
