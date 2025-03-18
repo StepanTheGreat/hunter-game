@@ -1,7 +1,11 @@
+"A core module responsible for everything related to graphics, geometry and so on"
+
 import moderngl as gl
 
 from plugin import Plugin, Schedule
 from plugin import Resources
+
+import batch
 
 CLEAR_COLOR = (0, 0, 0, 1)
 
