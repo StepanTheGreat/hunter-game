@@ -1,10 +1,10 @@
+"""
+The core plugins module. It contains the **core** components of the application, like opengl context,
+time, networking and so on. Child plugins will use these core components to render/queue/send or do anything they need.
+"""
+
 from plugin import Plugin
 from main import AppConfig
-
-__all__ = [
-    "graphics",
-    "clock",
-]
 
 from .graphics import GraphicsPlugin
 from .clock import ClockPlugin
