@@ -5,7 +5,7 @@ import moderngl as gl
 from plugin import Plugin, Schedule
 from plugin import Resources
 
-import batch
+from .batch import * 
 
 CLEAR_COLOR = (0, 0, 0, 1)
 
