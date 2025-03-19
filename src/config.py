@@ -35,7 +35,7 @@ def typed_dataclass(cls: object) -> object:
 def load_config(dclass: C, json_s: str) -> C:
     "Load a config from a json string. The class in the first argument has to be a dataclass"
 
-    assert dclass.__dict__.get("__is_typed_dataclass"), "Only typed dataclasses can be loaded from JSON"
+    assert getattr(dclass, "__is_typed_dataclass", False), "Only typed dataclasses can be loaded from JSON"
 
     loaded = json.loads(json_s)
     
@@ -44,7 +44,7 @@ def load_config(dclass: C, json_s: str) -> C:
 def load_config_file(dclass: C, json_path: str) -> C:
     "The same as `load_config`, but for directly loading from the file system"
 
-    assert dclass.__dict__.get("__is_typed_dataclass"), "Only typed dataclasses can be loaded from JSON"
+    assert getattr(dclass, "__is_typed_dataclass", False), "Only typed dataclasses can be loaded from JSON"
 
     with open(json_path, "rb") as file:
         loaded = json.load(file)

@@ -5,7 +5,7 @@ import moderngl as gl
 import app.config as config
 
 import batch
-from objects.player import Player
+from plugins.entity.player import Player
 
 @config.typed_dataclass
 class AppConfig:
@@ -26,7 +26,6 @@ ASPECT_RATIO = conf.height/conf.width
 ZFAR = 1024
 ZNEAR = 0.1
 
-T = TILE_SIZE
 QUAD_VERTICIES = np.array([
     -0.5, 1, 0,     0, 0,
      0.5, 1, 0,     1, 0,

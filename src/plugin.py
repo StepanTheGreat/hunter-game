@@ -1,7 +1,42 @@
+"""
+An application management module. Everything related to application modularisation:
+- Plugins (small packages that can register custom logic to the app)
+- Systems (custom logic that can get executed at different schedules)
+- Resources (global unique resources that can be accessed from a type interface)
+- Events and Event listeners (Custom structures that can be sent accross the app and respectively listened to)
+"""
+
 from enum import Enum, auto
 from typing import Callable, TypeVar, Optional
 
 from pygame import Event
+
+
+def event(cls):
+    "An event decorator for event objects. It allows them to be sent or listened to across the entire application"
+    cls.__app_event = True
+    return cls
+
+class EventWriter:
+    "A built-in event writer for the entire app. It's automatically managed by the app"
+    def __init__(self):
+        self.queue: list = []
+
+    def push_event(self, event):
+        "Push an event onto the queue"
+
+        assert event is not None, "Can't push None values"
+        assert getattr(event, "__app_event", False), "Only event objects can be pushed"
+        
+        self.queue.append(event)
+
+    def __read_events(self) -> list:
+        "Get the internal event queue. The direction is from left (first) to right (last)"
+        return self.queue
+
+    def __clear_events(self):
+        "Clear the internal queue. This should be called at the start of every frame internally by the app"
+        self.queue.clear()  
 
 # This is a generic argument that stands for Resource.
 # It's highly useful because it allows the intellisense to understand arguments and return types, which
@@ -81,15 +116,16 @@ class Plugin:
 
 class AppBuilder:
     def __init__(self, *plugins: Plugin):
-        self.systems: dict[Schedule, list[Callable[[Resources, Event]]]] = {}
-        self.event_handlers: dict[int, list[Callable[[Resources]]]] = {}
+        self.systems: dict[Schedule, list[Callable[[Resources]]]] = {}
+        self.event_listeners: dict[type, list[Callable[[Resources, Event]]]] = {}
         self.resources: Resources = Resources()
 
         for plugin in plugins:
             self.add_plugin(plugin)
 
-    def add_plugin(self, plugin: Plugin):
-        plugin.build(self)
+    def add_plugins(self, *plugins: Plugin):
+        for plugin in plugins:
+            plugin.build(self)
 
     def insert_resource(self, resource):
         "Insert a resource into resources"
@@ -104,18 +140,18 @@ class AppBuilder:
         systems_list = self.systems.get(schedule)
 
         if systems_list is None:
-            self.systems[schedule] = systems
+            self.systems[schedule] = [systems]
         else:
             systems_list += systems
         
-    def add_event_handler(self, event_id: int, callback: Callable[[Resources, Event], None]):
+    def add_event_listener(self, event_id: int, listener: Callable[[Resources, Event], None]):
         "Add an event listener to the provided event ID"
-        systems_list = self.systems.get(event_id)
+        listeners_list = self.event_listeners.get(event_id)
 
-        if systems_list is None:
-            self.systems[event_id] = [callback]
+        if listeners_list is None:
+            self.event_listeners[event_id] = [listener]
         else:
-            systems_list.append(callback)
+            listeners_list.append(listener)
     
 R = TypeVar("R")
 
@@ -123,23 +159,23 @@ class App:
     "The main executor of all systems, event handlers. It also keeps resources, of course."
     def __init__(self, app_builder: AppBuilder):
         self.systems: dict[Schedule, Callable[[Resources], None]] = app_builder.systems
-        self.event_handlers: dict[int, Callable[[Resources, Event], None]] = app_builder.event_handlers
+        self.event_listeners: dict[int, Callable[[Resources, Event], None]] = app_builder.event_listeners
         self.resources: Resources = app_builder.resources
+
+        # Initialize the event writer
+        self.resources[EventWriter] = EventWriter()
 
     def get_resource(self, resource: R) -> Optional[R]:
         return self.resources.get(resource)
     
-    def push_event(self, event: Event):
-        event_handlers = self.event_handlers.get(event.type)
-
-        if event_handlers is not None:
-            for event_handler in event_handlers:
-                event_handlers(self.resources, event)
+    def __push_event(self, event):        
+        for event_listener in self.event_listeners.get(event.type, []):
+            event_listener(self.resources, event)
 
     def __execute_schedules(self, *schedules: Schedule):
         "Execute all systems in a schedule"
         for schedule in schedules:
-            for system in self.systems.get(schedule, ()):
+            for system in self.systems.get(schedule, []):
                 system(self.resources)
 
     def startup(self):
@@ -148,11 +184,16 @@ class App:
 
     def update(self):
         "Execute all update systems"
-        self.__execute_schedules(
-            Schedule.First,
-            Schedule.PreUpdate,
-            Schedule.Update
-        )
+
+        self.__execute_schedules(Schedule.First)
+
+        event_writer = self.resources[EventWriter]
+        for event in event_writer.__read_events():
+            self.__push_event(event)
+
+        event_writer.__clear_events()
+
+        self.__execute_schedules(Schedule.PreUpdate,Schedule.Update)
     
     def render(self):
         "Execute all render systems"
@@ -164,4 +205,4 @@ class App:
     
     def finalize(self):
         "Execute all finalize systems"
-        self.__execute_schedules(Schedule.Finalize)
+        self.__execute_schedules(Schedule.Finalize)  

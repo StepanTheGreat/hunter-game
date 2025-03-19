@@ -1,28 +1,28 @@
-from resources import Resources
+from plugin import Resources
 from ward import test
 
 @test("Test resources initialisation")
 def _():
-    s = Resources(5, 5.0, "hello")
+    r = Resources(5, 5.0, "hello")
 
-    assert s[int] == 5
-    assert s[float] == 5.0
-    assert s[str] == "hello"
+    assert r[int] == 5
+    assert r[float] == 5.0
+    assert r[str] == "hello"
 
     # We're using get here since the entry doesn't exist because accessing it via __getitem__ will throw an error
-    assert s.get(list) is None
+    assert r.get(list) is None
 
 @test("Test resources removal")
 def _():
-    s = Resources()
+    r = Resources()
 
-    assert s.get(int) is None
+    assert r.get(int) is None
     
-    s.insert(35)
-    s.insert(12.04)
+    r.insert(35)
+    r.insert(12.04)
 
-    assert s.get(int) == 35
+    assert r.get(int) == 35
 
-    assert s.remove(int) == 35
+    assert r.remove(int) == 35
 
-    assert s.get(int) is None
+    assert r.get(int) is None

@@ -1,14 +1,19 @@
 import pygame as pg
 import numpy as np
 
-class Player:
+from plugin import Plugin, Resources, Schedule
+from . import Entity, EntityContainer
+
+class Player(Entity):
     HITBOX_SIZE = 12
     SPEED = 250
     ROTATION_SPEED = 3
     # The height of the camera
     CAMERA_HEIGHT = 24
 
-    def __init__(self, pos: tuple[float, float]):
+    def __init__(self, uid: int, pos: tuple[float, float]):
+        super().__init__(uid)
+
         self.last_pos = pg.Vector2(*pos)
         self.pos = pg.Vector2(*pos)
         self.rect = pg.Rect(0, 0, Player.HITBOX_SIZE, Player.HITBOX_SIZE)
@@ -21,7 +26,7 @@ class Player:
         "Syncronize the player's rect with its position. This function will also center the position of the hitbox"
         self.rect.center = self.pos
 
-    def update(self, dt: float):
+    def update(self, dt: float, _):
         keys = pg.key.get_pressed()
         forward = keys[pg.K_w]-keys[pg.K_s]
         left_right = keys[pg.K_d]-keys[pg.K_a]
@@ -48,7 +53,7 @@ class Player:
         elif self.angle < -np.pi:
             self.angle = np.pi
 
-    def draw(self):
+    def draw(self, _):
         pass
         # pg.draw.circle(surface, (0, 255, 0), self.pos+MARGIN, Player.HITBOX_SIZE//2)
         # renderer.draw_color = (0, 255, 0, 255)
@@ -80,3 +85,14 @@ class Player:
     
     def camera_pos(self) -> np.ndarray:
         return np.array([self.pos.x, Player.CAMERA_HEIGHT, -self.pos.y])
+    
+def spawn_player(resources: Resources):
+    entities = resources[EntityContainer]
+    
+    entities.push_entity(
+        Player(entities.get_entity_uid(), (0, 0))
+    )
+
+class PlayerPlugin(Plugin):
+    def build(self, app):
+        app.add_systems(Schedule.Startup, spawn_player)
