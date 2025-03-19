@@ -146,7 +146,7 @@ class AppBuilder:
         systems_list = self.systems.get(schedule)
 
         if systems_list is None:
-            self.systems[schedule] = systems
+            self.systems[schedule] = list(systems)
         else:
             systems_list += systems
         

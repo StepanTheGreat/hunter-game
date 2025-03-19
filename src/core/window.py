@@ -11,6 +11,9 @@ class Window:
         pg.display.set_caption(conf.title)
         self.window = pg.display.set_mode((conf.width, conf.height), vsync=conf.vsync, flags = VIDEO_FLAGS)
 
+    def set_title(self, new_title: str):
+        pg.display.set_caption(new_title)
+
 @event
 class PygameEvent:
     "A pygame event container"
@@ -19,10 +22,9 @@ class PygameEvent:
 
 def poll_pygame_events(resources: Resources):
     "Collect and resend all pygame events accross the app"
-    print("Polling!")
     ewriter = resources[EventWriter]
     for event in pg.event.get():
-        event = event if event.type != pg.QUIT else QuitEvent()
+        event = PygameEvent(event) if event.type != pg.QUIT else QuitEvent()
         ewriter.push_event(event)
 
 def flip_pygame_display(_):
