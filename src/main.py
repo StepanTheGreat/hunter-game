@@ -16,8 +16,6 @@ class AppConfig:
     title: str = "Maze Runner"
 
 def load_config() -> AppConfig:
-    "Load the main app config"
-
     # I added a config.json file of an urgent need of constantly chaning different app settings
     # like width, height or fps. One problem however... git keeps track of every single change. 
     # Ignoring the file would mean that someone would need to manually recreate said file, which isn't ideal at all.
@@ -36,9 +34,7 @@ def make_app(conf: AppConfig) -> plugin.App:
     return plugin.App(builder)
 
 def main():
-    conf = load_config()
-    app = make_app(conf)
-
+    app = make_app(load_config())
     app.startup()
 
     while not app.should_quit():
