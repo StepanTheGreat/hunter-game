@@ -37,31 +37,15 @@ def make_app(conf: AppConfig) -> plugin.App:
 
 def main():
     conf = load_config()
-    
-    pg.display.set_caption(conf.title)
-    screen = pg.display.set_mode((conf.width, conf.height), vsync=conf.vsync, flags = VIDEO_FLAGS)
-    quitted = False
+    app = make_app(conf)
 
-    application = make_app(conf)
-    application.startup()
+    app.startup()
 
-    while not quitted:
-        for event in pg.event.get():
-            if event.type == pg.QUIT:
-                quitted = True
-            else:
-                # I decided to not push pg.QUIT, as it will get run with both `render` and `update`,
-                # which doesn't really make any sense. Using Schedule.Finalize instead makes more sense, as it
-                # will trully be the last schedule to get executed.
-                application.push_event(event)
+    while not app.should_quit():
+        app.update()
+        app.render()
 
-        application.update()
-        application.render()
-
-        pg.display.flip()
-
-    application.finalize()
-    pg.quit()
+    app.finalize()
 
 if __name__ == "__main__":
     main()

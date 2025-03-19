@@ -8,6 +8,7 @@ from main import AppConfig
 
 from .graphics import GraphicsPlugin
 from .clock import ClockPlugin
+from .window import WindowPlugin
 
 class CoreModulesPlugin(Plugin):
     "The core application modules"
@@ -15,5 +16,8 @@ class CoreModulesPlugin(Plugin):
         self.config = config
 
     def build(self, app):
-        app.add_plugin(ClockPlugin(self.config.fps))
-        app.add_plugin(GraphicsPlugin())
+        app.add_plugins(
+            ClockPlugin(self.config.fps),
+            WindowPlugin(self.config),
+            GraphicsPlugin()
+        )
