@@ -22,3 +22,14 @@ A lot of logic relies on topleft to bottomright coordinates, like rectangles or 
 
 If you see negative Y coordinates in the codebase in rendering-related code - that's the reason. 
 If you see them outside though - that's a bug on my part.  
+
+## Plugin/App abstraction
+So, you might say that this simple app is TOO abstracted, and you will be 100% right. All this modularisation,
+down to the point of separating pygame-specific interface is indeed a lot.
+
+The reasoning behind this decision for me is that:
+1. It makes it extremely easy to update and add new features without changint the main application's entry point
+2. It makes it possible to add different backends (though in this case not useful at all)
+
+So, yes, you're 100% right that this is bizzare for such a small game, but... This overall is supposed to be
+combined with the entirety of the app, which does require a modular separation of everything. 
