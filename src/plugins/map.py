@@ -14,8 +14,8 @@ def load_str(path: str) -> str:
         contents = file.read()
     return contents
 
-SHADER_VERTEX = load_str("../shaders/main.vert")
-SHADER_FRAGMENT = load_str("../shaders/main.frag")
+# SHADER_VERTEX = load_str("../shaders/main.vert")
+# SHADER_FRAGMENT = load_str("../shaders/main.frag")
 
 def gen_tile_geometry(
     coords: tuple[int, int], 
@@ -99,7 +99,7 @@ class WorldMap:
             self, 
             graphics: GraphicsContext, 
             tilemap: Tilemap, 
-            colormap: dict[int, gl.Texture | tuple[int, int, int, int]],
+            colormap: dict[int, object],
             transparent_tiles: set[int]
         ):
         self.map = tilemap
@@ -150,7 +150,7 @@ class WorldMap:
         """
         return self.transparent_tiles
 
-    def get_colormap(self) -> dict[int, gl.Texture | tuple[int, int, int, int]]:
+    def get_colormap(self) -> dict[int, object]:
         "A colormap is a tile ID to color/texture map that's used for mesh generation"
         return self.colormap
 
@@ -165,19 +165,20 @@ class WorldMap:
 
 class MapPlugin(Plugin):
     def build(self, app):
-        app.insert_resource(WorldMap(
-            Tilemap(8, 8, np.array([
-                [0, 0, 0, 0, 0, 0, 2, 2],
-                [2, 1, 1, 0, 0, 0, 0, 2],
-                [3, 0, 0, 2, 0, 0, 0, 1],
-                [1, 0, 0, 4, 1, 1, 0, 1],
-                [3, 0, 0, 0, 0, 0, 0, 2],
-                [2, 0, 0, 0, 0, 0, 0, 2],
-                [2, 0, 0, 0, 0, 0, 0, 3],
-                [1, 3, 0, 0, 0, 0, 3, 3],
-            ], dtype=np.uint32))
-        ))
-        app.add_systems(Schedule.Render, render_map)
+        pass
+        # app.insert_resource(WorldMap(
+        #     Tilemap(8, 8, np.array([
+        #         [0, 0, 0, 0, 0, 0, 2, 2],
+        #         [2, 1, 1, 0, 0, 0, 0, 2],
+        #         [3, 0, 0, 2, 0, 0, 0, 1],
+        #         [1, 0, 0, 4, 1, 1, 0, 1],
+        #         [3, 0, 0, 0, 0, 0, 0, 2],
+        #         [2, 0, 0, 0, 0, 0, 0, 2],
+        #         [2, 0, 0, 0, 0, 0, 0, 3],
+        #         [1, 3, 0, 0, 0, 0, 3, 3],
+        #     ], dtype=np.uint32))
+        # ))
+        # app.add_systems(Schedule.Render, render_map)
 
 def render_map(resources: Resources):
     if (wmap := resources.get(WorldMap)):

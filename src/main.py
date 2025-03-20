@@ -14,6 +14,7 @@ class AppConfig:
     vsync: bool = True
     fps: int = 60
     title: str = "Maze Runner"
+    assets_dir: str = "../assets/"
 
 def load_config() -> AppConfig:
     # I added a config.json file of an urgent need of constantly chaning different app settings
@@ -30,7 +31,7 @@ def make_app(conf: AppConfig) -> plugin.App:
     "Construct the main application"
 
     builder = plugin.AppBuilder(core.CoreModulesPlugin(conf))
-    builder.add_plugins(PluginsCollection)
+    builder.add_plugins(PluginsCollection())
 
     return plugin.App(builder)
 

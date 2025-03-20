@@ -133,6 +133,13 @@ class AppBuilder:
         for plugin in plugins:
             plugin.build(self)
 
+    def get_resources(self) -> Resources:
+        "If you need some manual control"
+        return self.resources
+    
+    def get_resource(self, ty: R) -> R:
+        return self.resources.get(ty)
+
     def insert_resource(self, resource):
         "Insert a resource into resources"
         self.resources.insert(resource)
