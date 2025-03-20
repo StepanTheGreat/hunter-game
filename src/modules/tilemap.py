@@ -1,3 +1,4 @@
+from typing import Optional
 import numpy as np
 
 class Tilemap:
@@ -26,3 +27,31 @@ class Tilemap:
         assert 0 <= y < self.height, "The y coordinate is off the grid"
 
         return self.tiles[y][x]
+    
+    def get_neighbours(self, tile: tuple[int, int]) -> tuple[Optional[int], Optional[int], Optional[int], Optional[int]]:
+        """
+        Get a tuple of tile's neighbours. It returns a 4 size tuple of [tile_top, tile_left, tile_right, tile_bottom].
+
+        A neighbour is present if:
+            1. Its coordinates are inside the grid
+            2. Its value isn't 0
+        """
+
+        neighbours = [None, None, None, None]
+        x, y = tile
+        w, h = self.get_size()
+
+        neighbour_pos = (
+            (x, y-1), # up
+            (x-1, y), # left
+            (x+1, y), # right
+            (x, y+1)  # down
+        )
+        for ind, (tx, ty) in enumerate(neighbour_pos):
+            if (tx < 0 or tx >= w) or (ty < 0 or ty >= h):
+                continue
+            
+            if (tile := self.get_tile(tx, ty)) != 0:
+                neighbours[ind] = tile
+
+        return tuple(neighbours)

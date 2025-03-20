@@ -1,7 +1,7 @@
 import pygame as pg
 import plugin, core, config
 
-VIDEO_FLAGS = pg.OPENGL | pg.DOUBLEBUF
+from plugins import PluginsCollection
 
 @config.typed_dataclass
 class AppConfig:
@@ -30,6 +30,7 @@ def make_app(conf: AppConfig) -> plugin.App:
     "Construct the main application"
 
     builder = plugin.AppBuilder(core.CoreModulesPlugin(conf))
+    builder.add_plugins(PluginsCollection)
 
     return plugin.App(builder)
 

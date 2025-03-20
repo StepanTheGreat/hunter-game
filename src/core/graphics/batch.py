@@ -6,10 +6,10 @@ import numpy as np
 import moderngl as gl
 
 class Pipeline:
-    def __init__(self, ctx: gl.Context, shader_vert: str, shader_frag: str, attributes: list[str]):
-        self.program = ctx.program(vertex_shader=shader_vert, fragment_shader=shader_frag)
+    def __init__(self, shader_vert: str, shader_frag: str, attributes: tuple[str, ...]):
+        self.__ctx = gl.get_context()
+        self.program = self.__ctx.program(vertex_shader=shader_vert, fragment_shader=shader_frag)
         self.attributes = attributes
-        self.__ctx = ctx
 
     def get_program(self) -> gl.Program:
         return self.program
@@ -40,7 +40,7 @@ class BatchGroup:
         self.pipeline: Pipeline = pipeline
         self.texture: gl.Texture = texture
 
-        self.__ctx = self.texture.ctx
+        self.__ctx = gl.get_context()
 
         # When grouping geometry, it's important to use unique indices for different meshes
         # free index means the index that is free to use. The index however will be incremented automatically
