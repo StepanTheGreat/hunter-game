@@ -8,9 +8,16 @@ VIDEO_FLAGS = pg.OPENGL | pg.DOUBLEBUF
 
 @event
 class PygameEvent:
-    "A pygame event container"
+    "Basically the same as `pygame.Event`, but registered as an app event"
     def __init__(self, event: pg.Event):
-        self.event = event
+        self.type = event.type
+        self.dict = event.dict
+
+class Screen:
+    "A pygame screen container. Pretty useless actually, but who knows?"
+    def __init__(self, config: AppConfig):
+        pg.display.set_caption(config.title)
+        self.screen = pg.display.set_mode((config.width, config.height), flags=VIDEO_FLAGS, vsync=config.vsync) 
 
 class Clock:
     "A general time keeping structure that automatically manages clock execution"
@@ -48,20 +55,20 @@ class Clock:
         return self.clock.get_fps()
 
 def pygame_runner(app: App):
-
-    screen = pg.display.set_mode((640, 520), flags=VIDEO_FLAGS, vsync=True)
-    resources = app.get_resources()
-    ewriter = resources[EventWriter]
+    event_writer = app.get_resource(EventWriter)
+    clock = app.get_resource(Clock)
     should_quit = False
 
+    app.startup()
+
     while not should_quit:
-        resources[Clock].update()
+        clock.update()
 
         for event in pg.event.get():
-            if event.type == pg.QUIT:
-                should_quit = True
+            if event.type != pg.QUIT:
+                event_writer.push_event(PygameEvent(event))
             else:
-                ewriter.push_event(PygameEvent(event))
+                should_quit = True
 
         app.update()
         app.render()
@@ -76,5 +83,6 @@ class PygamePlugin(Plugin):
         self.config = config
 
     def build(self, app):
+        app.insert_resource(Screen(self.config))
         app.insert_resource(Clock(self.config.fps))
         app.set_runner(pygame_runner)

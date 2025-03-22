@@ -95,4 +95,4 @@ class EntityPlugin(Plugin):
         app.insert_resource(EntityContainer())
         app.add_systems(Schedule.Update, update_entities)
         app.add_systems(Schedule.Render, draw_entities)
-        app.add_plugins(PlayerPlugin)
+        app.add_plugins(PlayerPlugin())

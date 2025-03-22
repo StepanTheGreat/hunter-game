@@ -6,15 +6,21 @@ import moderngl as gl
 from plugin import Plugin, Schedule
 from plugin import Resources
 
+from .objects import *
 from .batch import * 
 
 CLEAR_COLOR = (0, 0, 0, 1)
 
+def make_texture(ctx: gl.Context, surf: pg.Surface) -> gl.Texture:
+    "Create a GPU texture from a CPU surface"
+    return ctx.texture(surf.get_size(), surf.get_bytesize(), surf.get_view("1"))
+
 def make_white_texture(ctx: gl.Context) -> gl.Texture:
-    "Generate a 1x1 white picture, highly useful for reusing shaders for color/texture meshes"
+    "Generate a white pixel GPU texture"
+    "Generate a 1x1 white picture. Highly useful for reusing shaders for color/texture meshes"
     white_surf = pg.Surface((1, 1), pg.SRCALPHA)
     white_surf.fill((255, 255, 255, 255))
-    return ctx.texture(white_surf.get_size(), white_surf.get_bytesize(), white_surf.get_view("1"))
+    return make_texture(ctx, white_surf)
 
 class GraphicsPlugin(Plugin):
     "A plugin responsible for managing a ModernGL context"
@@ -25,17 +31,17 @@ class GraphicsPlugin(Plugin):
         app.add_systems(Schedule.PreRender, clear_screen)
 
 class GraphicsContext:
-    "The global ModernGL context and screen"
+    "The global ModernGL"
     def __init__(self):
         self.ctx: gl.Context = gl.get_context()
         self.white_texture: gl.Texture = make_white_texture(self.ctx)
-
-    def get_context(self) -> gl.Context:
-        return self.ctx
     
     def get_white_texture(self) -> gl.Texture:
         return self.white_texture
     
+    def get_context(self) -> gl.Context:
+        return self.ctx
+        
     def clear(self, color: tuple[int, ...]):
         self.ctx.clear(*color)
 
