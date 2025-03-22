@@ -3,10 +3,12 @@ import pygame as pg
 
 from plugin import Plugin
 
+from app_config import CONFIG
+
 FOV = 90
 ZFAR = 1024
 ZNEAR = 0.1
-ASPECT_RATIO = 540/748
+ASPECT_RATIO = CONFIG.height/CONFIG.width
 
 HEIGHT = 24
 

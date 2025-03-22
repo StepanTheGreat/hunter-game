@@ -23,3 +23,5 @@ def load_config() -> AppConfig:
     except FileNotFoundError:
         conf = AppConfig()
     return conf
+
+CONFIG: AppConfig = load_config()

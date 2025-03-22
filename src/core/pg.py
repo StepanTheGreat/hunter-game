@@ -2,7 +2,7 @@
 import pygame as pg
 from plugin import App, Plugin, EventWriter, event
 
-from app_config import AppConfig
+from app_config import CONFIG
 
 VIDEO_FLAGS = pg.OPENGL | pg.DOUBLEBUF
 
@@ -15,9 +15,9 @@ class PygameEvent:
 
 class Screen:
     "A pygame screen container. Pretty useless actually, but who knows?"
-    def __init__(self, config: AppConfig):
-        pg.display.set_caption(config.title)
-        self.screen = pg.display.set_mode((config.width, config.height), flags=VIDEO_FLAGS, vsync=config.vsync) 
+    def __init__(self):
+        pg.display.set_caption(CONFIG.title)
+        self.screen = pg.display.set_mode((CONFIG.width, CONFIG.height), flags=VIDEO_FLAGS, vsync=CONFIG.vsync) 
 
 class Clock:
     "A general time keeping structure that automatically manages clock execution"
@@ -79,10 +79,7 @@ def pygame_runner(app: App):
     pg.quit()
 
 class PygamePlugin(Plugin):
-    def __init__(self, config: AppConfig):
-        self.config = config
-
     def build(self, app):
-        app.insert_resource(Screen(self.config))
-        app.insert_resource(Clock(self.config.fps))
+        app.insert_resource(Screen())
+        app.insert_resource(Clock(CONFIG.fps))
         app.set_runner(pygame_runner)
