@@ -1,5 +1,5 @@
 from plugin import Resources
-from typing import Optional, TypeVar
+from typing import Optional, TypeVar, Type
 from core.pg import Clock
 
 ENTITY_UID_CAP = 2**16
@@ -93,5 +93,5 @@ class EntityContainer:
             for entity in entity_group:
                 entity.draw(resources)
 
-    def get_group(self, ty: E) -> list[E]:
+    def get_group(self, ty: Type[E]) -> list[E]:
         return self.entities.get(ty, [])

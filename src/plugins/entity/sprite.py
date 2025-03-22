@@ -13,7 +13,7 @@ from ..render.sprite import SpriteContainer
 
 class Sprite(Entity):
     HITBOX_SIZE = 12
-    SPEED = 250
+    SPEED = 50
 
     def __init__(self, uid: int, pos: tuple[float, float], assets: AssetManager):
         super().__init__(uid)
@@ -24,7 +24,16 @@ class Sprite(Entity):
         
     def update(self, resources: Resources, dt: float):
         entities = resources[EntityContainer]
-        players = entities.get_group(Player)
+        if (players := entities.get_group(Player)):
+            player = players[0]
+            player_pos = player.get_pos()
+            self.vel = (player_pos-self.pos)
+
+            if self.vel.length_squared() != 0:
+                self.vel.normalize_ip()
+
+            self.pos += self.vel * Sprite.SPEED * dt
+
 
     def draw(self, resources: Resources):
         sprite_container = resources[SpriteContainer]
@@ -38,9 +47,11 @@ class Sprite(Entity):
 def spawn_sprite(resources: Resources):
     entities = resources[EntityContainer]
     
-    entities.push_entity(
-        Sprite(entities.get_entity_uid(), (50, 0), resources[AssetManager])
-    )
+
+    for i in range(5):
+        entities.push_entity(
+            Sprite(entities.get_entity_uid(), (200*i, 0), resources[AssetManager])
+        )
 
 class SpritePlugin(Plugin):
     def build(self, app):
