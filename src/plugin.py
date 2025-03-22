@@ -7,7 +7,7 @@ An application management module. Everything related to application modularisati
 """
 
 from enum import Enum, auto
-from typing import Callable, TypeVar, Optional
+from typing import Callable, TypeVar, Optional, Type
 
 from pygame import Event
 
@@ -65,18 +65,18 @@ class Resources:
         "Insert a new resource, or overwrite an existing one of this type"
         self.database[type(item)] = item
     
-    def get(self, ty: R) -> Optional[R]:
+    def get(self, ty: Type[R]) -> Optional[R]:
         "Get an item by its type. If not present - will return None"
         assert type(ty) is type
 
         return self.database.get(ty)
 
-    def __getitem__(self, ty: R) -> R:
+    def __getitem__(self, ty: Type[R]) -> R:
         assert type(ty) is type
         
         return self.database[ty]
 
-    def remove(self, ty: R) -> Optional[R]:
+    def remove(self, ty: Type[R]) -> Optional[R]:
         "Remove and possibly return a value of the provided type from the storage"
         assert type(ty) is type
         

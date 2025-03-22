@@ -1,8 +1,8 @@
 import numpy as np
 import moderngl as gl
 
-class MaterialParams:
-    "Material parameters that control settings like face culling, depth testing, drawing mode and so on"
+class PipelineParams:
+    "Pipeline parameters control settings like face culling, depth testing, drawing mode and so on"
     def __init__(
             self,
             cull_face: bool,
@@ -13,7 +13,7 @@ class MaterialParams:
         self.depth_test: bool = depth_test
         self.mode: int = mode
 
-    def __eq__(self, other: "MaterialParams") -> bool:
+    def __eq__(self, other: "PipelineParams") -> bool:
         return (
             self.cull_face == other.cull_face,
             self.depth_test == other.depth_test,
@@ -24,36 +24,32 @@ class MaterialParams:
         for setting, to in ((gl.DEPTH_TEST, self.depth_test), (gl.CULL_FACE, self.cull_face)):
             ctx.enable(setting) if to else ctx.disable(setting)
 
-class Material:
+class Pipeline:
     """
-    A material is essentially a shader program and a texture. 
-    Materials can also contain their own material-scope uniform variables
+    A pipeline is essentially a combination of a shader program, draw settings `PipelineParams` and vertex
+    attribute descriptions.
+
+    It makes it extremely convenient to construct and reuse
     """
-    def __init__(self, ctx: gl.Context, program: gl.Program, texture: gl.Texture, params: MaterialParams):
+    def __init__(
+            self, 
+            ctx: gl.Context, 
+            program: gl.Program, 
+            params: PipelineParams, 
+            vertex_attributes=tuple[str, ...]
+        ):
         self.ctx = ctx
 
         self.params = params
         self.program = program
-        self.texture = texture
-        self.uniforms = {}
-
-    def __eq__(self, other: "Material"):
-        # Materials are only equal when both their programs and textures are
-        return self.program == other.program and self.texture == other.texture
+        self.vertex_attributes = vertex_attributes
     
     def __setitem__(self, key: str, value):
-        self.uniforms[key] = value
+        self.program[key] = value
 
-    def set_texture(self, texture: gl.Texture):
-        "Replace material's texture to a new one"
-        self.texture = texture
-
-    def prepare(self):
+    def apply_params(self):
         "Prepare all the local material's variables for the draw operation"
         self.params.apply(self.ctx)
-        self.texture.use()
-        for key, value in self.uniforms:
-            self.program[key] = value
 
 class MeshCPU:
     "Model geometry stored on the CPU"
@@ -99,20 +95,19 @@ class MeshCPU:
 
 class Model:
     "A model is a combination of a CPU mesh and a material. It has all the neccessary information to be rendered"
-    def __init__(self, ctx: gl.Context, mesh: MeshCPU, material: Material, vertex_attributes: tuple):
+    def __init__(self, ctx: gl.Context, mesh: MeshCPU, pipeline: Pipeline):
         self.ctx = ctx
         
         self.mesh = mesh
-        self.material = material
-        self.vertex_attributes = vertex_attributes
+        self.pipeline = pipeline
 
         self.vbo = self.ctx.buffer(mesh.verticies)
         self.ibo = self.ctx.buffer(mesh.indices)
-        self.vao = self.ctx.vertex_array(material.program, self.vbo, *vertex_attributes, index_buffer=self.ibo)
+        self.vao = self.ctx.vertex_array(pipeline.program, self.vbo, *pipeline.vertex_attributes, index_buffer=self.ibo)
 
-    def render(self):
-        self.material.prepare()
-        self.vao.render()
+    def render(self, vertices: int = -1, first: int = 0, instances: int = -1):
+        self.pipeline.apply_params()
+        self.vao.render(self.pipeline.params.mode, vertices, first, instances)
 
     def release(self):
         "Release this model by cleaning its vertex, index buffers and vertex array object. Doesn't "

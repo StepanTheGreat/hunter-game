@@ -1,4 +1,4 @@
-from typing import TypeVar, Callable, Optional
+from typing import TypeVar, Callable, Optional, Type
 from plugin import Resources, Plugin
 
 # Asset
@@ -26,7 +26,7 @@ class AssetManager:
         In any other case, an asset manager doesn't know how to load assets
         """
 
-    def add_loader(self, ty: A, f: Callable[[Resources, str], A]):
+    def add_loader(self, ty: Type[A], f: Callable[[Resources, str], A]):
         "Add an asset loader function for the provided asset type"
         self.loaders[ty] = f
 
@@ -38,7 +38,7 @@ class AssetManager:
         else:
             self.database[ty] = {path: asset}
 
-    def get(self, ty: A, path: str) -> Optional[A]:
+    def get(self, ty: Type[A], path: str) -> Optional[A]:
         "Try get an asset without firing any loading logic"
         # First check if the type exists
         if (ty_group := self.database.get(ty)) is not None:
@@ -48,7 +48,7 @@ class AssetManager:
             
         return None
 
-    def load(self, ty: A, path: str) -> A:
+    def load(self, ty: Type[A], path: str) -> A:
         assert ty in self.loaders, "The requested asset type doesn't have a loader"
         
         # If we're able to get this asset from our database, we will return it early.

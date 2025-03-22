@@ -1,8 +1,11 @@
 from plugin import Resources
-from typing import Optional
+from typing import Optional, TypeVar
 from core.pg import Clock
 
 ENTITY_UID_CAP = 2**16
+
+# Entity
+E = TypeVar("E")
 
 class Entity:
     def __init__(self, uid: int):
@@ -29,7 +32,8 @@ class EntityContainer:
         self.entity_uid = 0
         "An automatically incremented entity ID"
 
-        self.entities: list[Entity] = []
+        self.entities: dict[type, list[Entity]] = {}
+        "A group based container. Entities here are grouped by their type, which is perfect for entity searches"
 
     def get_entity_uid(self) -> int:
         """
@@ -49,34 +53,45 @@ class EntityContainer:
 
     def push_entity(self, entity: Entity):
         "Add a new entity to the entity container"
-        self.entities.append(entity)
+        ty = type(entity)
+
+        if ty in self.entities:
+            self.entities[ty].append(entity)
+        else:
+            self.entities[ty] = [entity]
 
     def get_entity(self, uid: int) -> Optional[Entity]:
-        "Linearly search the entire entity array for an entity with the provided UID"
+        "Linearly search the all entity groups for an entity with the provided UID"
 
-        for entity in self.entities:
-            if entity.uid == uid:
-                return entity
+        for entity_group in self.entities.values():
+            for entity in entity_group:
+                if entity.uid == uid:
+                    return entity
 
     def update(self, resources: Resources):
         "Call update logic for every entity"
 
         dt = resources[Clock].get_delta()
 
-        to_remove = []
-        for ind, entity in enumerate(self.entities):
-            entity.update(resources, dt)
+        for entity_group in self.entities.values():
+            to_remove = []
+            for ind, entity in enumerate(entity_group):
+                entity.update(resources, dt)
 
-            if not entity.is_alive():
-                to_remove.append(ind)
+                if not entity.is_alive():
+                    to_remove.append(ind)
 
-        # If there are entities to remove, we will pop them from the stack
-        # and gradually remove. This is a slow operation however
-        while to_remove:
-            self.entities.pop(to_remove.pop())
+            # If there are entities to remove, we will pop them from the stack
+            # and gradually remove. This is a slow operation however
+            while to_remove:
+                entity_group.pop(to_remove.pop())
     
     def draw(self, resources: Resources):
         "Call rendering logic for every entity"
 
-        for entity in self.entities:
-            entity.draw(resources)
+        for entity_group in self.entities.values():
+            for entity in entity_group:
+                entity.draw(resources)
+
+    def get_group(self, ty: E) -> list[E]:
+        return self.entities.get(ty, [])

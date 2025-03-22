@@ -12,7 +12,7 @@ from core.assets import AssetManager
 
 TILE_SIZE = 48
 
-TILE_MATERIAL_PARAMS = MaterialParams(
+TILE_PIPELINE_PARAMS = PipelineParams(
     cull_face=True,
     depth_test=True,
     mode=gl.TRIANGLES
@@ -97,7 +97,7 @@ def gen_tile_mesh(
 
     return mesh if not mesh.is_empty() else None 
 
-def gen_map_models(ctx: gl.Context, assets: AssetManager, worldmap: WorldMap) -> tuple[list[Model], gl.Program]:
+def gen_map_models(ctx: gl.Context, assets: AssetManager, worldmap: WorldMap) -> tuple[list[tuple[gl.Texture, Model], Pipeline], ]:
     "Generate an array of renderable map models"
 
     def has_neighbour(tile: int, ntile: int, transparent_tiles: set[int]) -> bool:
@@ -142,22 +142,30 @@ def gen_map_models(ctx: gl.Context, assets: AssetManager, worldmap: WorldMap) ->
                     else:
                         mesh_group[texture] = tile_mesh
 
-    shader_program = assets.load(gl.Program, "shaders/base")
+    pipeline = Pipeline(
+        ctx, 
+        assets.load(gl.Program, "shaders/base"), 
+        TILE_PIPELINE_PARAMS, 
+        TILE_VERTEX_ATTRIBUTES
+    )
     models = []
     for group_texture_path, group_mesh in mesh_group.items():
         group_texture = assets.load(gl.Texture, group_texture_path)
-        group_material = Material(ctx, shader_program, group_texture, TILE_MATERIAL_PARAMS)
-        models.append(
-            Model(ctx, group_mesh, group_material, TILE_VERTEX_ATTRIBUTES)
-        )
-    return models, shader_program
+        models.append((group_texture, Model(ctx, group_mesh, pipeline)))
+    return models, pipeline
     
 
 class MapModel:
     def __init__(self, ctx: gl.Context, assets: AssetManager, worldmap: WorldMap):
-        models, program = gen_map_models(ctx, assets, worldmap)
+        models, pipeline = gen_map_models(ctx, assets, worldmap)
         self.models = models
-        self.program = program
+        self.pipeline = pipeline
+
+    def get_pipeline(self) -> Pipeline:
+        return self.pipeline
+    
+    def get_models(self) -> list[tuple[gl.Texture, Model]]:
+        return self.models
 
 def create_map(resources: Resources):
     world_map = resources[WorldMap]
@@ -169,22 +177,22 @@ def create_map(resources: Resources):
     )
     
 def render_map(resources: Resources):
-    map_renderer: MapModel = resources.get(MapModel)
-
-    if map_renderer is None:
+    if (map_renderer := resources.get(MapModel)) is None:
         return
     
     camera = resources[Camera3D]
 
-    map_renderer.program["projection"] = camera.get_projection_matrix()
-    map_renderer.program["camera_pos"] = camera.get_camera_position()
-    map_renderer.program["camera_rot"] = camera.get_camera_rotation().flatten()
+    models, pipeline = map_renderer.get_models(), map_renderer.get_pipeline()
+    pipeline["projection"] = camera.get_projection_matrix()
+    pipeline["camera_pos"] = camera.get_camera_position()
+    pipeline["camera_rot"] = camera.get_camera_rotation().flatten()
 
-    map_renderer.program["material"] = 0
-    for model in map_renderer.models:
+    pipeline["material"] = 0
+    for texture, model in models:
+        texture.use()
         model.render()
 
 class MapRendererPlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.Startup, create_map)
-        app.add_systems(Schedule.Render, render_map)
+        app.add_systems(Schedule.PostRender, render_map)
