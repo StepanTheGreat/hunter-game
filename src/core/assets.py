@@ -1,5 +1,5 @@
 from typing import TypeVar, Callable, Optional
-from plugin import Resources, Plugin, Schedule
+from plugin import Resources, Plugin
 
 # Asset
 A = TypeVar("A")

@@ -6,7 +6,7 @@ from plugin import Plugin
 FOV = 90
 ZFAR = 1024
 ZNEAR = 0.1
-ASPECT_RATIO = 748/540
+ASPECT_RATIO = 540/748
 
 HEIGHT = 24
 
@@ -26,9 +26,9 @@ class Camera3D:
         self.pos = pos
         self.height = height
         self.projection = perspective_matrix(aspect_ratio, fov, zfar, znear)
-        self.angle = np.radians(30)
+        self.angle = 0
 
-    def set_pos(self, new_pos: pg.Vector3):
+    def set_pos(self, new_pos: pg.Vector2):
         self.pos = new_pos
 
     def set_angle(self, new_angle: float):

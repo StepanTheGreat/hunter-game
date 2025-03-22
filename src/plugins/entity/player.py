@@ -2,7 +2,9 @@ import pygame as pg
 import numpy as np
 
 from plugin import Plugin, Resources, Schedule
-from . import Entity, EntityContainer
+
+from core.graphics import Camera3D
+from modules.entity import EntityContainer, Entity
 
 class Player(Entity):
     HITBOX_SIZE = 12
@@ -26,7 +28,7 @@ class Player(Entity):
         "Syncronize the player's rect with its position. This function will also center the position of the hitbox"
         self.rect.center = self.pos
 
-    def update(self, dt: float, _):
+    def update(self, resources: Resources, dt: float):
         keys = pg.key.get_pressed()
         forward = keys[pg.K_w]-keys[pg.K_s]
         left_right = keys[pg.K_d]-keys[pg.K_a]
@@ -53,13 +55,12 @@ class Player(Entity):
         elif self.angle < -np.pi:
             self.angle = np.pi
 
+        cam = resources[Camera3D]
+        cam.set_pos(self.get_pos())
+        cam.set_angle(self.get_angle())
+
     def draw(self, _):
         pass
-        # pg.draw.circle(surface, (0, 255, 0), self.pos+MARGIN, Player.HITBOX_SIZE//2)
-        # renderer.draw_color = (0, 255, 0, 255)
-        # renderer.fill_rect(self.rect)
-        # pg.draw.circle(surface, (0, 255, 0), self.pos, 2)
-
 
     def collide(self, rect: pg.Rect):
         if self.rect.colliderect(rect):
@@ -71,20 +72,6 @@ class Player(Entity):
     
     def get_pos(self) -> pg.Vector2:
         return self.pos.copy()
-
-    def camera_rotation(self) -> np.ndarray:
-        direction = pg.Vector3(-np.cos(self.angle), 0, -np.sin(self.angle))
-        up = pg.Vector3(0, 1, 0)
-        right = up.cross(direction)
-
-        return np.array([
-            [right.x, right.y, right.z],
-            [up.x, up.y, up.z],
-            [direction.x, direction.y, direction.z],
-        ], dtype=np.float32)
-    
-    def camera_pos(self) -> np.ndarray:
-        return np.array([self.pos.x, Player.CAMERA_HEIGHT, -self.pos.y])
     
 def spawn_player(resources: Resources):
     entities = resources[EntityContainer]

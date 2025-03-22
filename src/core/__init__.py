@@ -4,7 +4,7 @@ time, networking and so on. Child plugins will use these core components to rend
 """
 
 from plugin import Plugin
-from main import AppConfig
+from app_config import AppConfig
 
 from .graphics import GraphicsPlugin
 from .pg import PygamePlugin

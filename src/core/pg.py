@@ -2,7 +2,7 @@
 import pygame as pg
 from plugin import App, Plugin, EventWriter, event
 
-from main import AppConfig
+from app_config import AppConfig
 
 VIDEO_FLAGS = pg.OPENGL | pg.DOUBLEBUF
 
@@ -35,7 +35,7 @@ class Clock:
         This is only supposed to get called from the clock plugin
         """
 
-        delta_time = self.clock.tick(self.fps)
+        delta_time = self.clock.tick(self.fps) / 1000
 
         self.delta_time = delta_time
         self.time += delta_time
