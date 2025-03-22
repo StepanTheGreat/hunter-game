@@ -1,7 +1,8 @@
 from plugin import *
 from modules.tilemap import Tilemap
 
-import moderngl as gl
+from typing import Union
+
 import numpy as np
 
 TILE_SIZE = 48
@@ -11,7 +12,7 @@ class WorldMap:
     def __init__(
             self, 
             tilemap: Tilemap, 
-            color_map: dict[int, str | tuple[int, int, int, int]],
+            color_map: dict[int, Union[str, tuple]],
             transparent_tiles: set[int]
         ):
         self.map = tilemap
@@ -26,7 +27,7 @@ class WorldMap:
         """
         return self.transparent_tiles
 
-    def get_color_map(self) -> dict[int, str | tuple[int, int, int, int]]:
+    def get_color_map(self) -> dict[int, Union[str, tuple]]:
         "A colormap is a tile ID to color/texture map that's used for mesh generation"
         return self.color_map
 
