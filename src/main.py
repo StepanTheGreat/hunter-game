@@ -6,7 +6,7 @@ from plugins import PluginsCollection
 @config.typed_dataclass
 class AppConfig:
     """
-    The main application configuration that can get loaded from json. 
+    The main application configuration that can be loaded from json. 
     All its fields can be overwritten with new values
     """
     width: int = 768
