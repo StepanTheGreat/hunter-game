@@ -126,6 +126,7 @@ class AppBuilder:
         self.systems: dict[Schedule, list[Callable[[Resources]]]] = {}
         self.event_listeners: dict[type, list[Callable[[Resources, Event]]]] = {}
         self.resources: Resources = Resources()
+        self.runner = None
 
         self.add_plugins(*plugins)
 
@@ -134,7 +135,7 @@ class AppBuilder:
             plugin.build(self)
 
     def insert_resource(self, resource):
-        "Insert a resource into resources"
+        "Insert a resource into resources. If a resource of this type already is present - it will get overwritten"
         self.resources.insert(resource)
 
     def remove_resource(self, resource: type):
@@ -158,22 +159,35 @@ class AppBuilder:
             self.event_listeners[event_id] = [listener]
         else:
             listeners_list.append(listener)
+
+    def set_runner(self, runner: Callable[["App"], None]):
+        """
+        A runner is a function that's going to run the application. Different windowing backend have
+        different mainloop implementation, thus a runner allows adapting to a specific backend.
+        """
+        self.runner = runner
     
 R = TypeVar("R")
 
 class App:
     "The main executor of all systems, event handlers. It also keeps resources, of course."
     def __init__(self, app_builder: AppBuilder):
+        assert app_builder.runner is not None, "No runner function was provided to the application"
+
+        self.runner = app_builder.runner
         self.systems: dict[Schedule, Callable[[Resources], None]] = app_builder.systems
         self.event_listeners: dict[int, Callable[[Resources, Event], None]] = app_builder.event_listeners
         self.resources: Resources = app_builder.resources
-        self.quit_requested: bool = False
 
         # Initialize the event writer
         self.resources.insert(EventWriter())
 
     def get_resource(self, resource: R) -> Optional[R]:
+        "A shortcut for `app.get_resources().get(R)`"
         return self.resources.get(resource)
+    
+    def get_resources(self) -> Resources:
+        return self.resources
     
     def __push_event(self, event):        
         for event_listener in self.event_listeners.get(event, []):
@@ -198,23 +212,15 @@ class App:
         # Read all the events received
         ewriter = self.resources[EventWriter]
         for event in ewriter.read_events():
-            if type(event) == QuitEvent:
-                self.quit_requested = True
-                print("Quit requested!")
-            else:
-                self.__push_event(event)
+            self.__push_event(event)
 
         ewriter.clear_events()
 
         # Continue all the other schedules like PreUpdate and Update
         self.__execute_schedules(Schedule.PreUpdate, Schedule.Update)
 
-        # The reason we're doing it in this order is to avoid input delay. Fetching all events first and then executing all systems
-        # will cause new appeared pygame events (that are fetched in the systems) get processed only 1 tick later. 
-        # And the order in this case doesn't matter.
-        #
-        # Making First THE system for core initialisation logic can fix this problem, by letting things like clocks and input receivers run
-        # first. We collect both their and last-frame events, process them, and then continue with the main loop.
+        # This approach can have huge benefits in systems that need to fetch some data and immediately
+        # let other event listeners respond to it without 1-frame delay (like networking).
     
     def render(self):
         "Execute all render systems"
@@ -229,5 +235,6 @@ class App:
         "Execute all finalize systems"
         self.__execute_schedules(Schedule.Finalize)
 
-    def should_quit(self) -> bool:
-        return self.quit_requested
+    def run(self):
+        "Run the application by starting the runner function. This function should be called only once."
+        self.runner(self)

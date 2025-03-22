@@ -7,8 +7,7 @@ from plugin import Plugin
 from main import AppConfig
 
 from .graphics import GraphicsPlugin
-from .clock import ClockPlugin
-from .window import WindowPlugin
+from .pg import PygamePlugin
 
 class CoreModulesPlugin(Plugin):
     "The core application modules"
@@ -17,7 +16,6 @@ class CoreModulesPlugin(Plugin):
 
     def build(self, app):
         app.add_plugins(
-            ClockPlugin(self.config.fps),
-            WindowPlugin(self.config),
+            PygamePlugin(self.config),
             GraphicsPlugin()
         )

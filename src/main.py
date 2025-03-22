@@ -38,6 +38,8 @@ def main():
     app = make_app(load_config())
     app.startup()
 
+    app.run()
+
     while not app.should_quit():
         app.update()
         app.render()

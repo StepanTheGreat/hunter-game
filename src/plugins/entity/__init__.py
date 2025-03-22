@@ -1,6 +1,6 @@
 from plugin import Resources, Plugin, Schedule
 from typing import Optional
-from core.clock import Clock
+from core.pg import Clock
 
 from .player import PlayerPlugin
 
