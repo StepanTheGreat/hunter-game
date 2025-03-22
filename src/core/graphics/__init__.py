@@ -10,10 +10,10 @@ from file import load_file_str
 from ..assets import AssetManager
 
 from .objects import *
-from .batch import * 
-
+from .camera import *
 
 CLEAR_COLOR = (0, 0, 0, 1)
+WHITE_TEXTURE = "white_texture"
 
 def make_texture(ctx: gl.Context, surf: pg.Surface) -> gl.Texture:
     "Create a GPU texture from a CPU surface"
@@ -47,28 +47,11 @@ def loader_texture(resources: Resources, path: str) -> gl.Program:
     surface = pg.image.load(path)
     return make_texture(ctx, surface)
 
-class GraphicsPlugin(Plugin):
-    "A plugin responsible for managing a ModernGL context"
-
-    "A graphics plugin responsible for storing the graphics context and clearing the screen"
-    def build(self, app):
-        app.insert_resource(GraphicsContext())
-        app.add_systems(Schedule.PreRender, clear_screen)
-
-        # Add asset loaders for textures and shaders
-        assets = app.get_resource(AssetManager)
-        assets.add_loader(gl.Program, loader_shader_program)
-        assets.add_loader(gl.Texture, loader_texture)
-
 class GraphicsContext:
     "The global ModernGL"
     def __init__(self):
         self.ctx: gl.Context = gl.get_context()
-        self.white_texture: gl.Texture = make_white_texture(self.ctx)
-    
-    def get_white_texture(self) -> gl.Texture:
-        return self.white_texture
-    
+        
     def get_context(self) -> gl.Context:
         return self.ctx
         
@@ -77,3 +60,22 @@ class GraphicsContext:
 
 def clear_screen(resources: Resources):
     resources[GraphicsContext].clear(CLEAR_COLOR)
+
+class GraphicsPlugin(Plugin):
+    "A plugin responsible for managing a ModernGL context"
+
+    "A graphics plugin responsible for storing the graphics context and clearing the screen"
+    def build(self, app):
+        gfx_ctx = GraphicsContext()
+        app.insert_resource(gfx_ctx)
+        app.add_systems(Schedule.PreRender, clear_screen)
+
+        # Add asset loaders for textures and shaders
+        assets = app.get_resource(AssetManager)
+        assets.add_loader(gl.Program, loader_shader_program)
+        assets.add_loader(gl.Texture, loader_texture)
+
+        # Make and store a white texture in the assets
+        assets.store(WHITE_TEXTURE, make_white_texture(gfx_ctx.get_context()))
+
+        app.add_plugins(CameraPlugin())

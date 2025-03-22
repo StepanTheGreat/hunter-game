@@ -14,7 +14,7 @@ class AppConfig:
     vsync: bool = True
     fps: int = 60
     title: str = "Maze Runner"
-    assets_dir: str = "../assets/"
+    assets_dir: str = "../assets"
 
 def load_config() -> AppConfig:
     # I added a config.json file of an urgent need of constantly chaning different app settings

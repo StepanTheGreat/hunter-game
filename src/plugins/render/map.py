@@ -3,12 +3,22 @@
 import numpy as np
 import moderngl as gl
 
+from plugin import Resources, Plugin, Schedule
+
 from ..map import WorldMap
 from typing import Optional
-from core.graphics import MeshCPU, GraphicsContext, Model, Material
+from core.graphics import *
 from core.assets import AssetManager
 
 TILE_SIZE = 48
+
+TILE_MATERIAL_PARAMS = MaterialParams(
+    cull_face=True,
+    depth_test=True,
+    mode=gl.TRIANGLES
+)
+
+TILE_VERTEX_ATTRIBUTES = ("position", "color", "uv")
 
 def gen_tile_mesh(
     coords: tuple[int, int], 
@@ -87,7 +97,8 @@ def gen_tile_mesh(
 
     return mesh if not mesh.is_empty() else None 
 
-def gen_map_models(graphics: GraphicsContext, assets: AssetManager, worldmap: WorldMap):
+def gen_map_models(ctx: gl.Context, assets: AssetManager, worldmap: WorldMap) -> tuple[list[Model], gl.Program]:
+    "Generate an array of renderable map models"
 
     def has_neighbour(tile: int, ntile: int, transparent_tiles: set[int]) -> bool:
         if tile in transparent_tiles:
@@ -95,14 +106,13 @@ def gen_map_models(graphics: GraphicsContext, assets: AssetManager, worldmap: Wo
         else:
             return ntile != 0 and ntile not in transparent_tiles
     
-    gfx_ctx = graphics.get_context()
     tilemap = worldmap.get_map()
     tiles = tilemap.get_tiles()
 
     color_map = worldmap.get_color_map()
     transparent_tiles = worldmap.get_transparent_tiles()
 
-    white_texture = graphics.get_white_texture()
+    white_texture = "white_texture"
 
     # A mesh group is a dictionary, where keys are textures, and values are meshes
     mesh_group: dict[gl.Texture, MeshCPU] = {}
@@ -113,10 +123,11 @@ def gen_map_models(graphics: GraphicsContext, assets: AssetManager, worldmap: Wo
                 neighbours = tilemap.get_neighbours((x, y))
                 neighbours = tuple(has_neighbour(tile, n, transparent_tiles) if n else False for n in neighbours)
 
+                # A material is either a color or a texture path
                 material = color_map[tile]
 
-                color = (1, 1, 1) if type(material) is gl.Texture else material
-                texture = material if type(material) is gl.Texture else white_texture 
+                color = (1, 1, 1) if type(material) is str else material
+                texture = material if type(material) is str else white_texture
 
                 tile_mesh = gen_tile_mesh(
                     (x, -y), 
@@ -133,12 +144,47 @@ def gen_map_models(graphics: GraphicsContext, assets: AssetManager, worldmap: Wo
 
     shader_program = assets.load(gl.Program, "shaders/base")
     models = []
-    for group_texture, group_mesh in mesh_group:
+    for group_texture_path, group_mesh in mesh_group.items():
+        group_texture = assets.load(gl.Texture, group_texture_path)
+        group_material = Material(ctx, shader_program, group_texture, TILE_MATERIAL_PARAMS)
         models.append(
-            Model(gfx_ctx, group_mesh, )
+            Model(ctx, group_mesh, group_material, TILE_VERTEX_ATTRIBUTES)
         )
+    return models, shader_program
     
 
-class MapRenderer:
-    def __init__(self, worldmap: WorldMap):
-        pass
+class MapModel:
+    def __init__(self, ctx: gl.Context, assets: AssetManager, worldmap: WorldMap):
+        models, program = gen_map_models(ctx, assets, worldmap)
+        self.models = models
+        self.program = program
+
+def create_map(resources: Resources):
+    world_map = resources[WorldMap]
+    gfx = resources[GraphicsContext]
+    assets = resources[AssetManager]
+
+    resources.insert(
+        MapModel(gfx.get_context(), assets, world_map)
+    )
+    
+def render_map(resources: Resources):
+    map_renderer: MapModel = resources.get(MapModel)
+
+    if map_renderer is None:
+        return
+    
+    camera = resources[Camera3D]
+
+    map_renderer.program["projection"] = camera.get_projection_matrix()
+    map_renderer.program["camera_pos"] = camera.get_camera_position()
+    map_renderer.program["camera_rot"] = camera.get_camera_rotation().flatten()
+
+    map_renderer.program["material"] = 0
+    for model in map_renderer.models:
+        model.render()
+
+class MapRendererPlugin(Plugin):
+    def build(self, app):
+        app.add_systems(Schedule.Startup, create_map)
+        app.add_systems(Schedule.Render, render_map)

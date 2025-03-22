@@ -18,6 +18,6 @@ class CoreModulesPlugin(Plugin):
     def build(self, app):
         app.add_plugins(
             PygamePlugin(self.config),
-            AssetsPlugin("assets"),
+            AssetsPlugin(self.config.assets_dir),
             GraphicsPlugin(),
         )
