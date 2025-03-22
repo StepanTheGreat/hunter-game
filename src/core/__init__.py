@@ -8,6 +8,7 @@ from main import AppConfig
 
 from .graphics import GraphicsPlugin
 from .pg import PygamePlugin
+from .assets import AssetsPlugin
 
 class CoreModulesPlugin(Plugin):
     "The core application modules"
@@ -17,5 +18,6 @@ class CoreModulesPlugin(Plugin):
     def build(self, app):
         app.add_plugins(
             PygamePlugin(self.config),
-            GraphicsPlugin()
+            AssetsPlugin("assets"),
+            GraphicsPlugin(),
         )

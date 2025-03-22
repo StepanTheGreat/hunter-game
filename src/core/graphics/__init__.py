@@ -6,8 +6,12 @@ import moderngl as gl
 from plugin import Plugin, Schedule
 from plugin import Resources
 
+from file import load_file_str
+from ..assets import AssetManager
+
 from .objects import *
 from .batch import * 
+
 
 CLEAR_COLOR = (0, 0, 0, 1)
 
@@ -22,6 +26,27 @@ def make_white_texture(ctx: gl.Context) -> gl.Texture:
     white_surf.fill((255, 255, 255, 255))
     return make_texture(ctx, white_surf)
 
+def loader_shader_program(resources: Resources, path: str) -> gl.Program:
+    """
+    A custom shader program loader. 
+
+    A cool thing with it is that a path to a shader can be passed without file extensions. This loader 
+    will automatically load both the fragment and vertex shader under the same name.
+    """
+
+    ctx: gl.Context = resources[GraphicsContext].get_context()
+
+    vertex_shader = load_file_str(path + ".vert")
+    fragment_shader = load_file_str(path + ".frag") 
+
+    return ctx.program(vertex_shader, fragment_shader)
+
+def loader_texture(resources: Resources, path: str) -> gl.Program:
+    "A custom GPU texture loader from files"
+    ctx: gl.Context = resources[GraphicsContext].get_context()
+    surface = pg.image.load(path)
+    return make_texture(ctx, surface)
+
 class GraphicsPlugin(Plugin):
     "A plugin responsible for managing a ModernGL context"
 
@@ -29,6 +54,11 @@ class GraphicsPlugin(Plugin):
     def build(self, app):
         app.insert_resource(GraphicsContext())
         app.add_systems(Schedule.PreRender, clear_screen)
+
+        # Add asset loaders for textures and shaders
+        assets = app.get_resource(AssetManager)
+        assets.add_loader(gl.Program, loader_shader_program)
+        assets.add_loader(gl.Texture, loader_texture)
 
 class GraphicsContext:
     "The global ModernGL"

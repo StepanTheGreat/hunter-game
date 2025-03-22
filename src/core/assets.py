@@ -1,36 +1,28 @@
-from typing import TypeVar, Callable
+from typing import TypeVar, Callable, Any
 from plugin import Resources, Plugin, Schedule
-
-from main import AppConfig
-
-# File contents
-C = TypeVar("C", str, bytes)
-
-def load_file(path: str, ret: C) -> C:
-    "Load a file and return its contents in a provided type. Supported modes are str and bytes"
-    contents = None
-    mode = "rb" if ret == bytes else "r" 
-    with open(path, mode) as file:
-        contents = file.read()
-    return contents
 
 # Asset
 A = TypeVar("A")
 
 class AssetManager:
     "An asset manager is an asster storage, loader and cache at the same time"
-    def __init__(self, assets_dir: str):
+    def __init__(self, resources: Resources, assets_dir: str):
+
+        # To avoid constantly passing resources when loading assets, the asset manager will keep
+        # them in its attributes instead
+        self.resources: Resources = resources
+
         self.assets_dir = assets_dir
         self.database: dict[type, dict[str, object]] = {}
         "A database groups assets by their type. Each group is also a small database, but this time of their names"
 
-        self.loaders: dict[type, Callable[[str]]] = {}
+        self.loaders: dict[type, Callable[[Resources, str], Any]] = {}
         """
         A database of loaders. An asset type has to first have a registered load function. 
         In any other case, an asset manager doesn't know how to load assets
         """
 
-    def add_loader(self, ty: A, f: Callable[[A, str], A]):
+    def add_loader(self, ty: A, f: Callable[[Resources, str], A]):
         "Add an asset loader function for the provided asset type"
         self.loaders[ty] = f
 
@@ -45,7 +37,7 @@ class AssetManager:
                 return asset
 
         # Load the asset using the registered loader function
-        loaded_asset = self.loaders[ty](self.assets_dir+path)
+        loaded_asset = self.loaders[ty](self.resources, self.assets_dir+path)
 
         # Initialize a new type map if it doesn't exist
         if ty not in self.database:
@@ -61,18 +53,4 @@ class AssetsPlugin(Plugin):
         self.assets_dir = assets_dir
 
     def build(self, app):
-        app.insert_resource(AssetManager(self.assets_dir))
-        # Add default implementations
-
-        manager = app.get_resource(AssetManager)
-        manager.add_loader(str, lambda path: load_file(path, str))
-        manager.add_loader(bytes, lambda path: load_file(path, bytes))
-
-        app.add_systems(Schedule.Startup, test_asset)
-
-def test_asset(resources: Resources):
-    a = resources[AssetManager].load(str, "shaders/main.frag")
-    a = resources[AssetManager].load(str, "shaders/main.frag")
-    a = resources[AssetManager].load(str, "shaders/main.frag")
-
-    print(a)
+        app.insert_resource(AssetManager(app.get_resources(), self.assets_dir)  )
