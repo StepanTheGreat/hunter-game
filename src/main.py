@@ -29,22 +29,16 @@ def load_config() -> AppConfig:
 def make_app(conf: AppConfig) -> plugin.App:
     "Construct the main application"
 
-    builder = plugin.AppBuilder(core.CoreModulesPlugin(conf))
-    builder.add_plugins(PluginsCollection)
+    builder = plugin.AppBuilder(
+        core.CoreModulesPlugin(conf),
+        PluginsCollection()
+    )
 
     return plugin.App(builder)
 
 def main():
     app = make_app(load_config())
-    app.startup()
-
     app.run()
-
-    while not app.should_quit():
-        app.update()
-        app.render()
-
-    app.finalize()
 
 if __name__ == "__main__":
     main()
