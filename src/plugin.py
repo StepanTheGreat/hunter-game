@@ -138,7 +138,7 @@ class AppBuilder:
         "If you need some manual control"
         return self.resources
     
-    def get_resource(self, ty: R) -> R:
+    def get_resource(self, ty: Type[R]) -> R:
         return self.resources.get(ty)
 
     def insert_resource(self, resource):
@@ -189,7 +189,7 @@ class App:
         # Initialize the event writer
         self.resources.insert(EventWriter())
 
-    def get_resource(self, resource: R) -> Optional[R]:
+    def get_resource(self, resource: Type[R]) -> Optional[R]:
         "A shortcut for `app.get_resources().get(R)`"
         return self.resources.get(resource)
     
