@@ -5,14 +5,18 @@ You could use a plugin-like system like in ECS frameworks. Systems *could also* 
 functionality.
 
 ## Plan
-1. Fix sprite rotations, so no matter their position they always look into your direction.
-2. Create a basic game plan
-3. Modularize every game component into a separate module. A plugin system could be used, where a plugin
-has systems that are executed at different schedules. Resources can also help here organize application data.
-4. Model a simple UDP network protocol, that would feature reliability, data integrity checks and dublicate avoidance.
-5. Add a simple encryption to the traffic using public/private keys. In the future, a simple database of reliable
-signatures could be use to avoid Man In The Middle attacks
-6. Make a basic multiplayer support using the lockstep system
-7. Add lighting to the game
+1. Create a basic game plan
+2. Text rendering and font loading
+3. Priority for systems (systems get sorted at the end, based on their priority)
+4. Sprite UV coordinates (an ability to render specific texture regions for sprites)
+5. Sprite text rendering (text that will be rendered similar to sprites) 
+6. Proper collision detection (for rectangles and circles)
+7. Basic scene support (main menu, ingame, ...) 
+8. Model a simple UDP network protocol, that would feature reliability, data integrity checks and dublicate avoidance.
+9. Add a simple encryption to the traffic using public/private keys.
+10. Add a basic multiplayer support (no anticheat for now)
+11. Add lighting to the game
+...
+20. Find assets like music, sounds, textures and fonts for the game. Learn more about license merging 
 
 ... More to see 
