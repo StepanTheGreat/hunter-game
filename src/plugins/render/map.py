@@ -25,7 +25,7 @@ def gen_tile_mesh(
     size: float, 
     color: tuple[int, int, int],
     neighbours: tuple[bool, bool, bool, bool]
-) -> Optional[MeshCPU]:
+) -> Optional[DumbMeshCPU]:
     """ 
     This function generates tile meshes, automatically culling faces based on neighbour information..
 
@@ -46,7 +46,7 @@ def gen_tile_mesh(
     r, g, b = color
     top_neighbour, left_neighbour, right_neighbour, bottom_neighbour = neighbours
 
-    mesh = MeshCPU(
+    mesh = DumbMeshCPU(
         np.array([], dtype=np.float32),
         np.array([], dtype=np.uint32)
     )
@@ -97,25 +97,32 @@ def gen_tile_mesh(
 
     return mesh if not mesh.is_empty() else None 
 
-def gen_map_models(ctx: gl.Context, assets: AssetManager, worldmap: WorldMap) -> tuple[list[tuple[gl.Texture, Model], Pipeline], ]:
+def gen_map_models(gfx: GraphicsContext, assets: AssetManager, worldmap: WorldMap) -> tuple[list[tuple[gl.Texture, Model], Pipeline], ]:
     "Generate an array of renderable map models"
 
     def has_neighbour(tile: int, ntile: int, transparent_tiles: set[int]) -> bool:
+        # This is a simple culling neighbour culling function.
+        # Basically, we would like to check if a tile has a neighbour.
+        #
+        # If a tile is normal and it has a non-transparent neighbour - it does have a neighbour.
+        # If a tile is normal and it has a transparent neighbour - it "doesn't"
+        # If a tile is transparent and its neighbour isn't - it does have a neighbour 
         if tile in transparent_tiles:
             return ntile != 0
         else:
             return ntile != 0 and ntile not in transparent_tiles
     
+    ctx = gfx.get_context()
+    white_texture = gfx.get_white_texture()
+
     tilemap = worldmap.get_map()
     tiles = tilemap.get_tiles()
 
     color_map = worldmap.get_color_map()
     transparent_tiles = worldmap.get_transparent_tiles()
 
-    white_texture = "white_texture"
-
     # A mesh group is a dictionary, where keys are textures, and values are meshes
-    mesh_group: dict[gl.Texture, MeshCPU] = {}
+    mesh_group: dict[gl.Texture, DumbMeshCPU] = {}
 
     for y, row in enumerate(tiles):
         for x, tile in enumerate(row):
@@ -127,7 +134,7 @@ def gen_map_models(ctx: gl.Context, assets: AssetManager, worldmap: WorldMap) ->
                 material = color_map[tile]
 
                 color = (1, 1, 1) if type(material) is str else material
-                texture = material if type(material) is str else white_texture
+                texture = assets.load(gl.Texture, material) if type(material) is str else white_texture
 
                 tile_mesh = gen_tile_mesh(
                     (x, -y), 
@@ -149,8 +156,7 @@ def gen_map_models(ctx: gl.Context, assets: AssetManager, worldmap: WorldMap) ->
         TILE_VERTEX_ATTRIBUTES
     )
     models = []
-    for group_texture_path, group_mesh in mesh_group.items():
-        group_texture = assets.load(gl.Texture, group_texture_path)
+    for group_texture, group_mesh in mesh_group.items():
         models.append((group_texture, Model(ctx, group_mesh, pipeline)))
     return models, pipeline
     
@@ -172,9 +178,7 @@ def create_map(resources: Resources):
     gfx = resources[GraphicsContext]
     assets = resources[AssetManager]
 
-    resources.insert(
-        MapModel(gfx.get_context(), assets, world_map)
-    )
+    resources.insert(MapModel(gfx, assets, world_map))
     
 def render_map(resources: Resources):
     if (map_renderer := resources.get(MapModel)) is None:

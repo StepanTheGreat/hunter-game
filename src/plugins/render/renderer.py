@@ -1,0 +1,156 @@
+"A general purpose 2D renderer. Everything related to UI, 2D text and so on - happens here."
+
+import numpy as np
+import moderngl as gl
+
+from plugin import Resources, Plugin, Schedule
+
+from core.assets import AssetManager
+from core.graphics import GraphicsContext
+from core.graphics.objects import *
+
+RENDERER_PIPELINE_PARAMS = PipelineParams(
+    cull_face=False,
+    depth_test=False
+)
+
+RENDERER_VERTEX_ATTRIBUTES = ("position", "uv", "color")
+
+class DrawCall:
+    """
+    A single draw call is a combination of geometry and texture. 
+    Draw calls can merge if their texture is the same
+    """
+    def __init__(self, mesh: DumbMeshCPU, texture: gl.Texture):
+        self.mesh = mesh
+        self.texture = texture
+
+class DrawCallBatch:
+    "Draw call container and merger"
+    def __init__(self, verticies: int, indicies: int):
+        self.reserved_mesh = ReservedMeshCPU(verticies, indicies)
+        self.texture = None
+
+    def can_merge(self, draw_call: DrawCall):
+        # Only compatible if it can both fit its geometry and have the same texture
+        # OR, if the texture is simply not set
+        return (
+            self.reserved_mesh.can_fit_mesh(draw_call.mesh) 
+            and (self.texture is None or self.texture == draw_call.texture)
+        )
+    
+    def merge_draw_call(self, draw_call: DrawCall):
+        assert self.can_merge(draw_call)
+
+        self.reserved_mesh.push_mesh(draw_call.mesh)
+        if self.texture is None:
+            self.texture = draw_call.texture
+
+    def get_geometry(self) -> tuple[np.ndarray, np.ndarray]:
+        "Get the actual geometry of this batch (i.e. without uninitialized array garbage)"
+        return self.reserved_mesh.get_verticies(), self.reserved_mesh.get_indices()
+
+    def reset(self):
+        self.reserved_mesh.clear()
+        self.texture = None
+
+class Renderer2D:
+    def __init__(self, gfx: GraphicsContext, assets: AssetManager, vertex_elements: int, index_elements: int, max_draw_calls: int):
+        self.ctx = gfx.get_context()
+        self.white_texture = gfx.get_white_texture()
+
+        self.vertex_elements = vertex_elements
+        self.index_elements = index_elements
+        self.max_draw_calls = max_draw_calls
+
+        self.dc_batches: list[DrawCallBatch] = [DrawCallBatch(vertex_elements, index_elements) for _ in range(self.max_draw_calls)]
+        self.dc_ptr = 0
+
+        self.pipeline = Pipeline(
+            self.ctx, 
+            assets.load(gl.Program, "shaders/2d"),
+            RENDERER_PIPELINE_PARAMS,
+            RENDERER_VERTEX_ATTRIBUTES
+        )
+
+        self.vbo = self.ctx.buffer(reserve=vertex_elements, dynamic=True)
+        self.ibo = self.ctx.buffer(reserve=index_elements, dynamic=True)
+        self.vao = self.ctx.vertex_array(
+            self.pipeline.program, 
+            self.vbo, 
+            *self.pipeline.vertex_attributes,
+            index_buffer=self.ibo
+        )
+
+    def push_draw_call(self, draw_call: DrawCall):
+        batch = self.dc_batches[self.dc_ptr]
+
+        if batch.can_merge(draw_call):
+            batch.merge_draw_call(draw_call)
+        else:
+            self.dc_ptr += 1
+            assert self.dc_ptr < self.max_draw_calls, f"Reached a 2D draw call limit of {self.max_draw_calls}"
+            self.dc_batches[self.dc_ptr].merge_draw_call(draw_call)
+
+    def reset_draw_call_batches(self):
+        """
+        Resetting means setting their internal pointers to zero and setting textures to `None`.
+        
+        Nothing is actually cleared, and all batches will get reused again
+        """
+        for batch in self.dc_batches[:self.dc_ptr+1]:
+            batch.reset()
+            
+        self.dc_ptr = 0
+
+    def draw_rect(self, rect: tuple[int, ...], color: tuple[float, ...]):
+        x, y, w, h = rect
+        r, g, b = color
+        mesh = DumbMeshCPU(
+            np.array([
+                x, y,       0, 0,   r, g, b,
+                x+w, y,     1, 0,   r, g, b,
+                x, y+h,     0, 1,   r, g, b,
+                x+w, y+h,   1, 1,   r, g, b      
+            ], dtype=np.float32),
+            np.array([0, 1, 2, 1, 2, 3], dtype=np.uint32)
+        )
+        self.push_draw_call(DrawCall(mesh, self.white_texture))
+
+    def issue_draw_call_batches(self, projection: np.ndarray):
+        "Render everything with the provided projection matrix and reset the draw batches"
+
+        self.pipeline["projection"] = projection
+        self.pipeline["material"] = 0
+
+        for draw_batch in self.dc_batches[:self.dc_ptr+1]:
+            verticies, indices = draw_batch.get_geometry()
+
+            self.vbo.write(verticies)
+            self.ibo.write(indices)
+
+            vertex_elements = len(indices)
+
+            draw_batch.texture.use()
+            self.vao.render(vertices=vertex_elements)
+
+        self.reset_draw_call_batches()
+
+def create_renderer(resources: Resources):
+    assets = resources[AssetManager]
+    gfx = resources[GraphicsContext]
+
+    resources.insert(Renderer2D(gfx, assets, 5000, 1000, 64))
+
+def draw_rect(resources: Resources):
+    resources[Renderer2D].draw_rect((-0.5, -0.5, 0.5, 0.5), (1, 0, 0))
+    resources[Renderer2D].draw_rect((0.5, -0.5, 0.5, 0.5), (1, 1, 0))
+
+def issue_draw_calls(resources: Resources):
+    resources[Renderer2D].issue_draw_call_batches(np.identity(4).flatten())
+
+class RendererPlugin(Plugin):
+    def build(self, app):
+        app.add_systems(Schedule.Startup, create_renderer)
+        app.add_systems(Schedule.Render, draw_rect)
+        app.add_systems(Schedule.PostRender, issue_draw_calls)

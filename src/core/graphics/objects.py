@@ -64,8 +64,8 @@ class ReservedMeshCPU:
         self.vertex_size = vertex_size
         self.index_size = index_size
 
-        self.verticies = np.empty((vertex_size, 1), dtype=np.float32)
-        self.indices = np.empty((index_size, 1), dtype=np.uint32)
+        self.verticies = np.zeros(vertex_size, dtype=np.float32)
+        self.indices = np.zeros(index_size, dtype=np.uint32)
 
         # Pointers to free index locations
         self.vertex_ptr = 0
@@ -101,8 +101,8 @@ class ReservedMeshCPU:
         self.free_index += new_index_offset+1
         
         # Insert our 2 new arrays at free locations
-        self.verticies[self.vertex_ptr] = verticies
-        self.indices[self.index_ptr] = indices
+        self.verticies[self.vertex_ptr:self.vertex_ptr+len(verticies)] = verticies
+        self.indices[self.index_ptr:self.index_ptr+len(indices)] = indices
 
         # Increment our array pointers
         self.vertex_ptr += len(verticies)
@@ -138,6 +138,12 @@ class ReservedMeshCPU:
     
     def is_empty(self) -> bool:
         return self.vertex_ptr == 0 or self.index_ptr == 0
+    
+    def clear(self):
+        "Reset the internal vertex and index pointer. This essentially \"clears\" space in the array"
+        self.vertex_ptr = 0
+        self.index_ptr = 0
+        self.free_index = 0
 
 class DumbMeshCPU:
     """

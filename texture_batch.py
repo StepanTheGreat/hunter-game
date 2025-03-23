@@ -13,14 +13,11 @@ SIZE = 64
 TEXTURE_SIZE = 256
 
 class CharRect:
+    MARGIN = 1
     def __init__(self, char: str, font: pg.Font):
         self.char = char
         self.surf = font.render(char, 0, (255, 255, 255))
         self.rect = self.surf.get_rect()
-
-        # Google texture bleeding. We'll make a small 1 pixel gap purely for collisions, but will modify it later
-        self.rect.w += 2
-        self.rect.h += 2
 
     def width(self) -> int:
         return self.rect.width
@@ -39,11 +36,11 @@ class CharRect:
         # )
 
         return (
-            (x+w, y), # top-right
-            (x, y+h), # bottom-left
-            (x+w, y+h), # bottom-right
+            (x+w+1, y), # top-right
+            (x, y+h+1), # bottom-left
+            (x+w+1, y+h+1), # bottom-right
 
-            (x+w, y-target_h),
+            (x+w+1, y-target_h-1),
         )
 
     def move(self, x: int, y: int):
@@ -52,21 +49,11 @@ class CharRect:
     def collides(self, other: "CharRect") -> bool:
         return self.rect.colliderect(other)
     
-    def finalize(self) -> tuple[str, pg.Rect]:
-        rect = self.rect.copy()
-        rect.x += 1
-        rect.y += 1
-        rect.width -= 2
-        rect.height -= 2
-
-        return self.char, rect
-    
     def draw(self, screen: pg.Surface, outline: bool = False):
         
         if outline:
-            _, final = self.finalize()
-            pg.draw.rect(screen, (255, 0, 0, 30), final)
-        screen.blit(self.surf, (self.rect.x+1, self.rect.y+1))
+            pg.draw.rect(screen, (255, 0, 0, 30), self.rect)
+        screen.blit(self.surf, self.rect)
 
 class CharMap:
     def __init__(self, font: pg.Font, texture_size: int, resizable: bool):
@@ -135,11 +122,12 @@ should_quit = False
 font = pg.font.SysFont("bold", SIZE)
 
 char_map = CharMap(font, 256, True)
-for char in CHARS:
-    char_map.push_char(char)
 
-char_map.push_char("+")
-char_map.push_char("-")
+char_map.push_char("mycoolname")
+char_map.push_char("thisdudeisawesome")
+char_map.push_char(">_<")
+char_map.push_char("epicman")
+char_map.push_char("destroyer of...uuhh...")
 
 while not should_quit:
     dt = clock.tick(FPS)
