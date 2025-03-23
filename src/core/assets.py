@@ -1,5 +1,5 @@
 from typing import TypeVar, Callable, Optional, Type
-from plugin import Resources, Plugin
+from plugin import Resources, Plugin, AppBuilder
 
 # Asset
 A = TypeVar("A")
@@ -48,7 +48,7 @@ class AssetManager:
             
         return None
 
-    def load(self, ty: Type[A], path: str) -> A:
+    def load(self, ty: Type[A], path: str, **kwargs) -> A:
         assert ty in self.loaders, "The requested asset type doesn't have a loader"
         
         # If we're able to get this asset from our database, we will return it early.
@@ -56,7 +56,7 @@ class AssetManager:
             return cached_asset
         else:
             # Load the asset using the registered loader function
-            loaded_asset = self.loaders[ty](self.resources, self.assets_dir+path)
+            loaded_asset = self.loaders[ty](self.resources, self.assets_dir+path, **kwargs)
 
             # Initialize a new type map if it doesn't exist
             if ty not in self.database:
@@ -73,3 +73,13 @@ class AssetsPlugin(Plugin):
 
     def build(self, app):
         app.insert_resource(AssetManager(app.get_resources(), self.assets_dir)  )
+
+
+def add_loaders(builder: AppBuilder, *loaders: tuple[Type[A], Callable[[Resources, str], A]]):
+    """
+    A convenient function for mass registering loaders. 
+    Takes the app builder and an unlimited amount of tuple loader arguments: `(type, loader_func), ...` 
+    """
+    assets = builder.get_resource(AssetManager)
+    for loader_ty, loader_func in loaders:
+        assets.add_loader(loader_ty, loader_func)

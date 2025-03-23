@@ -7,7 +7,7 @@ from plugin import Plugin, Schedule
 from plugin import Resources
 
 from file import load_file_str
-from ..assets import AssetManager
+from ..assets import AssetManager, add_loaders
 
 from .objects import *
 from .camera import *
@@ -73,8 +73,10 @@ class GraphicsPlugin(Plugin):
         app.add_systems(Schedule.PreRender, clear_screen)
 
         # Add asset loaders for textures and shaders
-        assets = app.get_resource(AssetManager)
-        assets.add_loader(gl.Program, loader_shader_program)
-        assets.add_loader(gl.Texture, loader_texture)
-
+        add_loaders(
+            app,
+            (gl.Program, loader_shader_program),
+            (gl.Texture, loader_texture) 
+        )
+        
         app.add_plugins(CameraPlugin())
