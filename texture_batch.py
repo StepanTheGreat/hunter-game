@@ -7,7 +7,7 @@ pg.font.init()
 W, H = 1280, 720
 FPS = 60
 
-CHARS = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890_"
+CHARS = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890_~=\|-?.,><+@!#$%^&*()"
 SIZE = 64
 
 TEXTURE_SIZE = 256
@@ -72,7 +72,8 @@ class CharMap:
     def __init__(self, font: pg.Font, texture_size: int, resizable: bool):
         self.char_map: dict[str, CharRect] = {}
         self.resizable = resizable
-        self.texture_size: int = texture_size
+        self.texture_width: int = texture_size
+        self.texture_height: int = texture_size
         self.font = font
 
     def __fit_char(self, new_char: CharRect) -> bool:
@@ -87,7 +88,7 @@ class CharMap:
                 for existing_rect in char_rects:
                     corners = existing_rect.corners(new_char.width(), new_char.height())
                     for (x, y) in corners:
-                        if x >= self.texture_size-new_char.width() or y >= self.texture_size-new_char.height():
+                        if x >= self.texture_width-new_char.width() or y >= self.texture_height-new_char.height():
                             continue
                         elif x < 0 or y < 0:
                             continue
@@ -105,7 +106,10 @@ class CharMap:
                             return True
             
             if self.resizable:
-                self.texture_size *= 2
+                if self.texture_width == self.texture_height:
+                    self.texture_width *= 2
+                else:
+                    self.texture_height *= 2
             else:
                 return False
     
@@ -117,7 +121,7 @@ class CharMap:
             return True
         
     def render(self) -> pg.Surface:
-        surf = pg.Surface((self.texture_size, self.texture_size), pg.SRCALPHA)
+        surf = pg.Surface((self.texture_width, self.texture_height), pg.SRCALPHA)
 
         for char in self.char_map.values():
             char.draw(surf)
@@ -134,12 +138,8 @@ char_map = CharMap(font, 256, True)
 for char in CHARS:
     char_map.push_char(char)
 
-pg.image.save(char_map.render(), "char_surf.png")
-
 char_map.push_char("+")
 char_map.push_char("-")
-
-pg.image.save(char_map.render(), "char_surf2.png")
 
 while not should_quit:
     dt = clock.tick(FPS)
@@ -150,7 +150,7 @@ while not should_quit:
     
     screen.fill((0, 0, 0))
 
-    pg.draw.rect(screen, (0, 255, 0), (0, 0, char_map.texture_size, char_map.texture_size), 1)
+    pg.draw.rect(screen, (0, 255, 0), (0, 0, char_map.texture_width, char_map.texture_height), 1)
     for char_rect in char_map.char_map.values():
         char_rect.draw(screen, outline=True)
 
