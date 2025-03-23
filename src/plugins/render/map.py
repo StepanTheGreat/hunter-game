@@ -15,6 +15,7 @@ TILE_SIZE = 48
 TILE_PIPELINE_PARAMS = PipelineParams(
     cull_face=True,
     depth_test=True,
+    alpha_blending=False,
     mode=gl.TRIANGLES
 )
 

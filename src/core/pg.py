@@ -2,6 +2,8 @@
 import pygame as pg
 from plugin import App, Plugin, EventWriter, event
 
+pg.font.init()
+
 from app_config import CONFIG
 
 VIDEO_FLAGS = pg.OPENGL | pg.DOUBLEBUF

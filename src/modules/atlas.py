@@ -37,10 +37,13 @@ class SpriteRect:
 
     def collides(self, others: list["SpriteRect"]) -> bool:
         "Check if this sprite collides with all other sprite rectangles"
-        return self.rect.collideobjects(others, key=lambda srect: srect.rect) is None
+        return self.rect.collideobjects(others, key=lambda srect: srect.rect) is not None
     
     def get_rect(self) -> pg.Rect:
         return self.rect.copy()
+    
+    def get_size(self) -> tuple[int, int]:
+        return (self.rect.width, self.rect.height)
     
     def draw(self, screen: pg.Surface):
         "Render this sprite onto a surface"
@@ -78,10 +81,14 @@ class SpriteAtlas:
             self.texture_width *= 2
         else:
             self.texture_height *= 2
+        self.is_syncronized = False
 
     def can_resize(self) -> bool:
         "This atlas can resize unless it's of size `TEXTURE_LIMIT`, which is 2048 on most hardware"
-        return self.texture_height < self.texture_limit or self.texture_height < self.texture_limit
+        return (
+            self.resizable and 
+            (self.texture_width < self.texture_limit or self.texture_height < self.texture_limit)
+        )
 
     def __fit_char(self, key: Any, new_sprite: SpriteRect) -> bool:
         """
@@ -96,14 +103,16 @@ class SpriteAtlas:
         can't be fit - we will resize the texture, but won't resize it back.
         In the future, only when a sprite is able to get fit - we will actually change our rectangle's dimensions.
         """
-        sprite_rects = self.sprite_map.values()
+        sprite_rects = list(self.sprite_map.values())
 
-        while True:
-            if len(self.sprite_map) < 1:
-                self.sprite_map[key] = new_sprite
-                self.is_syncronized = False
-                return True
-            else:
+        if len(self.sprite_map) < 1:
+            # If the map is empty, simply insert it at coordinates 0, 0
+            self.sprite_map[key] = new_sprite
+            self.is_syncronized = False
+            return True
+        else:
+            # Else we will need to insert it with other sprites
+            while True:
                 for existing_rect in sprite_rects:
                     corners = existing_rect.corners(new_sprite.width(), new_sprite.height())
                     for (x, y) in corners:
@@ -116,19 +125,21 @@ class SpriteAtlas:
                             continue
 
                         new_sprite.move(x, y)
-
                         if not new_sprite.collides(sprite_rects):
                             self.sprite_map[key] = new_sprite
                             self.taken_corners.add((x, y))
                             self.is_syncronized = False
                             return True
-            
-            if self.resizable and self.can_resize():
-                # TODO: Fix the bug mentioned in the doc string
-                self.__resize()
-                self.is_syncronized = False
-            else:
-                return False
+                
+                if self.can_resize():
+                    # TODO: Fix the bug mentioned in the doc string
+                    self.__resize()
+                else:
+                    "Maximum size"
+                    return False
+    
+    def has_sprite(self, key: Any) -> bool:
+        return key in self.sprite_map
     
     def push_sprite(self, key: Any, surf: pg.Surface) -> bool:
         """
@@ -141,8 +152,8 @@ class SpriteAtlas:
         if key not in self.sprite_map:
             sprite_rect = SpriteRect(surf)
             return self.__fit_char(key, sprite_rect) 
-        else:
-            return True
+        
+        return True
         
     def get_sprite(self, key: Any) -> Optional[SpriteRect]:
         "Try get a sprite under the provided key"
@@ -160,11 +171,9 @@ class SpriteAtlas:
             return (
                 x/self.texture_width,
                 y/self.texture_height,
-                (x+w)/self.texture_width,
-                (y+h)/self.texture_height
+                w/self.texture_width,
+                h/self.texture_height
             )
-
-        return None
         
     def get_surface(self) -> pg.Surface:
         """
@@ -175,6 +184,8 @@ class SpriteAtlas:
 
         for sprite_rect in self.sprite_map.values():
             sprite_rect.draw(surf)
+
+        return surf
 
     def __sync_texture(self, new_surf: pg.Surface):
         "Syncronize the internal GPU texture with our CPU surface"

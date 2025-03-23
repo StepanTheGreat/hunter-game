@@ -7,21 +7,28 @@ class PipelineParams:
             self,
             cull_face: bool,
             depth_test: bool,
+            alpha_blending: bool,
             mode: int = gl.TRIANGLES
         ):
         self.cull_face: bool = cull_face
         self.depth_test: bool = depth_test
+        self.alpha_blending: bool = alpha_blending
         self.mode: int = mode
 
     def __eq__(self, other: "PipelineParams") -> bool:
-        return (
+        return all((
             self.cull_face == other.cull_face,
             self.depth_test == other.depth_test,
+            self.alpha_blending == other.alpha_blending,
             self.mode == other.mode
-        )
+        ))
     
     def apply(self, ctx: gl.Context):
-        for setting, to in ((gl.DEPTH_TEST, self.depth_test), (gl.CULL_FACE, self.cull_face)):
+        for setting, to in (
+            (gl.ONE_MINUS_SRC_ALPHA, self.alpha_blending),
+            (gl.DEPTH_TEST, self.depth_test), 
+            (gl.CULL_FACE, self.cull_face),
+        ):
             ctx.enable(setting) if to else ctx.disable(setting)
 
 class Pipeline:
@@ -57,6 +64,10 @@ class Pipeline:
     def apply_params(self):
         "Prepare all the local material's variables for the draw operation"
         self.params.apply(self.ctx)
+
+    def get_mode(self) -> int:
+        "Get draw mode"
+        return self.params.mode
 
 class ReservedMeshCPU:
     "A mesh with preallocated geometry arrays. Highly useful for highly dynamic data"
@@ -209,7 +220,7 @@ class Model:
 
     def render(self, vertices: int = -1, first: int = 0, instances: int = -1):
         self.pipeline.apply_params()
-        self.vao.render(self.pipeline.params.mode, vertices, first, instances)
+        self.vao.render(self.pipeline.get_mode(), vertices, first, instances)
 
     def release(self):
         "Release this model by cleaning its vertex, index buffers and vertex array object. Doesn't "

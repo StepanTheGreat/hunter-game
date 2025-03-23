@@ -8,13 +8,27 @@ from plugin import Resources, Plugin, Schedule
 from core.assets import AssetManager
 from core.graphics import GraphicsContext
 from core.graphics.objects import *
+from core.graphics.text import FontGPU
 
 RENDERER_PIPELINE_PARAMS = PipelineParams(
     cull_face=False,
+    alpha_blending=True,
     depth_test=False
 )
 
 RENDERER_VERTEX_ATTRIBUTES = ("position", "uv", "color")
+
+def make_quad(*points: tuple[tuple[float], tuple[float], tuple[float]]) -> DumbMeshCPU:
+    p1, p2, p3, p4 = points
+    return DumbMeshCPU(
+        np.array([
+            *p1[0],   *p1[1],  *p1[2],
+            *p2[0],   *p2[1],  *p2[2],
+            *p3[0],   *p3[1],  *p3[2],
+            *p4[0],   *p4[1],  *p4[2],
+        ], dtype=np.float32),
+        np.array([0, 1, 2, 1, 2, 3], dtype=np.uint32)
+    )
 
 class DrawCall:
     """
@@ -106,16 +120,32 @@ class Renderer2D:
     def draw_rect(self, rect: tuple[int, ...], color: tuple[float, ...]):
         x, y, w, h = rect
         r, g, b = color
-        mesh = DumbMeshCPU(
-            np.array([
-                x, y,       0, 0,   r, g, b,
-                x+w, y,     1, 0,   r, g, b,
-                x, y+h,     0, 1,   r, g, b,
-                x+w, y+h,   1, 1,   r, g, b      
-            ], dtype=np.float32),
-            np.array([0, 1, 2, 1, 2, 3], dtype=np.uint32)
+        rect_mesh = make_quad(
+            ((x, y), (0, 0), (r, g, b)),
+            ((x+w, y), (1, 0), (r, g, b)),
+            ((x, y+h), (0, 1), (r, g, b)),
+            ((x+w, y+h), (1, 1), (r, g, b)),
         )
-        self.push_draw_call(DrawCall(mesh, self.white_texture))
+        self.push_draw_call(DrawCall(rect_mesh, self.white_texture))
+
+    def draw_text(self, font: FontGPU, text: str, pos: tuple[int], color: tuple[float], size: float):
+        x, y = pos
+        x_offset = 0
+        for char in text:
+            uvx, uvy, uvw, uvh = font.get_char_uvs(char)
+            cw, ch = font.get_char_size(char)
+            cw, ch = cw*size, ch*size
+            lx = x+x_offset
+
+            self.push_draw_call(DrawCall(make_quad(
+                ((lx,    y),    (uvx,     uvy+uvh), color),
+                ((lx+cw, y),    (uvx+uvw, uvy+uvh), color),
+                ((lx,    y+ch), (uvx,     uvy),     color),
+                ((lx+cw, y+ch), (uvx+uvw, uvy),     color)
+
+            ), font.get_texture()))
+
+            x_offset += cw
 
     def issue_draw_call_batches(self, projection: np.ndarray):
         "Render everything with the provided projection matrix and reset the draw batches"
@@ -136,15 +166,29 @@ class Renderer2D:
 
         self.reset_draw_call_batches()
 
+__my_test_font = None
+
 def create_renderer(resources: Resources):
     assets = resources[AssetManager]
     gfx = resources[GraphicsContext]
 
     resources.insert(Renderer2D(gfx, assets, 5000, 1000, 64))
 
+    import pygame as pg
+
+    f = pg.font.SysFont("bold", 60)
+    global __my_test_font
+    __my_test_font = FontGPU(gfx.get_context(), f)
+
+
 def draw_rect(resources: Resources):
-    resources[Renderer2D].draw_rect((-0.5, -0.5, 0.5, 0.5), (1, 0, 0))
-    resources[Renderer2D].draw_rect((0.5, -0.5, 0.5, 0.5), (1, 1, 0))
+    renderer = resources[Renderer2D]
+    renderer.draw_rect((-0.5, -0.5, 0.5, 0.5), (1, 0, 0))
+    renderer.draw_rect((0.5, -0.5, 0.5, 0.5), (1, 1, 0))
+
+    global __my_test_font
+
+    renderer.draw_text(__my_test_font, "Testing...", (-0.8, 0.3), (1, 0, 0), 0.005)
 
 def issue_draw_calls(resources: Resources):
     resources[Renderer2D].issue_draw_call_batches(np.identity(4).flatten())

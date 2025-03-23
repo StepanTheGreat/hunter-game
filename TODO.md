@@ -6,6 +6,8 @@ functionality.
 
 ## Plan
 1. Create a basic game plan
+
+ORTHOGRAPHIC MATRIX!
 2. Text rendering and font loading
 3. Priority for systems (systems get sorted at the end, based on their priority)
 4. Sprite UV coordinates (an ability to render specific texture regions for sprites)

@@ -8,37 +8,45 @@ from core.assets import AssetManager, add_loaders
 from core.graphics import GraphicsContext
 from modules.atlas import SpriteAtlas, SpriteRect
 
-DEFAULT_FONT_SIZE = 32
+DEFAULT_FONT_SIZE = 64
 
 class FontGPU:
     DEFAULT_CHARACTERS = ""
-    TEXTURE_LIMIT = 512
+    TEXTURE_LIMIT = 1024
 
     def __init__(self, ctx: gl.Context, font: pg.Font):
         self.ctx = ctx
         self.font = font
-        self.atlas = SpriteAtlas(256, True, FontGPU.TEXTURE_LIMIT)
+        self.atlas = SpriteAtlas(ctx, 256, True, FontGPU.TEXTURE_LIMIT)
         
         # Prerender a default character set
         self.load_chars(FontGPU.DEFAULT_CHARACTERS)
 
-    def get_char(self, char: str) -> tuple[float, ...]:
+    def get_or_insert_char(self, char: str) -> SpriteRect:
+        if not self.atlas.has_sprite(char):
+            assert self.push_char(char), "Couldn't fit a character. Maybe hit a texture limit"
+                    
+        return self.atlas.get_sprite(char)
+
+    def get_char_uvs(self, char: str) -> tuple[float, ...]:
         """
         Fetch or automatically add a rectangle of this character in the font.
 
         This function returns a rectangle in coordinates between 0 and 1, and is useful solely
         for text rendering
         """
-        rect = self.atlas.get_local_sprite_rect(char)
-        if rect is None:
-            assert self.atlas.push_sprite(char), "Couldn't fit a sprite. Maybe hit a texture limit"
-            rect = self.atlas.get_local_sprite_rect(char)
-
-        return rect
+        self.get_or_insert_char(char)
+        return self.atlas.get_local_sprite_rect(char)
+    
+    def get_char_size(self, char: str) -> tuple[int, int]:
+        return self.get_or_insert_char(char).get_size()
+    
+    def push_char(self, char: str) -> bool:
+        return self.atlas.push_sprite(char, self.font.render(char, True, (255, 255, 255)))
     
     def load_chars(self, chars: str):
         for char in chars:
-            self.atlas.push_sprite(char, self.font.render(char, False, (255, 255, 255)))
+            self.push_char(char)
     
     def get_texture(self) -> gl.Texture:
         """
@@ -53,10 +61,10 @@ class FontGPU:
         "Free the GPU resources for this font atlas"
         self.atlas.release()
 
-def loader_font_gpu(resources: Resources, path: str, size: int = DEFAULT_FONT_SIZE):
+def loader_font_gpu(resources: Resources, path: str):
     "A custom loader for GPU fonts"
     gfx = resources[GraphicsContext]
-    font_cpu = pg.font.Font(path, size)
+    font_cpu = pg.font.Font(path, DEFAULT_FONT_SIZE)
 
     return FontGPU(gfx.get_context(), font_cpu)
 

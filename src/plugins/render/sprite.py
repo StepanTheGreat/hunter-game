@@ -16,7 +16,8 @@ SPRITE_MESH = DumbMeshCPU(
 
 SPRITE_PIPELINE_PARAMS = PipelineParams(
     cull_face=False,
-    depth_test=True
+    depth_test=True,
+    alpha_blending=False
 )
 
 SPRITE_VERTEX_ATTRIBUTES = ("position", "uv")
