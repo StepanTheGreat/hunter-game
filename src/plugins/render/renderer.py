@@ -121,8 +121,8 @@ class Renderer2D:
         "Render everything with the provided projection matrix and reset the draw batches"
 
         self.pipeline["projection"] = projection
-        self.pipeline["material"] = 0
-
+        
+        self.pipeline.apply_params()
         for draw_batch in self.dc_batches[:self.dc_ptr+1]:
             verticies, indices = draw_batch.get_geometry()
 

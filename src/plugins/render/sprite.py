@@ -48,6 +48,7 @@ class SpriteContainer:
         model, pipeline = sprite_model(ctx, assets)
         self.model: Model = model
         self.pipeline: Pipeline = pipeline
+        
         self.count = 0
 
     def push_sprite(self, texture: gl.Texture, pos: pg.Vector2, size: pg.Vector2):

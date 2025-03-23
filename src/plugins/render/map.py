@@ -191,7 +191,6 @@ def render_map(resources: Resources):
     pipeline["camera_pos"] = camera.get_camera_position()
     pipeline["camera_rot"] = camera.get_camera_rotation().flatten()
 
-    pipeline["material"] = 0
     for texture, model in models:
         texture.use()
         model.render()
