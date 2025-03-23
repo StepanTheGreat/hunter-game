@@ -4,7 +4,7 @@ import pygame as pg
 from plugin import Plugin, Schedule, Resources
 from core.graphics import *
 
-SPRITE_MESH = MeshCPU(
+SPRITE_MESH = DumbMeshCPU(
     np.array([
         -0.5, 1, 0,     0, 0,
         0.5, 1, 0,     1, 0,
