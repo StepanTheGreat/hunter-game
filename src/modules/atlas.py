@@ -57,11 +57,15 @@ class SpriteAtlas:
     TEXTURE_LIMIT = 2048
     "A reasonable limit on most hardware"
 
-    def __init__(self, texture_size: int, resizable: bool):
+    def __init__(self, ctx: gl.Context, texture_size: int, resizable: bool, texture_limit: int = None):
+        self.ctx = ctx
+
         self.sprite_map: dict[Any, SpriteRect] = {}
         self.resizable = resizable
         self.texture_width: int = texture_size
         self.texture_height: int = texture_size
+
+        self.texture_limit = texture_limit if texture_limit is not None else SpriteAtlas.TEXTURE_LIMIT
 
         self.is_syncronized = False 
         self.taken_corners = set()
@@ -77,7 +81,7 @@ class SpriteAtlas:
 
     def can_resize(self) -> bool:
         "This atlas can resize unless it's of size `TEXTURE_LIMIT`, which is 2048 on most hardware"
-        return self.texture_height < SpriteAtlas.TEXTURE_LIMIT or self.texture_height < SpriteAtlas.TEXTURE_LIMIT
+        return self.texture_height < self.texture_limit or self.texture_height < self.texture_limit
 
     def __fit_char(self, key: Any, new_sprite: SpriteRect) -> bool:
         """
@@ -172,13 +176,13 @@ class SpriteAtlas:
         for sprite_rect in self.sprite_map.values():
             sprite_rect.draw(surf)
 
-    def __sync_texture(self, ctx: gl.Context, new_surf: pg.Surface):
+    def __sync_texture(self, new_surf: pg.Surface):
         "Syncronize the internal GPU texture with our CPU surface"
 
         if self.__cached_texture is None:
             # If a texture is not initialized - just make a new one with our data! 
 
-            self.__cached_texture = make_texture(ctx, new_surf)
+            self.__cached_texture = make_texture(self.ctx, new_surf)
         else:
             # Else we would need to update an existing one
 
@@ -187,13 +191,13 @@ class SpriteAtlas:
                 # and create a new one
 
                 self.__cached_texture.release()
-                self.__cached_texture = make_texture(ctx, new_surf)
+                self.__cached_texture = make_texture(self.ctx, new_surf)
             else:
                 # In any other case, just write our surface data to our texture
                 
                 self.__cached_texture.write(new_surf.get_view("1"))
         
-    def get_texture(self, ctx: gl.Context) -> gl.Context:
+    def get_texture(self) -> gl.Texture:
         """
         Get a GPU texture of this atlas. Since the atlas is lazy, it will immediately perform all rendering 
         operations if it has changed since last texture. 
@@ -205,7 +209,11 @@ class SpriteAtlas:
         """
 
         if not self.is_syncronized:
-            self.__sync_texture(ctx, self.get_surface())
+            self.__sync_texture(self.get_surface())
             self.is_syncronized = True
 
         return self.__cached_texture
+    
+    def release(self):
+        if self.__cached_texture is not None:
+            self.__cached_texture.release()
