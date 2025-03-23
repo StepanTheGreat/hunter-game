@@ -161,7 +161,6 @@ def gen_map_models(gfx: GraphicsContext, assets: AssetManager, worldmap: WorldMa
         models.append((group_texture, Model(ctx, group_mesh, pipeline)))
     return models, pipeline
     
-
 class MapModel:
     def __init__(self, ctx: gl.Context, assets: AssetManager, worldmap: WorldMap):
         models, pipeline = gen_map_models(ctx, assets, worldmap)

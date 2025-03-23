@@ -6,9 +6,11 @@ import moderngl as gl
 from plugin import Resources, Plugin, Schedule
 
 from core.assets import AssetManager
-from core.graphics import GraphicsContext
+from core.graphics import GraphicsContext, othorgaphic_matrix
 from core.graphics.objects import *
 from core.graphics.text import FontGPU
+
+from app_config import CONFIG
 
 RENDERER_PIPELINE_PARAMS = PipelineParams(
     cull_face=False,
@@ -121,10 +123,10 @@ class Renderer2D:
         x, y, w, h = rect
         r, g, b = color
         rect_mesh = make_quad(
-            ((x, y), (0, 0), (r, g, b)),
-            ((x+w, y), (1, 0), (r, g, b)),
-            ((x, y+h), (0, 1), (r, g, b)),
-            ((x+w, y+h), (1, 1), (r, g, b)),
+            ((x, y),     (0, 1), (r, g, b)),
+            ((x+w, y),   (1, 1), (r, g, b)),
+            ((x, y+h),   (0, 0), (r, g, b)),
+            ((x+w, y+h), (1, 0), (r, g, b)),
         )
         self.push_draw_call(DrawCall(rect_mesh, self.white_texture))
 
@@ -138,10 +140,10 @@ class Renderer2D:
             lx = x+x_offset
 
             self.push_draw_call(DrawCall(make_quad(
-                ((lx,    y),    (uvx,     uvy+uvh), color),
-                ((lx+cw, y),    (uvx+uvw, uvy+uvh), color),
-                ((lx,    y+ch), (uvx,     uvy),     color),
-                ((lx+cw, y+ch), (uvx+uvw, uvy),     color)
+                ((lx,    y),    (uvx,     uvy),         color),
+                ((lx+cw, y),    (uvx+uvw, uvy),         color),
+                ((lx,    y+ch), (uvx,     uvy+uvh),     color),
+                ((lx+cw, y+ch), (uvx+uvw, uvy+uvh),     color)
 
             ), font.get_texture()))
 
@@ -183,15 +185,17 @@ def create_renderer(resources: Resources):
 
 def draw_rect(resources: Resources):
     renderer = resources[Renderer2D]
-    renderer.draw_rect((-0.5, -0.5, 0.5, 0.5), (1, 0, 0))
-    renderer.draw_rect((0.5, -0.5, 0.5, 0.5), (1, 1, 0))
+    renderer.draw_rect((50, 50, 200, 100), (1, 0, 0))
+    renderer.draw_rect((600, 400, 100, 50), (1, 1, 0))
 
     global __my_test_font
 
-    renderer.draw_text(__my_test_font, "Testing...", (-0.8, 0.3), (1, 0, 0), 0.005)
+    renderer.draw_text(__my_test_font, "Testing...", (0, 0), (1, 0, 0), 2)
 
 def issue_draw_calls(resources: Resources):
-    resources[Renderer2D].issue_draw_call_batches(np.identity(4).flatten())
+    projection = othorgaphic_matrix(0, CONFIG.width, CONFIG.height, 0, -1, 1)
+    
+    resources[Renderer2D].issue_draw_call_batches(projection)
 
 class RendererPlugin(Plugin):
     def build(self, app):

@@ -17,10 +17,19 @@ def perspective_matrix(aspect_ratio: float, fov: float, zfar: float, znear: floa
     zdiff = zfar-znear
     f = 1/np.tan(fov/2*2/np.pi)
     return np.array([
-        f*aspect_ratio, 0, 0, 0,
-        0, f, 0, 0,
-        0, 0, (zfar+znear)/zdiff, 1,
-        0, 0, -(2*zfar*znear)/zdiff, 0
+        f*aspect_ratio, 0,  0,                    0,
+        0,              f,  0,                    0,
+        0,              0,  (zfar+znear)/zdiff,   1,
+        0,              0, -(2*zfar*znear)/zdiff, 0
+    ], dtype=np.float32)
+
+def othorgaphic_matrix(left: float, right: float, bottom: float, top: float, zfar: float, znear: float) -> np.ndarray:
+    "An orthographic matrix generator"
+    return np.array([
+        2.0/(right-left),           0.0,                        0.0,                        0.0,
+        0.0,                        2.0/(top-bottom),           0.0,                        0.0,
+        0.0,                        0.0,                        -2.0/(zfar-znear),          0.0,
+        -(right+left)/(right-left), -(top+bottom)/(top-bottom), -(zfar+znear)/(zfar-znear), 1.0,
     ], dtype=np.float32)
 
 class Camera3D:
