@@ -123,7 +123,7 @@ class HighUDP:
     def update(self, dt: float):
         self.resend_timer -= dt
 
-        if
+        # TODO: Continue
 
     def sendto(self, message: bytes, to: tuple[str, int]):
         "Send a datagram to an address"
