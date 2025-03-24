@@ -1,4 +1,4 @@
-"This "
+"I feel like this is such a overkill solution for a typed config loader."
 
 import json, dataclasses
 
