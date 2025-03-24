@@ -1,11 +1,21 @@
 from plugin import *
 from modules.tilemap import Tilemap
+from modules.physics import PhysicsWorld
 
 from typing import Union
 
 import numpy as np
 
 TILE_SIZE = 48
+CONSTANT_STEP = 1/60
+
+class MapPhysicsWorld:
+    "A global, game-wide physics world. This is basically a type wrapper, its fields are public"
+    def __init__(self):
+        self.world = PhysicsWorld((0, 0))
+
+def update_physics_world(resources: Resources):
+    resources[MapPhysicsWorld].world.step(CONSTANT_STEP)
 
 class WorldMap:
     "The globally explorable map"
@@ -57,3 +67,5 @@ class MapPlugin(Plugin):
                 1
             ])
         ))
+        app.insert_resource(MapPhysicsWorld())
+        app.add_systems(Schedule.PreUpdate, update_physics_world)

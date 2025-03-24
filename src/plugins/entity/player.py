@@ -5,15 +5,18 @@ from plugin import Plugin, Resources, Schedule
 
 from core.graphics import Camera3D
 from modules.entity import EntityContainer, Entity
+from modules.physics import make_ball_collider, ColliderType
+
+from ..map import MapPhysicsWorld
 
 class Player(Entity):
-    HITBOX_SIZE = 12
+    HITBOX_SIZE = 20
     SPEED = 250
     ROTATION_SPEED = 3
     # The height of the camera
     CAMERA_HEIGHT = 24
 
-    def __init__(self, uid: int, pos: tuple[float, float]):
+    def __init__(self, uid: int, pos: tuple[float, float], resources: Resources):
         super().__init__(uid)
 
         self.last_pos = pg.Vector2(*pos)
@@ -21,13 +24,10 @@ class Player(Entity):
         self.rect = pg.Rect(0, 0, Player.HITBOX_SIZE, Player.HITBOX_SIZE)
         self.vel = pg.Vector2(0, 0)
         self.angle = 0
+
+        self.collider = make_ball_collider(Player.HITBOX_SIZE, pg.Vector2(*pos), ColliderType.Dynamic, 10)
+        resources[MapPhysicsWorld].world.add_collider(self.collider)
         
-        self._sync_hitbox()
-
-    def _sync_hitbox(self):
-        "Syncronize the player's rect with its position. This function will also center the position of the hitbox"
-        self.rect.center = self.pos
-
     def update(self, resources: Resources, dt: float):
         keys = pg.key.get_pressed()
         forward = keys[pg.K_w]-keys[pg.K_s]
@@ -43,10 +43,9 @@ class Player(Entity):
         vel = left_right_vel+forward_vel
         if vel.length_squared() != 0.0:
             vel.normalize_ip()
-
-        new_pos = self.pos + vel * Player.SPEED * dt
-        self.last_pos, self.pos = self.pos, new_pos
-        self._sync_hitbox()
+        
+        self.pos = self.collider.get_position()
+        self.collider.set_velocity(vel * Player.SPEED)
 
         angle_vel = keys[pg.K_RIGHT]-keys[pg.K_LEFT]
         self.angle += angle_vel * Player.ROTATION_SPEED * dt
@@ -62,10 +61,6 @@ class Player(Entity):
     def draw(self, _):
         pass
 
-    def collide(self, rect: pg.Rect):
-        if self.rect.colliderect(rect):
-            self.pos = self.last_pos
-
     def get_angle(self) -> float:
         "Get the direction this player is looking at"
         return self.angle
@@ -77,7 +72,7 @@ def spawn_player(resources: Resources):
     entities = resources[EntityContainer]
     
     entities.push_entity(
-        Player(entities.get_entity_uid(), (0, 0))
+        Player(entities.get_entity_uid(), (0, 0), resources)
     )
 
 class PlayerPlugin(Plugin):
