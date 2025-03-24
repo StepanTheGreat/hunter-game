@@ -45,7 +45,7 @@ class Collider:
     def get_position(self) -> pg.Vector2:
         return pg.Vector2(*self.body.position)
     
-def make_ball_collider(radius: float, position: pg.Vector2, body_type: ColliderType, mass: float = 1) -> Collider:
+def make_ball_collider(radius: float, position: tuple, body_type: ColliderType, mass: float = 1) -> Collider:
     "Construct a ball collider"
 
     assert mass > 0, "Mass can't be negative or zero"
@@ -53,7 +53,27 @@ def make_ball_collider(radius: float, position: pg.Vector2, body_type: ColliderT
     body = pm.Body(mass=mass, body_type=body_type)
     shape = pm.Circle(body, radius)
     shape.mass = mass
-    body.position = (position.x, position.y)
+    body.position = position
+
+    return Collider(shape, body)
+
+def make_rect_collider(position: tuple, size: tuple, body_type: ColliderType, mass: float = 1) -> Collider:
+    "Construct a rect collider"
+
+    assert mass > 0, "Mass can't be negative or zero"
+
+    x, y = position 
+    w, h = size
+
+    body = pm.Body(mass=mass, body_type=body_type)
+    shape = pm.Poly(body, vertices=[
+        (-w/2,     -h/2),
+        (w/2,   -h/2),
+        (-w/2,     h/2),
+        (w/2,   h/2)
+    ])
+    shape.mass = mass
+    body.position = (x+w/2, y+h/2)
 
     return Collider(shape, body)
 

@@ -21,7 +21,7 @@ class Sprite(Entity):
         super().__init__(uid)
 
         self.texture = resources[AssetManager].load(gl.Texture, "images/character.png")
-        self.collider = make_ball_collider(Sprite.HITBOX_SIZE, pg.Vector2(*pos), ColliderType.Dynamic, 5)
+        self.collider = make_ball_collider(Sprite.HITBOX_SIZE, pos, ColliderType.Dynamic, 5)
         resources[MapPhysicsWorld].world.add_collider(self.collider)
 
         self.pos = pg.Vector2(*pos)

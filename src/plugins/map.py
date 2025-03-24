@@ -1,12 +1,13 @@
 from plugin import *
 from modules.tilemap import Tilemap
-from modules.physics import PhysicsWorld
+from modules.physics import PhysicsWorld, make_rect_collider, ColliderType
 
 from typing import Union
 
 import numpy as np
 
 TILE_SIZE = 48
+# TILE_SIZE = 100
 CONSTANT_STEP = 1/60
 
 class MapPhysicsWorld:
@@ -23,11 +24,28 @@ class WorldMap:
             self, 
             tilemap: Tilemap, 
             color_map: dict[int, Union[str, tuple]],
-            transparent_tiles: set[int]
+            transparent_tiles: set[int],
+            resources: Resources
         ):
         self.map = tilemap
         self.color_map = color_map
         self.transparent_tiles = transparent_tiles
+
+        self.colliders = []
+        self.build_map_colliders(resources[MapPhysicsWorld])
+
+    def build_map_colliders(self, physics_map_world: MapPhysicsWorld):
+        tiles = self.map.get_tiles()
+        world = physics_map_world.world
+
+        for y, row in enumerate(tiles):
+            for x, tile in enumerate(row):
+                if tile == 0:
+                    continue
+
+                collider = make_rect_collider((x*TILE_SIZE, y*TILE_SIZE), (TILE_SIZE, TILE_SIZE), ColliderType.Static, 5)
+                self.colliders.append(collider)
+                world.add_collider(collider)
     
     def get_transparent_tiles(self) -> set[int]:
         """
@@ -46,6 +64,7 @@ class WorldMap:
 
 class MapPlugin(Plugin):
     def build(self, app):
+        app.insert_resource(MapPhysicsWorld())
         app.insert_resource(WorldMap(
             Tilemap(8, 8, np.array([
                 [0, 0, 0, 0, 0, 0, 2, 2],
@@ -65,7 +84,7 @@ class MapPlugin(Plugin):
             },
             transparent_tiles = set([
                 1
-            ])
+            ]),
+            resources=app.get_resources()
         ))
-        app.insert_resource(MapPhysicsWorld())
         app.add_systems(Schedule.PreUpdate, update_physics_world)

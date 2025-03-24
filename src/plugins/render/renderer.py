@@ -176,22 +176,6 @@ def create_renderer(resources: Resources):
 
     resources.insert(Renderer2D(gfx, assets, 5000, 1000, 64))
 
-    import pygame as pg
-
-    f = pg.font.SysFont("bold", 60)
-    global __my_test_font
-    __my_test_font = FontGPU(gfx.get_context(), f)
-
-
-def draw_rect(resources: Resources):
-    renderer = resources[Renderer2D]
-    renderer.draw_rect((50, 50, 200, 100), (1, 0, 0))
-    renderer.draw_rect((600, 400, 100, 50), (1, 1, 0))
-
-    global __my_test_font
-
-    renderer.draw_text(__my_test_font, "Testing...", (0, 0), (1, 0, 0), 2)
-
 def issue_draw_calls(resources: Resources):
     projection = othorgaphic_matrix(0, CONFIG.width, CONFIG.height, 0, -1, 1)
     
@@ -200,5 +184,4 @@ def issue_draw_calls(resources: Resources):
 class RendererPlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.Startup, create_renderer)
-        app.add_systems(Schedule.Render, draw_rect)
         app.add_systems(Schedule.PostRender, issue_draw_calls)

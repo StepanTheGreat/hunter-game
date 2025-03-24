@@ -25,7 +25,7 @@ class Player(Entity):
         self.vel = pg.Vector2(0, 0)
         self.angle = 0
 
-        self.collider = make_ball_collider(Player.HITBOX_SIZE, pg.Vector2(*pos), ColliderType.Dynamic, 10)
+        self.collider = make_ball_collider(Player.HITBOX_SIZE, pos, ColliderType.Dynamic, 10)
         resources[MapPhysicsWorld].world.add_collider(self.collider)
         
     def update(self, resources: Resources, dt: float):
