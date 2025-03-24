@@ -1,4 +1,4 @@
-import config
+import modules.config as config
 import dataclasses
 from ward import test, raises
 

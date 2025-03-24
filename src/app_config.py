@@ -1,4 +1,4 @@
-from config import typed_dataclass, load_config_file
+from modules.config import typed_dataclass, load_config_file
 
 @typed_dataclass
 class AppConfig:

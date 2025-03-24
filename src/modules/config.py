@@ -1,11 +1,15 @@
-import json, typing, dataclasses
+"This "
+
+import json, dataclasses
+
+from typing import TypeVar, Type, Any
 
 class TypedDataclassTypeMismatch(Exception):
     "An exception that gets raised when a type mismatch occurs between the constructed typed dataclass and its class definition"
 
-C = typing.TypeVar("C")
+C = TypeVar("C")
 
-def __get_type_mismatches(cls: object) -> dict:
+def __get_type_mismatches(cls: Any) -> dict:
     mismatch_dict = {}
     for attr_name, attr_def in cls.__dataclass_fields__.items():
         expected_type = attr_def.type
@@ -14,7 +18,7 @@ def __get_type_mismatches(cls: object) -> dict:
             mismatch_dict[attr_name] = (expected_type, got_type)
     return mismatch_dict
 
-def __typed_post_init(cls: any):
+def __typed_post_init(cls: Any):
     ty_mismatches = __get_type_mismatches(cls)
     if len(ty_mismatches) > 0:
         class_name = type(cls).__name__
@@ -22,7 +26,7 @@ def __typed_post_init(cls: any):
         details = "\n    ".join(f'In field "{attr}" expected type {expected.__name__}, got {got.__name__}' for attr, (expected, got) in ty_mismatches.items())
         raise TypedDataclassTypeMismatch(f"Got a type mismatch when constructing {class_name}:\n    {details}")
 
-def typed_dataclass(cls: object) -> object:
+def typed_dataclass(cls: C) -> C:
     """
     Basically a `dataclass` from `dataclasses`, but with additional post processing for strict types.
     This is especially important when deserializing JSON objects.
@@ -32,7 +36,7 @@ def typed_dataclass(cls: object) -> object:
     cls = dataclasses.dataclass(cls)
     return cls
 
-def load_config(dclass: C, json_s: str) -> C:
+def load_config(dclass: Type[C], json_s: str) -> C:
     "Load a config from a json string. The class in the first argument has to be a dataclass"
 
     assert getattr(dclass, "__is_typed_dataclass", False), "Only typed dataclasses can be loaded from JSON"
@@ -41,7 +45,7 @@ def load_config(dclass: C, json_s: str) -> C:
     
     return dclass(**loaded)
 
-def load_config_file(dclass: C, json_path: str) -> C:
+def load_config_file(dclass: Type[C], json_path: str) -> C:
     "The same as `load_config`, but for directly loading from the file system"
 
     assert getattr(dclass, "__is_typed_dataclass", False), "Only typed dataclasses can be loaded from JSON"
