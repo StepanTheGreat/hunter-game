@@ -9,9 +9,6 @@ An application management module. Everything related to application modularisati
 from enum import Enum, auto
 from typing import Callable, TypeVar, Optional, Type
 
-from pygame import Event
-
-
 def event(cls):
     "An event decorator for event objects. It allows them to be sent or listened to across the entire application"
     cls.__app_event = True
@@ -124,7 +121,7 @@ class Plugin:
 class AppBuilder:
     def __init__(self, *plugins: Plugin):
         self.systems: dict[Schedule, list[Callable[[Resources]]]] = {}
-        self.event_listeners: dict[type, list[Callable[[Resources, Event]]]] = {}
+        self.event_listeners: dict[type, list[Callable[[Resources, object]]]] = {}
         self.resources: Resources = Resources()
         self.runner = None
 
@@ -158,7 +155,7 @@ class AppBuilder:
         else:
             systems_list += systems
         
-    def add_event_listener(self, event_id: int, listener: Callable[[Resources, Event], None]):
+    def add_event_listener(self, event_id: int, listener: Callable[[Resources, object], None]):
         "Add an event listener to the provided event ID"
         listeners_list = self.event_listeners.get(event_id)
 
@@ -183,7 +180,7 @@ class App:
 
         self.runner = app_builder.runner
         self.systems: dict[Schedule, Callable[[Resources], None]] = app_builder.systems
-        self.event_listeners: dict[int, Callable[[Resources, Event], None]] = app_builder.event_listeners
+        self.event_listeners: dict[int, Callable[[Resources, object], None]] = app_builder.event_listeners
         self.resources: Resources = app_builder.resources
 
         # Initialize the event writer

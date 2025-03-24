@@ -11,7 +11,7 @@ VIDEO_FLAGS = pg.OPENGL | pg.DOUBLEBUF
 @event
 class PygameEvent:
     "Basically the same as `pygame.Event`, but registered as an app event"
-    def __init__(self, event: pg.Event):
+    def __init__(self, event: pg.event.Event):
         self.type = event.type
         self.dict = event.dict
 

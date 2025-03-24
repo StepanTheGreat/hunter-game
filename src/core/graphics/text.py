@@ -14,7 +14,7 @@ class FontGPU:
     DEFAULT_CHARACTERS = ""
     TEXTURE_LIMIT = 1024
 
-    def __init__(self, ctx: gl.Context, font: pg.Font):
+    def __init__(self, ctx: gl.Context, font: pg.font.Font):
         self.ctx = ctx
         self.font = font
         self.atlas = SpriteAtlas(ctx, 256, True, FontGPU.TEXTURE_LIMIT)
