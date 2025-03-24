@@ -11,7 +11,7 @@ from modules.atlas import SpriteAtlas, SpriteRect
 DEFAULT_FONT_SIZE = 64
 
 class FontGPU:
-    DEFAULT_CHARACTERS = ""
+    DEFAULT_CHARACTERS = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890_~=\|-?.,><+@!#$%^&*()"
     TEXTURE_LIMIT = 1024
 
     def __init__(self, ctx: gl.Context, font: pg.font.Font):
