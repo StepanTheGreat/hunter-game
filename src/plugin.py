@@ -99,6 +99,9 @@ class Schedule(Enum):
     Update = auto()
     "Main application logic schedule. Use it for most cases"
 
+    PostUpdate = auto()
+    "Operations like physics updates and so on that are supposed to take action after the update phase"
+
     PreRender = auto()
     "A stage before rendering. This is used internally for clearing the screen and overal preparation"
 
@@ -221,7 +224,7 @@ class App:
         ewriter.clear_events()
 
         # Continue all the other schedules like PreUpdate and Update
-        self.__execute_schedules(Schedule.PreUpdate, Schedule.Update)
+        self.__execute_schedules(Schedule.PreUpdate, Schedule.Update, Schedule.PostUpdate)
 
         # This approach can have huge benefits in systems that need to fetch some data and immediately
         # let other event listeners respond to it without 1-frame delay (like networking).
