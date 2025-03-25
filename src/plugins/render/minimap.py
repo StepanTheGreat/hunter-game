@@ -9,6 +9,8 @@ from .renderer import Renderer2D
 from ..entity.player import Player
 from ..map import TILE_SIZE
 
+MINIMAP_SCALE = 0.5
+
 class MinimapPlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.Render, draw_minimap)
@@ -20,16 +22,16 @@ def draw_minimap(resources: Resources):
     entities = resources[EntityContainer]
 
     tiles = wmap.get_map().get_tiles()
+    scale = MINIMAP_SCALE
+
+    tile_size = TILE_SIZE * scale
+    player_size = Player.HITBOX_SIZE * scale
 
     for y, row in enumerate(tiles):
         for x, tile in enumerate(row):
-            if tile == 0:
-                continue
-            
-            renderer.draw_rect((x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE), (1, 0, 0))
-            # collider = make_rect_collider((x*TILE_SIZE, y*TILE_SIZE), (TILE_SIZE, TILE_SIZE), ColliderType.Static, 5)
+            if tile != 0:
+                renderer.draw_rect((x*tile_size, y*tile_size, tile_size, tile_size), (0.2, 0.2, 0.2))
 
     player = entities.get_group(Player)[0]
-    pos = player.get_pos()
-    size = Player.HITBOX_SIZE
-    renderer.draw_rect((pos.x-size, pos.y-size, size*2, size*2), (0, 1, 0))
+    pos = player.get_pos()/TILE_SIZE*tile_size
+    renderer.draw_rect((pos.x-player_size, pos.y-player_size, player_size*2, player_size*2), (1, 0, 0))
