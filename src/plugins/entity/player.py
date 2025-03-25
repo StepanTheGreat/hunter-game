@@ -5,6 +5,9 @@ from plugin import Plugin, Resources, Schedule
 
 from core.graphics import Camera3D
 from modules.entity import EntityContainer, Entity
+from modules.collision import CollisionManager, DynCollider
+
+from ..map import WorldCollisions
 
 class Player(Entity):
     HITBOX_SIZE = 20
@@ -16,13 +19,15 @@ class Player(Entity):
     def __init__(self, uid: int, pos: tuple[float, float], resources: Resources):
         super().__init__(uid)
 
-        self.last_pos = pg.Vector2(*pos)
-        self.pos = pg.Vector2(*pos)
+        self.collider = DynCollider(Player.HITBOX_SIZE, pos, 10)
+        self.pos = self.collider.get_position_ptr()
         self.rect = pg.Rect(0, 0, Player.HITBOX_SIZE, Player.HITBOX_SIZE)
         self.vel = pg.Vector2(0, 0)
         self.angle = 0
+
+        resources[WorldCollisions].manager.add_collider(self.collider)
         
-    def update(self, resources: Resources, dt: float):
+    def update(self, _: Resources, dt: float):
         keys = pg.key.get_pressed()
         forward = keys[pg.K_w]-keys[pg.K_s]
         left_right = keys[pg.K_d]-keys[pg.K_a]
@@ -47,12 +52,10 @@ class Player(Entity):
         elif self.angle < -np.pi:
             self.angle = np.pi
 
+    def draw(self, resources: Resources):
         cam = resources[Camera3D]
         cam.set_pos(self.get_pos())
         cam.set_angle(self.get_angle())
-
-    def draw(self, _):
-        pass
 
     def get_angle(self) -> float:
         "Get the direction this player is looking at"

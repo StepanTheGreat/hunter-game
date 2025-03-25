@@ -6,6 +6,9 @@ from plugin import Plugin, Resources, Schedule
 from .player import Player
 
 from modules.entity import EntityContainer, Entity
+from modules.collision import DynCollider
+
+from ..map import WorldCollisions
 
 from core.assets import AssetManager
 
@@ -20,8 +23,11 @@ class Sprite(Entity):
 
         self.texture = resources[AssetManager].load(gl.Texture, "images/character.png")
 
-        self.pos = pg.Vector2(*pos)
+        self.collider = DynCollider(Sprite.HITBOX_SIZE, pos, 1)
+        self.pos = self.collider.get_position_ptr()
         self.vel = pg.Vector2(0, 0)
+
+        resources[WorldCollisions].manager.add_collider(self.collider)
         
     def update(self, resources: Resources, dt: float):
         entities = resources[EntityContainer]
