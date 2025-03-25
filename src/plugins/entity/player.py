@@ -5,9 +5,6 @@ from plugin import Plugin, Resources, Schedule
 
 from core.graphics import Camera3D
 from modules.entity import EntityContainer, Entity
-from modules.physics import make_ball_collider, ColliderType
-
-from ..map import MapPhysicsWorld
 
 class Player(Entity):
     HITBOX_SIZE = 20
@@ -24,9 +21,6 @@ class Player(Entity):
         self.rect = pg.Rect(0, 0, Player.HITBOX_SIZE, Player.HITBOX_SIZE)
         self.vel = pg.Vector2(0, 0)
         self.angle = 0
-
-        self.collider = make_ball_collider(Player.HITBOX_SIZE, pos, ColliderType.Dynamic, 10)
-        resources[MapPhysicsWorld].world.add_collider(self.collider)
         
     def update(self, resources: Resources, dt: float):
         keys = pg.key.get_pressed()
@@ -44,8 +38,7 @@ class Player(Entity):
         if vel.length_squared() != 0.0:
             vel.normalize_ip()
         
-        self.pos = self.collider.get_position()
-        self.collider.set_velocity(vel * Player.SPEED)
+        self.pos += vel * Player.SPEED * dt
 
         angle_vel = keys[pg.K_RIGHT]-keys[pg.K_LEFT]
         self.angle += angle_vel * Player.ROTATION_SPEED * dt
