@@ -32,4 +32,4 @@ def draw_minimap(resources: Resources):
     player = entities.get_group(Player)[0]
     pos = player.get_pos()
     size = Player.HITBOX_SIZE
-    renderer.draw_rect((pos.x-size, pos.y-size, size, size), (0, 1, 0))
+    renderer.draw_rect((pos.x-size, pos.y-size, size*2, size*2), (0, 1, 0))
