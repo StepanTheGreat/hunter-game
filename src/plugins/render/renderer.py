@@ -32,6 +32,29 @@ def make_quad(*points: tuple[tuple[float], tuple[float], tuple[float]]) -> DumbM
         np.array([0, 1, 2, 1, 2, 3], dtype=np.uint32)
     )
 
+def make_circle(pos: tuple[float, float], radius: float, color: tuple[float, ...], points: int = 20) -> DumbMeshCPU:
+    assert points > 2, "Can't build a circle mesh with less than 3 points" 
+    assert radius > 0, "Why?"
+    
+    x, y = pos
+    r = radius
+
+    verticies = np.empty((points, 7), dtype=np.float32)
+    indices = np.empty((points-2, 3), dtype=np.uint32)
+    
+    angle = 0
+    dt_angle = (np.pi*2)/points
+    for point in range(points):
+        verticies[point] = np.array([
+            x+np.cos(angle)*r, y+np.sin(angle)*r, 0, 0, *color
+        ])
+        angle += dt_angle
+
+    for ind in range(1, points-1):
+        indices[ind-1] = np.array([0, ind, ind+1])
+
+    return DumbMeshCPU(verticies.flatten(), indices.flatten())
+
 class DrawCall:
     """
     A single draw call is a combination of geometry and texture. 
@@ -89,8 +112,8 @@ class Renderer2D:
             RENDERER_VERTEX_ATTRIBUTES
         )
 
-        self.vbo = self.ctx.buffer(reserve=vertex_elements, dynamic=True)
-        self.ibo = self.ctx.buffer(reserve=index_elements, dynamic=True)
+        self.vbo = self.ctx.buffer(reserve=vertex_elements*4, dynamic=True)
+        self.ibo = self.ctx.buffer(reserve=index_elements*4, dynamic=True)
         self.vao = self.ctx.vertex_array(
             self.pipeline.program, 
             self.vbo, 
@@ -130,6 +153,11 @@ class Renderer2D:
         )
         self.push_draw_call(DrawCall(rect_mesh, self.white_texture))
 
+    def draw_circle(self, pos: tuple[float, float], radius: float, color: tuple[float, ...], points: int = 20):
+        circle_mesh = make_circle(pos, radius, color, points)
+        self.push_draw_call(DrawCall(circle_mesh, self.white_texture))
+
+
     def draw_text(self, font: FontGPU, text: str, pos: tuple[int], color: tuple[float], size: float):
         x, y = pos
         x_offset = 0
@@ -157,7 +185,7 @@ class Renderer2D:
         self.pipeline.apply_params()
         for draw_batch in self.dc_batches[:self.dc_ptr+1]:
             verticies, indices = draw_batch.get_geometry()
-
+            
             self.vbo.write(verticies)
             self.ibo.write(indices)
 

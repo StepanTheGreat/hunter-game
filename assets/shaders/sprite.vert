@@ -8,9 +8,18 @@ uniform vec3 camera_pos;
 
 uniform vec2[SPRITE_LIMIT] sprite_positions;
 uniform vec2[SPRITE_LIMIT] sprite_sizes;
+uniform mat2[SPRITE_LIMIT] sprite_uv_rects;
 
 layout (location = 0) in vec3 position;
-layout (location = 1) in vec2 uv;
+layout (location = 1) in mat2 uv_mat;
+
+// So the hell is a uv-matrix? Basically, it's a way to tell our shader which vertex to use.
+//
+// For instanced sprites, it would be a great feature to be able to tell which part of the texture we would
+// like to use. Using a uv matrix (that is a matrix of 0 and 1), we can tell whether to use the top-left
+// corner, or the top-right corner, or any other coordinate.
+//
+// Sprites then need to send their uv_rects, which are matrices of: [x, y, x+w, y+h]
 
 out vec2 in_uv;
 
@@ -18,6 +27,7 @@ void main()
 {   
     vec2 sprite_pos = sprite_positions[gl_InstanceID];
     vec2 sprite_size = sprite_sizes[gl_InstanceID];
+    mat2 uv_rect = sprite_uv_rects[gl_InstanceID];
 
     // Swapping the Y component with X in arctangent produces a slightly different angle, which in turn
     // produces the "billboard" effect, always looking at the player
@@ -38,5 +48,8 @@ void main()
     pos.xz += sprite_pos;
     gl_Position = projection*(vec4(camera_rot*(pos-camera_pos), 1));
 
-    in_uv = uv;
+    in_uv = vec2(
+        uv_rect[0].x * uv_mat[0].x + uv_rect[1].x * uv_mat[1].x,
+        uv_rect[0].y * uv_mat[0].y + uv_rect[1].y * uv_mat[1].y
+    );
 }  

@@ -6,10 +6,10 @@ from core.graphics import *
 
 SPRITE_MESH = DumbMeshCPU(
     np.array([
-        -0.5, 1, 0,     0, 0,
-        0.5, 1, 0,     1, 0,
-        -0.5, 0, 0,     0, 1,
-        0.5, 0, 0,     1, 1
+        -0.5, 1, 0,     1, 1, 0, 0,
+         0.5, 1, 0,     0, 1, 1, 0,
+        -0.5, 0, 0,     1, 0, 0, 1,
+         0.5, 0, 0,     0, 0, 1, 1,
     ], dtype=np.float32),
     np.array([0, 1, 2, 1, 3, 2], dtype=np.uint32)
 )
@@ -20,7 +20,7 @@ SPRITE_PIPELINE_PARAMS = PipelineParams(
     alpha_blending=False
 )
 
-SPRITE_VERTEX_ATTRIBUTES = ("position", "uv")
+SPRITE_VERTEX_ATTRIBUTES = ("position", "uv_mat")
 
 def sprite_model(ctx: gl.Context, assets: AssetManager) -> tuple[Model, Pipeline]:
     pipeline = Pipeline(
@@ -38,48 +38,62 @@ def sprite_model(ctx: gl.Context, assets: AssetManager) -> tuple[Model, Pipeline
 
 
 class SpriteContainer:
+
+    class SpriteGroup:
+        def __init__(self, size: int):
+            self.next_index = 0
+            self.sprite_positions = np.zeros((size, 2), dtype=np.float32)
+            self.sprite_sizes = np.zeros((size, 2), dtype=np.float32)
+            self.sprite_uv_rects = np.zeros((size, 4), dtype=np.float32)
+
+        def add(self, pos: pg.Vector2, size: pg.Vector2, uv_rect: tuple[float]):
+            "uv_rect is a tuple of 4 absolute texture coordinates"
+
+            self.sprite_positions[self.next_index] = np.array([pos.x, -pos.y])
+            self.sprite_sizes[self.next_index] = np.array([size.x, size.y])
+            self.sprite_uv_rects[self.next_index] = np.array(uv_rect)
+            self.next_index += 1
+
+        def get_uniforms(self) -> tuple[np.ndarray]:
+            return (
+                self.sprite_positions,
+                self.sprite_sizes,
+                self.sprite_uv_rects
+            )
+        
     """
     A batching primitive for sprite rendering. 
     
-    Every frame, sprites are supposed to push their positions, sizes and textures to this container.
-    All the sprites will be automatically grouped based on their texture and rendred at the end of the frame.
+    Every frame, sprites are supposed to push their positions, sizes, uv_rects and textures to this container.
+    All the sprites will automatically get grouped based on their texture and rendred at the end of the frame.
     """
     def __init__(self, ctx: gl.Context, assets: AssetManager):
-        self.map: dict[gl.Texture, list[int, np.ndarray, np.ndarray]] = {}
+        self.map: dict[gl.Texture, SpriteContainer.SpriteGroup] = {}
+        "This map maps textures to a sprite entry of `(next_index, sprite_positions, sprite_sizes, sprite_uv_rects)`"
+
         model, pipeline = sprite_model(ctx, assets)
         self.model: Model = model
         self.pipeline: Pipeline = pipeline
         
         self.count = 0
 
-    def push_sprite(self, texture: gl.Texture, pos: pg.Vector2, size: pg.Vector2):
+    def push_sprite(self, texture: gl.Texture, pos: pg.Vector2, size: pg.Vector2, uv_rect: tuple[float]):
         assert self.count < 255, "Reached a sprite limit"
 
         if texture in self.map:
-            next_index, sprite_positions, sprite_sizes = self.map[texture]
-
-            sprite_positions[next_index] = np.array([pos.x, -pos.y])
-            sprite_sizes[next_index] = np.array([size.x, size.y])
-            self.map[texture][0] = next_index+1
+            group = self.map[texture]
+            group.add(pos, size, uv_rect)
         else:
 
-            sprite_positions = np.zeros((256, 2), dtype=np.float32)
-            sprite_sizes = np.zeros((256, 2), dtype=np.float32)
-
-            sprite_positions[0] = np.array([pos.x, -pos.y])
-            sprite_sizes[0] = np.array([size.x, size.y])
-
-            self.map[texture] = [
-                1,
-                sprite_positions, 
-                sprite_sizes
-            ]
+            group = SpriteContainer.SpriteGroup(256)
+            group.add(pos, size, uv_rect)
+            self.map[texture] = group
 
         self.count += 1
 
     def get_sprite_uniform_arrays(self) -> list[tuple[gl.Texture, np.ndarray, np.ndarray]]:
         "Transform this sprite map into a list of tuples of `(texture, sprite_positions, sprite_sizes)`"
-        return [(texture, sprite_positions, sprite_sizes) for texture, (_, sprite_positions, sprite_sizes) in self.map.items()]
+        return [(texture, *sprite_group.get_uniforms()) for texture, sprite_group in self.map.items()]
 
     def get_pipeline(self) -> Pipeline:
         return self.pipeline
@@ -114,10 +128,11 @@ def render_sprite_container(resources: Resources):
     pipeline["camera_pos"] = camera.get_camera_position()
     pipeline["camera_rot"] = camera.get_camera_rotation().flatten()
     
-    for (texture, sprite_positions, sprite_sizes) in sprite_container.get_sprite_uniform_arrays():
+    for (texture, sprite_positions, sprite_sizes, sprite_uv_rects) in sprite_container.get_sprite_uniform_arrays():
         sprites_amount = sprite_positions.size//2
         pipeline["sprite_positions"] = sprite_positions
         pipeline["sprite_sizes"] = sprite_sizes
+        pipeline["sprite_uv_rects"] = sprite_uv_rects
         texture.use()
 
         model.render(instances=sprites_amount)

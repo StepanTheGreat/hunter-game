@@ -10,7 +10,7 @@ from modules.collision import CollisionManager, DynCollider
 from ..map import WorldCollisions
 
 class Player(Entity):
-    HITBOX_SIZE = 20
+    HITBOX_SIZE = 14
     SPEED = 250
     ROTATION_SPEED = 3
     # The height of the camera

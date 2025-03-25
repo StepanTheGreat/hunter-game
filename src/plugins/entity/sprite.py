@@ -49,7 +49,8 @@ class Sprite(Entity):
         sprite_container.push_sprite(
             self.texture,
             self.pos,
-            pg.Vector2(48, 48)
+            pg.Vector2(48, 48),
+            (0, 0, 1, 1)
         )
     
 def spawn_sprite(resources: Resources):
