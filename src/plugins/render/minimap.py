@@ -1,13 +1,12 @@
 from plugin import Resources, Schedule, Plugin
 
-from modules.entity import EntityContainer
-
+from core.entity import EntityWorld
 
 from .map import WorldMap
-from .renderer import Renderer2D
+from core.graphics import Renderer2D
 
-from ..entity.player import Player
-from ..entity.sprite import Sprite
+from ..entities.player import Player
+from ..entities.sprite import Sprite
 
 from ..map import TILE_SIZE
 
@@ -21,7 +20,7 @@ def draw_minimap(resources: Resources):
     wmap = resources[WorldMap]
     renderer = resources[Renderer2D]
 
-    entities = resources[EntityContainer]
+    entities = resources[EntityWorld]
 
     tiles = wmap.get_map().get_tiles()
     scale = MINIMAP_SCALE
@@ -35,9 +34,11 @@ def draw_minimap(resources: Resources):
             if tile != 0:
                 renderer.draw_rect((x*tile_size, y*tile_size, tile_size, tile_size), (0.2, 0.2, 0.2))
 
-    player = entities.get_group(Player)[0]
-    pos = player.get_pos()/TILE_SIZE*tile_size
-    renderer.draw_circle((pos.x, pos.y), player_size, (0, 1, 0))
+    players = entities.get_group(Player)
+    if len(players) > 0:
+        player = players[0]
+        pos = player.get_pos()/TILE_SIZE*tile_size
+        renderer.draw_circle((pos.x, pos.y), player_size, (0, 1, 0))
 
     for sprite in entities.get_group(Sprite):
         pos = sprite.pos.copy()/TILE_SIZE*tile_size

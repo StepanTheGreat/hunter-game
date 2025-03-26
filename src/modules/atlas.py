@@ -3,7 +3,7 @@
 import pygame as pg
 import moderngl as gl
 
-from core.graphics import make_texture
+from core.graphics.ctx import make_texture
 
 from typing import Any, Optional
 

@@ -1,5 +1,7 @@
 import pygame as pg
 
+from plugin import Plugin, Schedule, Resources
+
 from typing import Union
 
 class StaticCollider:
@@ -82,7 +84,7 @@ class DynCollider:
             if 0 < distance <= radius:
                 pos += (pos-point).normalize() * (radius-distance)
 
-class CollisionManager:
+class CollisionWorld:
     def __init__(self):
         self.static_colliders: list[StaticCollider] = []
         self.dynamic_colliders: list[DynCollider] = []
@@ -122,3 +124,16 @@ class CollisionManager:
         for dyn_collider in self.dynamic_colliders:
             for stat_collider in self.static_colliders:
                 dyn_collider.resolve_collision_static(stat_collider)
+
+    def clear(self):
+        "Remove all colliders from this world (static and dynamic)"
+        self.static_colliders.clear()
+        self.dynamic_colliders.clear()
+
+def resolve_collisions(resources: Resources):
+    resources[CollisionWorld].resolve_collisions()
+
+class CollisionsPlugin(Plugin):
+    def build(self, app):
+        app.insert_resource(CollisionWorld())
+        app.add_systems(Schedule.PostUpdate, resolve_collisions)

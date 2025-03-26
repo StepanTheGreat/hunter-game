@@ -2,17 +2,13 @@ import numpy as np
 
 from plugin import *
 from modules.tilemap import Tilemap
-from modules.collision import CollisionManager, StaticCollider
+from core.collisions import CollisionWorld, StaticCollider
 
 from typing import Union
 
 
 TILE_SIZE = 48
 # TILE_SIZE = 100
-
-class WorldCollisions:
-    def __init__(self):
-        self.manager = CollisionManager()
 
 class WorldMap:
     "The globally explorable map"
@@ -21,16 +17,16 @@ class WorldMap:
             tilemap: Tilemap, 
             color_map: dict[int, Union[str, tuple]],
             transparent_tiles: set[int],
-            resources: Resources
+            collisions: CollisionWorld
         ):
         self.map = tilemap
         self.color_map = color_map
         self.transparent_tiles = transparent_tiles
 
         self.colliders = []
-        self.create_map_colliders(resources[WorldCollisions].manager)
+        self.create_map_colliders(collisions)
 
-    def create_map_colliders(self, manager: CollisionManager):
+    def create_map_colliders(self, collisions: CollisionWorld):
         tiles = self.map.get_tiles()
 
         for y, row in enumerate(tiles):
@@ -40,7 +36,7 @@ class WorldMap:
                 
                 collider = StaticCollider(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE)
                 self.colliders.append(collider)
-                manager.add_collider(collider)
+                collisions.add_collider(collider)
     
     def get_transparent_tiles(self) -> set[int]:
         """
@@ -59,7 +55,6 @@ class WorldMap:
 
 class MapPlugin(Plugin):
     def build(self, app):
-        app.insert_resource(WorldCollisions())
         app.insert_resource(WorldMap(
             Tilemap(8, 8, np.array([
                 [0, 0, 0, 0, 0, 0, 2, 2],
@@ -80,9 +75,5 @@ class MapPlugin(Plugin):
             transparent_tiles = set([
                 1
             ]),
-            resources=app.get_resources()
+            collisions = app.get_resource(CollisionWorld),
         ))
-        app.add_systems(Schedule.PostUpdate, resolve_world_collisions)
-
-def resolve_world_collisions(resources: Resources):
-    resources[WorldCollisions].manager.resolve_collisions()

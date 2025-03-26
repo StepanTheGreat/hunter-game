@@ -6,11 +6,16 @@ import moderngl as gl
 from plugin import Resources, Plugin, Schedule
 
 from core.assets import AssetManager
-from core.graphics import GraphicsContext, othorgaphic_matrix
-from core.graphics.objects import *
-from core.graphics.text import FontGPU
+from .ctx import GraphicsContext
+from .text import FontGPU
+from .objects import *
+from .camera import othorgaphic_matrix
 
 from app_config import CONFIG
+
+VERTEX_ELEMENTS = 5000
+INDEX_ELEMENTS = 1000
+MAX_DRAW_CALLS = 32
 
 RENDERER_PIPELINE_PARAMS = PipelineParams(
     cull_face=False,
@@ -94,6 +99,11 @@ class DrawCallBatch:
         self.texture = None
 
 class Renderer2D:
+    """
+    A renderer is a 2D batcher for dynamic geometry. It's not as efficient as rendering static geometry (since
+    sending geometry every frame to the GPU iis slow) - it's still an awesome tool for dynamic things like 
+    GUI, text, shapes and much more.
+    """
     def __init__(self, gfx: GraphicsContext, assets: AssetManager, vertex_elements: int, index_elements: int, max_draw_calls: int):
         self.ctx = gfx.get_context()
         self.white_texture = gfx.get_white_texture()
@@ -177,7 +187,7 @@ class Renderer2D:
 
             x_offset += cw
 
-    def issue_draw_call_batches(self, projection: np.ndarray):
+    def draw(self, projection: np.ndarray):
         "Render everything with the provided projection matrix and reset the draw batches"
 
         self.pipeline["projection"] = projection
@@ -196,20 +206,17 @@ class Renderer2D:
 
         self.reset_draw_call_batches()
 
-__my_test_font = None
-
-def create_renderer(resources: Resources):
-    assets = resources[AssetManager]
-    gfx = resources[GraphicsContext]
-
-    resources.insert(Renderer2D(gfx, assets, 5000, 1000, 64))
-
 def issue_draw_calls(resources: Resources):
     projection = othorgaphic_matrix(0, CONFIG.width, CONFIG.height, 0, -1, 1)
-    
-    resources[Renderer2D].issue_draw_call_batches(projection)
+    resources[Renderer2D].draw(projection)
 
 class RendererPlugin(Plugin):
     def build(self, app):
-        app.add_systems(Schedule.Startup, create_renderer)
+        app.insert_resource(Renderer2D(
+            app.get_resource(GraphicsContext),
+            app.get_resource(AssetManager),
+            VERTEX_ELEMENTS,
+            INDEX_ELEMENTS,
+            MAX_DRAW_CALLS
+        ))
         app.add_systems(Schedule.PostRender, issue_draw_calls)

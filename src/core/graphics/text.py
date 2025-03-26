@@ -4,8 +4,8 @@ import pygame as pg
 import moderngl as gl
 
 from plugin import Plugin, Schedule, Resources
-from core.assets import AssetManager, add_loaders
-from core.graphics import GraphicsContext
+from core.assets import add_loaders
+from .ctx import GraphicsContext
 from modules.atlas import SpriteAtlas, SpriteRect
 
 DEFAULT_FONT_SIZE = 64

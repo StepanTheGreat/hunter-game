@@ -4,7 +4,6 @@ from plugin import Plugin
 
 from .map import *
 from .sprite import *
-from .renderer import *
 from .minimap import *
 
 class RenderPlugin(Plugin):
@@ -12,6 +11,5 @@ class RenderPlugin(Plugin):
         app.add_plugins(
             MapRendererPlugin(),
             SpriteRendererPlugin(),
-            RendererPlugin(),
             MinimapPlugin()
         )

@@ -166,34 +166,27 @@ class MapModel:
         models, pipeline = gen_map_models(ctx, assets, worldmap)
         self.models = models
         self.pipeline = pipeline
-
-    def get_pipeline(self) -> Pipeline:
-        return self.pipeline
     
-    def get_models(self) -> list[tuple[gl.Texture, Model]]:
-        return self.models
+    def render(self, camera: Camera3D):
+        self.pipeline["projection"] = camera.get_projection_matrix()
+        self.pipeline["camera_pos"] = camera.get_camera_position()
+        self.pipeline["camera_rot"] = camera.get_camera_rotation().flatten()
+
+        for texture, model in self.models:
+            texture.use()
+            model.render()
 
 def create_map(resources: Resources):
-    world_map = resources[WorldMap]
-    gfx = resources[GraphicsContext]
-    assets = resources[AssetManager]
-
-    resources.insert(MapModel(gfx, assets, world_map))
+    resources.insert(MapModel(
+        resources[GraphicsContext], 
+        resources[AssetManager], 
+        resources[WorldMap]
+    ))
     
 def render_map(resources: Resources):
-    if (map_renderer := resources.get(MapModel)) is None:
-        return
-    
-    camera = resources[Camera3D]
-
-    models, pipeline = map_renderer.get_models(), map_renderer.get_pipeline()
-    pipeline["projection"] = camera.get_projection_matrix()
-    pipeline["camera_pos"] = camera.get_camera_position()
-    pipeline["camera_rot"] = camera.get_camera_rotation().flatten()
-
-    for texture, model in models:
-        texture.use()
-        model.render()
+    map_model = resources.get(MapModel)
+    if map_model is not None:
+        map_model.render(resources[Camera3D])
 
 class MapRendererPlugin(Plugin):
     def build(self, app):

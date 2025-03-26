@@ -4,10 +4,9 @@ import numpy as np
 from plugin import Plugin, Resources, Schedule
 
 from core.graphics import Camera3D
-from modules.entity import EntityContainer, Entity
-from modules.collision import CollisionManager, DynCollider
-
-from ..map import WorldCollisions
+from core.entity import EntityWorld, Entity
+from core.pg import Clock
+from core.collisions import CollisionWorld, DynCollider
 
 class Player(Entity):
     HITBOX_SIZE = 14
@@ -16,7 +15,7 @@ class Player(Entity):
     # The height of the camera
     CAMERA_HEIGHT = 24
 
-    def __init__(self, uid: int, pos: tuple[float, float], resources: Resources):
+    def __init__(self, uid: int, pos: tuple[float, float], collisions: CollisionWorld):
         super().__init__(uid)
 
         self.collider = DynCollider(Player.HITBOX_SIZE, pos, 10)
@@ -25,9 +24,9 @@ class Player(Entity):
         self.vel = pg.Vector2(0, 0)
         self.angle = 0
 
-        resources[WorldCollisions].manager.add_collider(self.collider)
+        collisions.add_collider(self.collider)
         
-    def update(self, _: Resources, dt: float):
+    def update(self, dt: float):
         keys = pg.key.get_pressed()
         forward = keys[pg.K_w]-keys[pg.K_s]
         left_right = keys[pg.K_d]-keys[pg.K_a]
@@ -52,11 +51,6 @@ class Player(Entity):
         elif self.angle < -np.pi:
             self.angle = np.pi
 
-    def draw(self, resources: Resources):
-        cam = resources[Camera3D]
-        cam.set_pos(self.get_pos())
-        cam.set_angle(self.get_angle())
-
     def get_angle(self) -> float:
         "Get the direction this player is looking at"
         return self.angle
@@ -65,15 +59,27 @@ class Player(Entity):
         return self.pos.copy()
     
 def spawn_player(resources: Resources):
-    entities = resources[EntityContainer]
-    
+    entities = resources[EntityWorld]
     entities.push_entity(
-        Player(entities.get_entity_uid(), (0, 0), resources)
+        Player(entities.get_entity_uid(), (0, 0), resources[CollisionWorld])
     )
 
-def 
+def update_players(resources: Resources):
+    dt = resources[Clock].get_delta()
+    for player in resources[EntityWorld].get_group(Player):
+        player.update(dt)
+
+def move_camera(resources: Resources):
+    players = resources[EntityWorld].get_group(Player)
+    if len(players) > 0:
+        player = players[0]
+        cam = resources[Camera3D]
+        cam.set_pos(player.get_pos())
+        cam.set_angle(player.get_angle())
 
 class PlayerPlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.Startup, spawn_player)
+        app.add_systems(Schedule.Update, update_players)
+        app.add_systems(Schedule.PreRender, move_camera)
 
