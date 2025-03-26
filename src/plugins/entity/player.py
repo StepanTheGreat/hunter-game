@@ -71,6 +71,9 @@ def spawn_player(resources: Resources):
         Player(entities.get_entity_uid(), (0, 0), resources)
     )
 
+def 
+
 class PlayerPlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.Startup, spawn_player)
+

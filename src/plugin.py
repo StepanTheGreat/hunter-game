@@ -34,10 +34,6 @@ class EventWriter:
         "Clear the internal queue. This should be called at the start of every frame internally by the app"
         self.queue.clear()
 
-@event
-class QuitEvent:
-    "A built-in event for quitting the application"
-
 # This is a generic argument that stands for Resource.
 # It's highly useful because it allows the intellisense to understand arguments and return types, which
 # isn't possible with type erasure. For example:
