@@ -22,8 +22,15 @@ class FontGPU:
         # Prerender a default character set
         self.load_chars(FontGPU.DEFAULT_CHARACTERS)
 
+    def measure(self, s: str) -> tuple[int, int]:
+        "Measure a string"
+        return self.font.size(s)
+    
+    def get_height(self) -> int:
+        return self.font.get_height()
+
     def get_or_insert_char(self, char: str) -> SpriteRect:
-        if not self.atlas.has_sprite(char):
+        if not self.atlas.contains_sprite(char):
             assert self.push_char(char), "Couldn't fit a character. Maybe hit a texture limit"
                     
         return self.atlas.get_sprite(char)
@@ -42,11 +49,20 @@ class FontGPU:
         return self.get_or_insert_char(char).get_size()
     
     def push_char(self, char: str) -> bool:
-        return self.atlas.push_sprite(char, self.font.render(char, True, (255, 255, 255)))
+        char_w, char_h = self.measure(char)
+
+        # If a character has a 0 size - we'll make a 1x1 transparent surface for it. 
+        # Else we'll just render the character as is
+        if char_w == 0 or char_h == 0:
+            char_surf = pg.Surface((1, 1), pg.SRCALPHA)
+        else:
+            char_surf = self.font.render(char, True, (255, 255, 255)) 
+        
+        return self.atlas.push_sprite(char, char_surf)
     
     def load_chars(self, chars: str):
         for char in chars:
-            self.push_char(char)
+            assert self.push_char(char), "Couldn't fit a character"
     
     def get_texture(self) -> gl.Texture:
         """

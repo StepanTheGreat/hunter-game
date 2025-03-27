@@ -138,7 +138,7 @@ class SpriteAtlas:
                     "Maximum size"
                     return False
     
-    def has_sprite(self, key: Any) -> bool:
+    def contains_sprite(self, key: Any) -> bool:
         return key in self.sprite_map
     
     def push_sprite(self, key: Any, surf: pg.Surface) -> bool:

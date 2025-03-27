@@ -4,6 +4,7 @@ from typing import Optional
 
 from plugin import Plugin, Resources, Schedule
 
+from core.telemetry import Telemetry
 from core.assets import AssetManager
 from .objects import *
 from .ctx import GraphicsContext
@@ -55,20 +56,26 @@ class ModelRenderer:
         "Clear all models that are about to get rendered"
         self.models.clear()
     
-    def draw(self, camera: Camera3D):
+    def draw(self, camera: Camera3D) -> int:
         "Render all models and clear the list of models to draw"
         self.pipeline["projection"] = camera.get_projection_matrix()
         self.pipeline["camera_pos"] = camera.get_camera_position()
         self.pipeline["camera_rot"] = camera.get_camera_rotation().flatten()
 
+        draw_calls = 0
         for model, texture in self.models:
             texture.use()
             model.render()
+            draw_calls += 1
 
         self.models.clear()
 
+        return draw_calls
+
 def draw_models(resources: Resources):
-    resources[ModelRenderer].draw(resources[Camera3D])
+    draw_calls = resources[ModelRenderer].draw(resources[Camera3D])
+
+    resources[Telemetry].render3d_dcs = draw_calls
 
 class Renderer3DPlugin(Plugin):
     def build(self, app):

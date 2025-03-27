@@ -5,10 +5,12 @@ import pygame as pg
 import numpy as np
 
 from plugin import Plugin, Schedule, Resources
+
 from .objects import *
 from .camera import Camera3D
 from .ctx import GraphicsContext
 
+from core.telemetry import Telemetry
 from core.assets import AssetManager
 
 SPRITE_MESH = DumbMeshCPU(
@@ -112,10 +114,12 @@ class SpriteRenderer:
         self.count = 0
         self.groups.clear()
 
-    def draw(self, camera: Camera3D):
+    def draw(self, camera: Camera3D) -> int:
         self.pipeline["projection"] = camera.get_projection_matrix()
         self.pipeline["camera_pos"] = camera.get_camera_position()
         self.pipeline["camera_rot"] = camera.get_camera_rotation().flatten()
+
+        draw_calls = 0
         
         for (amount, texture, sprite_positions, sprite_sizes, sprite_uv_rects) in self.get_sprite_uniform_arrays():
             self.pipeline["sprite_positions"] = sprite_positions
@@ -124,11 +128,16 @@ class SpriteRenderer:
 
             texture.use()
             self.model.render(instances=amount)
+            draw_calls += 1
 
         self.clear()
 
+        return draw_calls
+
 def draw_sprites(resources: Resources):
-    resources[SpriteRenderer].draw(resources[Camera3D])
+    draw_calls = resources[SpriteRenderer].draw(resources[Camera3D])
+
+    resources[Telemetry].sprite_dcs = draw_calls
 
 class SpriteRendererPlugin(Plugin):
     def build(self, app):

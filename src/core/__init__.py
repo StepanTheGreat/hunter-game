@@ -11,6 +11,7 @@ from .pg import PygamePlugin
 from .assets import AssetsPlugin
 from .entity import EntityPlugin
 from .collisions import CollisionsPlugin
+from .telemetry import *
 
 class CoreModulesPlugin(Plugin):
     "The core application modules"
@@ -20,5 +21,6 @@ class CoreModulesPlugin(Plugin):
             AssetsPlugin(CONFIG.assets_dir),
             GraphicsPlugin(),
             EntityPlugin(),
-            CollisionsPlugin()
+            CollisionsPlugin(),
+            TelemetryPlugin()
         )

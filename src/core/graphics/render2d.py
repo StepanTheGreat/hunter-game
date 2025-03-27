@@ -5,6 +5,7 @@ import moderngl as gl
 
 from plugin import Resources, Plugin, Schedule
 
+from core.telemetry import Telemetry
 from core.assets import AssetManager
 from .objects import *
 from .ctx import GraphicsContext
@@ -190,15 +191,15 @@ class Renderer2D:
 
             x_offset += cw
 
-    def draw(self, projection: np.ndarray):
-        "Render everything with the provided projection matrix and reset the draw batches"
+    def draw(self, projection: np.ndarray) -> int:
+        "Render everything with the provided projection matrix, reset the draw batches and return the amount of draw calls"
 
         if self.dc_ptr is None:
             # We have nothing to draw
             return
 
+        draw_calls = 0
         self.pipeline["projection"] = projection
-        
         self.pipeline.apply_params()
         for draw_batch in self.dc_batches[:self.dc_ptr+1]:
             verticies, indices = draw_batch.get_geometry()
@@ -210,12 +211,17 @@ class Renderer2D:
 
             draw_batch.texture.use()
             self.vao.render(vertices=vertex_elements)
+            draw_calls += 1
 
         self.reset_draw_call_batches()
 
+        return draw_calls
+
 def issue_draw_calls(resources: Resources):
     projection = othorgaphic_matrix(0, CONFIG.width, CONFIG.height, 0, -1, 1)
-    resources[Renderer2D].draw(projection)
+    draw_calls = resources[Renderer2D].draw(projection)
+
+    resources[Telemetry].render2d_dcs = draw_calls
 
 class Renderer2DPlugin(Plugin):
     def build(self, app):
