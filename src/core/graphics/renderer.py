@@ -113,7 +113,7 @@ class Renderer2D:
         self.max_draw_calls = max_draw_calls
 
         self.dc_batches: list[DrawCallBatch] = [DrawCallBatch(vertex_elements, index_elements) for _ in range(self.max_draw_calls)]
-        self.dc_ptr = 0
+        self.dc_ptr = None
 
         self.pipeline = Pipeline(
             self.ctx, 
@@ -132,6 +132,9 @@ class Renderer2D:
         )
 
     def push_draw_call(self, draw_call: DrawCall):
+        if self.dc_ptr is None:
+            self.dc_ptr = 0
+        
         batch = self.dc_batches[self.dc_ptr]
 
         if batch.can_merge(draw_call):
@@ -149,8 +152,8 @@ class Renderer2D:
         """
         for batch in self.dc_batches[:self.dc_ptr+1]:
             batch.reset()
-            
-        self.dc_ptr = 0
+
+        self.dc_ptr = None
 
     def draw_rect(self, rect: tuple[int, ...], color: tuple[float, ...]):
         x, y, w, h = rect
@@ -189,6 +192,10 @@ class Renderer2D:
 
     def draw(self, projection: np.ndarray):
         "Render everything with the provided projection matrix and reset the draw batches"
+
+        if self.dc_ptr is None:
+            # We have nothing to draw
+            return
 
         self.pipeline["projection"] = projection
         
