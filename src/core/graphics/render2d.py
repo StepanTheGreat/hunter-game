@@ -6,9 +6,9 @@ import moderngl as gl
 from plugin import Resources, Plugin, Schedule
 
 from core.assets import AssetManager
+from .objects import *
 from .ctx import GraphicsContext
 from .text import FontGPU
-from .objects import *
 from .camera import othorgaphic_matrix
 
 from app_config import CONFIG
@@ -217,7 +217,7 @@ def issue_draw_calls(resources: Resources):
     projection = othorgaphic_matrix(0, CONFIG.width, CONFIG.height, 0, -1, 1)
     resources[Renderer2D].draw(projection)
 
-class RendererPlugin(Plugin):
+class Renderer2DPlugin(Plugin):
     def build(self, app):
         app.insert_resource(Renderer2D(
             app.get_resource(GraphicsContext),

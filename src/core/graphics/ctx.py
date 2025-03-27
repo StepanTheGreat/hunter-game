@@ -6,7 +6,7 @@ from plugin import Plugin, Schedule
 from plugin import Resources
 
 from file import load_file_str
-from ..assets import AssetManager, add_loaders
+from ..assets import add_loaders
 
 from .objects import *
 from .camera import *

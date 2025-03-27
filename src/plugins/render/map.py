@@ -8,18 +8,11 @@ from plugin import Resources, Plugin, Schedule
 from ..map import WorldMap
 from typing import Optional
 from core.graphics import *
+from core.graphics.render3d import ModelRenderer
+
 from core.assets import AssetManager
 
 TILE_SIZE = 48
-
-TILE_PIPELINE_PARAMS = PipelineParams(
-    cull_face=True,
-    depth_test=True,
-    alpha_blending=False,
-    mode=gl.TRIANGLES
-)
-
-TILE_VERTEX_ATTRIBUTES = ("position", "color", "uv")
 
 def gen_tile_mesh(
     coords: tuple[int, int], 
@@ -98,7 +91,12 @@ def gen_tile_mesh(
 
     return mesh if not mesh.is_empty() else None 
 
-def gen_map_models(gfx: GraphicsContext, assets: AssetManager, worldmap: WorldMap) -> tuple[list[tuple[gl.Texture, Model], Pipeline], ]:
+def gen_map_models(
+        gfx: GraphicsContext, 
+        assets: AssetManager, 
+        model_renderer: ModelRenderer,
+        worldmap: WorldMap
+    ) -> list[tuple[Model, gl.Texture]]:
     "Generate an array of renderable map models"
 
     def has_neighbour(tile: int, ntile: int, transparent_tiles: set[int]) -> bool:
@@ -114,7 +112,6 @@ def gen_map_models(gfx: GraphicsContext, assets: AssetManager, worldmap: WorldMa
             return ntile != 0 and ntile not in transparent_tiles
     
     ctx = gfx.get_context()
-    white_texture = gfx.get_white_texture()
 
     tilemap = worldmap.get_map()
     tiles = tilemap.get_tiles()
@@ -135,7 +132,7 @@ def gen_map_models(gfx: GraphicsContext, assets: AssetManager, worldmap: WorldMa
                 material = color_map[tile]
 
                 color = (1, 1, 1) if type(material) is str else material
-                texture = assets.load(gl.Texture, material) if type(material) is str else white_texture
+                texture = assets.load(gl.Texture, material) if type(material) is str else None
 
                 tile_mesh = gen_tile_mesh(
                     (x, -y), 
@@ -150,43 +147,37 @@ def gen_map_models(gfx: GraphicsContext, assets: AssetManager, worldmap: WorldMa
                     else:
                         mesh_group[texture] = tile_mesh
 
-    pipeline = Pipeline(
-        ctx, 
-        assets.load(gl.Program, "shaders/base"), 
-        TILE_PIPELINE_PARAMS, 
-        TILE_VERTEX_ATTRIBUTES
-    )
-    models = []
-    for group_texture, group_mesh in mesh_group.items():
-        models.append((group_texture, Model(ctx, group_mesh, pipeline)))
-    return models, pipeline
+    pipeline = model_renderer.get_pipeline()
+    models = [(Model(ctx, group_mesh, pipeline), group_texture) for group_texture, group_mesh in mesh_group.items()]
+    return models
     
 class MapModel:
-    def __init__(self, ctx: gl.Context, assets: AssetManager, worldmap: WorldMap):
-        models, pipeline = gen_map_models(ctx, assets, worldmap)
-        self.models = models
-        self.pipeline = pipeline
-    
-    def render(self, camera: Camera3D):
-        self.pipeline["projection"] = camera.get_projection_matrix()
-        self.pipeline["camera_pos"] = camera.get_camera_position()
-        self.pipeline["camera_rot"] = camera.get_camera_rotation().flatten()
+    def __init__(
+            self, 
+            gfx: GraphicsContext, 
+            assets: AssetManager, 
+            model_renderer: ModelRenderer, 
+            world_map: WorldMap
+        ):
+        self.models = gen_map_models(gfx, assets, model_renderer, world_map)
 
-        for texture, model in self.models:
-            texture.use()
-            model.render()
+    def get_models(self) -> list[tuple[Model, gl.Texture]]:
+        return self.models
 
 def create_map(resources: Resources):
     resources.insert(MapModel(
         resources[GraphicsContext], 
         resources[AssetManager], 
+        resources[ModelRenderer],
         resources[WorldMap]
     ))
     
 def render_map(resources: Resources):
     map_model = resources.get(MapModel)
+    renderer = resources[ModelRenderer]
     if map_model is not None:
-        map_model.render(resources[Camera3D])
+        for model in map_model.get_models():
+            renderer.push_model(*model)
 
 class MapRendererPlugin(Plugin):
     def build(self, app):

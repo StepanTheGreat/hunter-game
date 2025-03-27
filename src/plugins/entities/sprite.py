@@ -10,7 +10,7 @@ from core.collisions import DynCollider, CollisionWorld
 from core.assets import AssetManager
 from core.pg import Clock
 
-from ..render.sprite import SpriteContainer
+from core.graphics.sprite import SpriteRenderer
 
 class Sprite(Entity):
     HITBOX_SIZE = 16
@@ -39,8 +39,8 @@ class Sprite(Entity):
             self.pos += self.vel * Sprite.SPEED * dt
 
 
-    def draw(self, sprites: SpriteContainer):
-        sprites.push_sprite(
+    def draw(self, renderer: SpriteRenderer):
+        renderer.push_sprite(
             self.texture,
             self.pos,
             pg.Vector2(48, 48),
@@ -64,7 +64,7 @@ def update_sprites(resources: Resources):
 
 def render_sprites(resources: Resources):
     entities = resources[EntityWorld]
-    sprite_container = resources[SpriteContainer]
+    sprite_container = resources[SpriteRenderer]
 
     for sprite in entities.get_group(Sprite):
         sprite.draw(sprite_container)

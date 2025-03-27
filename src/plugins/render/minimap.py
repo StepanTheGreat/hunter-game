@@ -2,13 +2,12 @@ from plugin import Resources, Schedule, Plugin
 
 from core.entity import EntityWorld
 
-from .map import WorldMap
 from core.graphics import Renderer2D
 
 from ..entities.player import Player
 from ..entities.sprite import Sprite
 
-from ..map import TILE_SIZE
+from ..map import WorldMap, TILE_SIZE
 
 MINIMAP_SCALE = 0.5
 

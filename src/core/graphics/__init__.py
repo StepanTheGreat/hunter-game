@@ -6,7 +6,10 @@ from .objects import *
 from .camera import *
 from .text import *
 from .ctx import *
-from .renderer import *
+
+from .render2d import *
+from .sprite import *
+from .render3d import *
 
 class GraphicsPlugin(Plugin):
     "A plugin responsible for managing a ModernGL context"
@@ -17,5 +20,7 @@ class GraphicsPlugin(Plugin):
             GraphicsContextPlugin(),
             CameraPlugin(),
             TextPlugin(),
-            RendererPlugin()
+            Renderer3DPlugin(),
+            SpriteRendererPlugin(),
+            Renderer2DPlugin()
         )
