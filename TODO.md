@@ -42,4 +42,7 @@ Thus, it means we need an actor-agnostic retransmitor, that would simply apply t
 retransmitor sends messages to itself. There will be some assertion checks though, since it should be made
 clear that a client can't possibly send a message to an another client, or some other unplanned BS.
 
-The messages that get passed will also need to be serialized 
+The messages that get passed will also need to be serialized, sent over and deserialized.
+Messages can have a global database to which they will be assigned - a small integer ID that will take
+a single byte. A deserializer will then try to find based on this number the required class and construct
+it using the provided binary data.
