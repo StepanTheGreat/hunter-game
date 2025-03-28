@@ -43,6 +43,9 @@ class EventWriter:
 # Will tell the intellisense that any type that I use in my argument, will also be returned by the function. 
 R = TypeVar("R")
 
+# Event
+E = TypeVar("E")
+
 class Resources:
     """
     Inspired by ECS Resources, a storage can store arbitrary values by their types. 
@@ -124,7 +127,9 @@ class AppBuilder:
     def __init__(self, *plugins: Plugin):
         self.systems: dict[Schedule, list[Callable[[Resources]]]] = {}
         self.event_listeners: dict[type, list[Callable[[Resources, object]]]] = {}
-        self.resources: Resources = Resources()
+        self.resources: Resources = Resources(
+            EventWriter()
+        )
         self.runner = None
 
         self.add_plugins(*plugins)
@@ -157,18 +162,18 @@ class AppBuilder:
         else:
             systems_list += systems
         
-    def add_event_listener(self, event_id: int, listener: Callable[[Resources, object], None]):
+    def add_event_listener(self, event_ty: Type[E], listener: Callable[[Resources, E], None]):
         "Add an event listener to the provided event ID"
-        listeners_list = self.event_listeners.get(event_id)
+        listeners_list = self.event_listeners.get(event_ty)
 
         if listeners_list is None:
-            self.event_listeners[event_id] = [listener]
+            self.event_listeners[event_ty] = [listener]
         else:
             listeners_list.append(listener)
 
     def set_runner(self, runner: Callable[["App"], None]):
         """
-        A runner is a function that's going to run the application. Different windowing backend have
+        A runner is a function that's going to run the application. Different windowing backends have
         different mainloop implementation, thus a runner allows adapting to a specific backend.
         """
         self.runner = runner
@@ -185,9 +190,6 @@ class App:
         self.event_listeners: dict[int, Callable[[Resources, object], None]] = app_builder.event_listeners
         self.resources: Resources = app_builder.resources
 
-        # Initialize the event writer
-        self.resources.insert(EventWriter())
-
     def get_resource(self, resource: Type[R]) -> Optional[R]:
         "A shortcut for `app.get_resources().get(R)`"
         return self.resources.get(resource)
@@ -195,8 +197,8 @@ class App:
     def get_resources(self) -> Resources:
         return self.resources
     
-    def __push_event(self, event):        
-        for event_listener in self.event_listeners.get(event, []):
+    def __push_event(self, event):
+        for event_listener in self.event_listeners.get(type(event), []):
             event_listener(self.resources, event)
 
     def __execute_schedules(self, *schedules: Schedule):
