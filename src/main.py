@@ -1,4 +1,3 @@
-import pygame as pg
 import plugin, core
 
 from plugins import PluginsCollection

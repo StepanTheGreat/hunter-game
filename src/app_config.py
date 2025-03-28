@@ -14,7 +14,7 @@ class AppConfig:
     assets_dir: str = "../assets"
 
 def load_config() -> AppConfig:
-    # I added a config.json file of an urgent need of constantly chaning different app settings
+    # I added a config.json file from an urgent need of constantly changing different app settings
     # like width, height or fps. One problem however... git keeps track of every single change. 
     # Ignoring the file would mean that someone would need to manually recreate said file, which isn't ideal at all.
     # My solution here is an optional configuration file that can overwrite some settings
