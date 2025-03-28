@@ -7,7 +7,7 @@ An application management module. Everything related to application modularisati
 """
 
 from enum import Enum, auto
-from typing import Callable, TypeVar, Optional, Type
+from typing import Callable, TypeVar, Optional, Type, Any
 
 def event(cls):
     "An event decorator for event objects. It allows them to be sent or listened to across the entire application"
@@ -48,7 +48,7 @@ class Resources:
     Inspired by ECS Resources, a storage can store arbitrary values by their types. 
     It's a unique storage, thus only one item of a specific type can be stored at the same time.
     """
-    def __init__(self, *resources: any):
+    def __init__(self, *resources: Any):
         self.database = {}
 
         for res in resources:
@@ -63,6 +63,9 @@ class Resources:
         assert type(ty) is type
 
         return self.database.get(ty)
+    
+    def __contains__(self, ty: type) -> bool:
+        return ty in self.database 
 
     def __getitem__(self, ty: Type[R]) -> R:
         assert type(ty) is type
@@ -241,3 +244,25 @@ class App:
     def run(self):
         "Run the application by starting the runner function. This function should be called only once."
         self.runner(self)
+
+def run_if(condition_func: Callable[[Resources], bool], *args):
+    """
+    A system decorator that controls whether to run a specific system or not. 
+    
+    The expected condition is a function that takes a class `Resources` as its first argument and an unlimited
+    amount of additional arguments that will be used in the conditional function arguments.
+    The condition function has to return either `True` or `False`, 
+    where `True` means the execution of the underlying system.
+    """
+    def decorator(func):
+        def conditional_system(resources: Resources):
+            if condition_func(resources, *args):
+                func(resources)
+
+        return conditional_system
+
+    return decorator
+
+def resource_exists(resources: Resources, resource: type) -> bool:
+    "A default conditional that runs when a specified resource exists"
+    return resource in resources
