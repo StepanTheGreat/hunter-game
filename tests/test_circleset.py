@@ -1,6 +1,5 @@
 from ward import test
-from main import CircleSet
-
+from core.network.circleset import CircleSet
 
 @test("Circular set should rotate")
 def _():
