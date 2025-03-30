@@ -1,5 +1,5 @@
 from modules.config import typed_dataclass, load_config_file
-from file import src_dir
+from file import localize_path
 
 @typed_dataclass
 class AppConfig:
@@ -12,7 +12,7 @@ class AppConfig:
     vsync: bool = True
     fps: int = 60
     title: str = "Maze Runner"
-    assets_dir: str = src_dir("../assets")
+    assets_dir: str = localize_path("assets")
     keys: str = "keys/azerty.json"
 
 def load_config() -> AppConfig:
@@ -21,7 +21,7 @@ def load_config() -> AppConfig:
     # Ignoring the file would mean that someone would need to manually recreate said file, which isn't ideal at all.
     # My solution here is an optional configuration file that can overwrite some settings
     try:
-        conf = load_config_file(AppConfig, src_dir("../config.json"))
+        conf = load_config_file(AppConfig, localize_path("config.json"))
     except FileNotFoundError:
         conf = AppConfig()
     return conf
