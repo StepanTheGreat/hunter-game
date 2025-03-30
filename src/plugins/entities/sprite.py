@@ -47,13 +47,13 @@ class Sprite(Entity):
             (0, 0, 1, 1)
         )
     
-# def spawn_sprite(resources: Resources):
-#     entities = resources[EntityWorld]
+def spawn_sprite(resources: Resources):
+    entities = resources[EntityWorld]
 
-#     for i in range(5):
-#         entities.push_entity(
-#             Sprite(entities.get_entity_uid(), (200*i, 0), resources)
-#         )
+    for i in range(5):
+        entities.push_entity(
+            Sprite(entities.get_entity_uid(), (200*i, 0), resources)
+        )
 
 def update_sprites(resources: Resources):
     entities = resources[EntityWorld]
@@ -71,6 +71,6 @@ def render_sprites(resources: Resources):
 
 class SpritePlugin(Plugin):
     def build(self, app):
-        # app.add_systems(Schedule.Startup, spawn_sprite)
+        app.add_systems(Schedule.Startup, spawn_sprite)
         app.add_systems(Schedule.Update, update_sprites)
         app.add_systems(Schedule.Render, render_sprites)

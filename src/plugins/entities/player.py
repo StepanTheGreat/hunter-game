@@ -6,7 +6,17 @@ from plugin import Plugin, Resources, Schedule
 from core.graphics import Camera3D
 from core.entity import EntityWorld, Entity
 from core.pg import Clock
+from core.input import InputManager
 from core.collisions import CollisionManager, DynCollider
+
+class InputAction:
+    Forward = "move_forward"
+    Backwards = "move_backwards"
+    Left = "move_left"
+    Right = "move_right"
+
+    TurnLeft = "turn_left"
+    TurnRight = "turn_right"
 
 class Player(Entity):
     HITBOX_SIZE = 14
@@ -26,10 +36,9 @@ class Player(Entity):
 
         collisions.add_collider(self.collider)
         
-    def update(self, dt: float):
-        keys = pg.key.get_pressed()
-        forward = keys[pg.K_w]-keys[pg.K_s]
-        left_right = keys[pg.K_d]-keys[pg.K_a]
+    def update(self, input: InputManager, dt: float):
+        forward = input[InputAction.Forward]-input[InputAction.Backwards]
+        left_right = input[InputAction.Right]-input[InputAction.Left]
 
         forward_vel = pg.Vector2(0, 0)
         left_right_vel = pg.Vector2(0, 0)
@@ -44,7 +53,7 @@ class Player(Entity):
         
         self.pos += vel * Player.SPEED * dt
 
-        angle_vel = keys[pg.K_RIGHT]-keys[pg.K_LEFT]
+        angle_vel = input[InputAction.TurnRight]-input[InputAction.TurnLeft]
         self.angle += angle_vel * Player.ROTATION_SPEED * dt
         if self.angle > np.pi:
             self.angle = -np.pi
@@ -58,16 +67,16 @@ class Player(Entity):
     def get_pos(self) -> pg.Vector2:
         return self.pos.copy()
     
-# def spawn_player(resources: Resources):
-#     entities = resources[EntityWorld]
-#     entities.push_entity(
-#         Player(entities.get_entity_uid(), (0, 0), resources[CollisionManager])
-#     )
+def spawn_player(resources: Resources):
+    entities = resources[EntityWorld]
+    entities.push_entity(
+        Player(entities.get_entity_uid(), (0, 0), resources[CollisionManager])
+    )
 
 def update_players(resources: Resources):
     dt = resources[Clock].get_delta()
     for player in resources[EntityWorld].get_group(Player):
-        player.update(dt)
+        player.update(resources[InputManager], dt)
 
 def move_camera(resources: Resources):
     players = resources[EntityWorld].get_group(Player)
@@ -81,4 +90,4 @@ class PlayerPlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.Update, update_players)
         app.add_systems(Schedule.PreRender, move_camera)
-
+        app.add_systems(Schedule.Startup, spawn_player)

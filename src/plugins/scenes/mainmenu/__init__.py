@@ -24,7 +24,7 @@ def draw_main_menu(resources: Resources):
     w, h = screen.get_size()
     textw, texth = menu.font.measure("You're in main menu!")
 
-    renderer.draw_rect((0, 0, w, h), (0.2, 0.2, 0.2))
+    # renderer.draw_rect((0, 0, w, h), (0.2, 0.2, 0.2))
     renderer.draw_text(menu.font, "You're in main menu!", (w/2-textw/2, h/2-texth/2), (1, 1, 1), 1)
 
 class MainMenuScene(SceneBundle):
