@@ -1,4 +1,5 @@
 from modules.config import typed_dataclass, load_config_file
+from file import src_dir
 
 @typed_dataclass
 class AppConfig:
@@ -11,7 +12,7 @@ class AppConfig:
     vsync: bool = True
     fps: int = 60
     title: str = "Maze Runner"
-    assets_dir: str = "../assets"
+    assets_dir: str = src_dir("../assets")
 
 def load_config() -> AppConfig:
     # I added a config.json file from an urgent need of constantly changing different app settings
@@ -19,7 +20,7 @@ def load_config() -> AppConfig:
     # Ignoring the file would mean that someone would need to manually recreate said file, which isn't ideal at all.
     # My solution here is an optional configuration file that can overwrite some settings
     try:
-        conf = load_config_file(AppConfig, "../config.json")
+        conf = load_config_file(AppConfig, src_dir("../config.json"))
     except FileNotFoundError:
         conf = AppConfig()
     return conf
