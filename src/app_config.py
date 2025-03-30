@@ -13,6 +13,7 @@ class AppConfig:
     fps: int = 60
     title: str = "Maze Runner"
     assets_dir: str = src_dir("../assets")
+    keys: str = "keys/azerty.json"
 
 def load_config() -> AppConfig:
     # I added a config.json file from an urgent need of constantly changing different app settings

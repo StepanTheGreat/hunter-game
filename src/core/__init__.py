@@ -8,6 +8,7 @@ from app_config import CONFIG
 
 from .graphics import GraphicsPlugin
 from .pg import PygamePlugin
+from .input import InputPlugin
 from .assets import AssetsPlugin
 from .entity import EntityPlugin
 from .collisions import CollisionsPlugin
@@ -17,8 +18,9 @@ class CoreModulesPlugin(Plugin):
     "The core application modules"
     def build(self, app):
         app.add_plugins(
-            PygamePlugin(),
             AssetsPlugin(CONFIG.assets_dir),
+            PygamePlugin(),
+            InputPlugin(),
             GraphicsPlugin(),
             EntityPlugin(),
             CollisionsPlugin(),
