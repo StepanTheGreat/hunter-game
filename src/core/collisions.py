@@ -84,7 +84,7 @@ class DynCollider:
             if 0 < distance <= radius:
                 pos += (pos-point).normalize() * (radius-distance)
 
-class CollisionWorld:
+class CollisionManager:
     def __init__(self):
         self.static_colliders: list[StaticCollider] = []
         self.dynamic_colliders: list[DynCollider] = []
@@ -131,9 +131,9 @@ class CollisionWorld:
         self.dynamic_colliders.clear()
 
 def resolve_collisions(resources: Resources):
-    resources[CollisionWorld].resolve_collisions()
+    resources[CollisionManager].resolve_collisions()
 
 class CollisionsPlugin(Plugin):
     def build(self, app):
-        app.insert_resource(CollisionWorld())
+        app.insert_resource(CollisionManager())
         app.add_systems(Schedule.PostUpdate, resolve_collisions)
