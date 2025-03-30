@@ -39,6 +39,8 @@ class SceneManager:
         self.resources = resources
         self.current_scene = None
 
+        self.insert_scene(default_scene)
+
     def insert_scene(self, new_scene: SceneBundle):
         "Insert a new scene bundle into this scene manager. The previous scene will get deinitialized and overwritten"
         if self.current_scene is not None:
