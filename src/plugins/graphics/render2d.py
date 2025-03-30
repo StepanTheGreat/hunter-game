@@ -188,7 +188,7 @@ class Renderer2D:
 
             x_offset += cw
 
-    def draw(self, projection: np.ndarray) -> int:
+    def draw(self, camera: Camera2D) -> int:
         "Render everything with the provided projection matrix, reset the draw batches and return the amount of draw calls"
 
         if self.dc_ptr is None:
@@ -196,7 +196,7 @@ class Renderer2D:
             return
 
         draw_calls = 0
-        self.pipeline["projection"] = projection
+        self.pipeline["projection"] = camera.get_projection_matrix()
         self.pipeline.apply_params()
         for draw_batch in self.dc_batches[:self.dc_ptr+1]:
             verticies, indices = draw_batch.get_geometry()
@@ -215,8 +215,7 @@ class Renderer2D:
         return draw_calls
 
 def issue_draw_calls(resources: Resources):
-    projection = othorgaphic_matrix(0, CONFIG.width, CONFIG.height, 0, -1, 1)
-    draw_calls = resources[Renderer2D].draw(projection)
+    draw_calls = resources[Renderer2D].draw(resources[Camera2D])
 
     resources[Telemetry].render2d_dcs = draw_calls
 
