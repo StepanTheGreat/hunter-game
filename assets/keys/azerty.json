@@ -1,0 +1,9 @@
+{
+    "q": "move_left",
+    "d": "move_right",
+    "z": "move_forward",
+    "s": "move_backwards",
+
+    "left": "turn_left",
+    "right": "turn_right"
+}
