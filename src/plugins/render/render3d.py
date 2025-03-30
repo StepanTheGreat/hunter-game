@@ -6,9 +6,7 @@ from plugin import Plugin, Resources, Schedule
 
 from core.telemetry import Telemetry
 from core.assets import AssetManager
-from .objects import *
-from .ctx import GraphicsContext
-from .camera import Camera3D
+from core.graphics import *
 
 MODEL_PIPELINE_PARAMS = PipelineParams(
     cull_face=True,

@@ -6,10 +6,7 @@ import numpy as np
 
 from plugin import Plugin, Schedule, Resources
 
-from .objects import *
-from .camera import Camera3D
-from .ctx import GraphicsContext
-
+from core.graphics import *
 from core.telemetry import Telemetry
 from core.assets import AssetManager
 

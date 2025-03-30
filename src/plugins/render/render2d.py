@@ -7,10 +7,7 @@ from plugin import Resources, Plugin, Schedule
 
 from core.telemetry import Telemetry
 from core.assets import AssetManager
-from .objects import *
-from .ctx import GraphicsContext
-from .text import FontGPU
-from .camera import othorgaphic_matrix
+from core.graphics import *
 
 from app_config import CONFIG
 
