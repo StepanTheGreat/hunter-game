@@ -1,7 +1,9 @@
 import numpy as np
 import pygame as pg
 
-from plugin import Plugin
+from plugin import Plugin, Resources
+
+from core.pg import WindowResizeEvent
 
 from app_config import CONFIG
 
@@ -85,6 +87,10 @@ class Camera2D:
 
     def get_projection_matrix(self) -> np.ndarray:
         return self.projection
+
+def update_cameras(resources: Resources, event: WindowResizeEvent):
+    resources[Camera2D].update_projection(event.new_width, event.new_height)
+    resources[Camera3D].update_projection(event.new_width, event.new_height)
     
 class CameraPlugin(Plugin):
     def build(self, app):
@@ -94,4 +100,5 @@ class CameraPlugin(Plugin):
         app.insert_resource(
             Camera2D(CONFIG.width, CONFIG.height)
         )
+        app.add_event_listener(WindowResizeEvent, update_cameras)
 
