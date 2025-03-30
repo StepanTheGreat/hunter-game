@@ -5,11 +5,6 @@ from plugin import Plugin
 
 from app_config import CONFIG
 
-FOV = 90
-ZFAR = 1024
-ZNEAR = 0.1
-ASPECT_RATIO = CONFIG.height/CONFIG.width
-
 HEIGHT = 24
 
 def perspective_matrix(aspect_ratio: float, fov: float, zfar: float, znear: float) -> np.ndarray:
@@ -33,20 +28,33 @@ def othorgaphic_matrix(left: float, right: float, bottom: float, top: float, zfa
     ], dtype=np.float32)
 
 class Camera3D:
-    def __init__(self, aspect_ratio: float, fov: float, zfar: float, znear: float, pos: pg.Vector2, height: float):
+    FOV = 90
+    ZFAR = 1024
+    ZNEAR = 0.1
+
+    def __init__(self, width: int, height: int, pos: pg.Vector2, y: float):
         self.pos = pos
-        self.height = height
-        self.projection = perspective_matrix(aspect_ratio, fov, zfar, znear)
+        self.y = y
+        self.projection = None
         self.angle = 0
 
-    def set_pos(self, new_pos: pg.Vector2):
+        self.update_projection(width, height)
+
+    def update_projection(self, new_width: int, new_height: int):
+        "The same as with the `Camera2D`, this is supposed to get called every time the window's resolution has changed"
+        self.projection = perspective_matrix(new_height/new_width, Camera3D.FOV, Camera3D.ZFAR, Camera3D.ZNEAR)
+
+    def set_pos(self, new_pos: pg.Vector3):
         self.pos = new_pos
+
+    def set_y(self, new_coordinate: float):
+        self.y = new_coordinate
 
     def set_angle(self, new_angle: float):
         self.angle = new_angle
 
     def get_camera_position(self) -> np.ndarray:
-        return np.array([self.pos.x, self.height, -self.pos.y], dtype=np.float32)
+        return np.array([self.pos.x, self.y, -self.pos.y], dtype=np.float32)
     
     def get_camera_rotation(self) -> np.ndarray:
         direction = pg.Vector3(-np.cos(self.angle), 0, -np.sin(self.angle))
@@ -54,10 +62,26 @@ class Camera3D:
         right = up.cross(direction)
 
         return np.array([
-            [right.x, right.y, right.z],
-            [up.x, up.y, up.z],
+            [    right.x,     right.y,     right.z],
+            [       up.x,        up.y,        up.z],
             [direction.x, direction.y, direction.z],
         ], dtype=np.float32)
+
+    def get_projection_matrix(self) -> np.ndarray:
+        return self.projection
+    
+class Camera2D:
+    "Not a camera, but simply an orthographic projection matrix"
+    ZFAR = -1
+    ZNEAR = 1
+
+    def __init__(self, width: int, height: int):
+        self.projection = None
+        self.update_projection(width, height)
+
+    def update_projection(self, new_width: int, new_height: int):
+        "Update this matrix with new window resolution in case it has changed"
+        self.projection = othorgaphic_matrix(0, new_width, new_height, 0, Camera2D.ZFAR, Camera2D.ZNEAR)
 
     def get_projection_matrix(self) -> np.ndarray:
         return self.projection
@@ -65,6 +89,9 @@ class Camera3D:
 class CameraPlugin(Plugin):
     def build(self, app):
         app.insert_resource(
-            Camera3D(ASPECT_RATIO, FOV, ZFAR, ZNEAR, pg.Vector2(0, 0), HEIGHT)
+            Camera3D(CONFIG.width, CONFIG.height, pg.Vector2(0, 0), HEIGHT)
+        )
+        app.insert_resource(
+            Camera2D(CONFIG.width, CONFIG.height)
         )
 
