@@ -1,6 +1,6 @@
 ## Current things to do:
-1. Add input manager (collect input, map it to actions and so on). Instead of treating input in terms of 
-   keys - treat it in terms of actions (But essentially it boils down to transforming keys into said actions)
+1. ~~Add input manager (collect input, map it to actions and so on). Instead of treating input in terms of~~
+   ~~keys - treat it in terms of actions (But essentially it boils down to transforming keys into said actions)~~
 2. Add priority for systems (custom execution order. A system can request to be executed earlier or later than
    other systems. Essentially it means just sorting them when building the app, so it's not that expensive.
    Make sure to collect systems of the same priority into the same lists, since sorting all systems in a giant list
