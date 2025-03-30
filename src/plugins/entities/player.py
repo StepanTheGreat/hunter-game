@@ -6,7 +6,7 @@ from plugin import Plugin, Resources, Schedule
 from core.graphics import Camera3D
 from core.entity import EntityWorld, Entity
 from core.pg import Clock
-from core.collisions import CollisionWorld, DynCollider
+from core.collisions import CollisionManager, DynCollider
 
 class Player(Entity):
     HITBOX_SIZE = 14
@@ -15,7 +15,7 @@ class Player(Entity):
     # The height of the camera
     CAMERA_HEIGHT = 24
 
-    def __init__(self, uid: int, pos: tuple[float, float], collisions: CollisionWorld):
+    def __init__(self, uid: int, pos: tuple[float, float], collisions: CollisionManager):
         super().__init__(uid)
 
         self.collider = DynCollider(Player.HITBOX_SIZE, pos, 10)
@@ -58,11 +58,11 @@ class Player(Entity):
     def get_pos(self) -> pg.Vector2:
         return self.pos.copy()
     
-def spawn_player(resources: Resources):
-    entities = resources[EntityWorld]
-    entities.push_entity(
-        Player(entities.get_entity_uid(), (0, 0), resources[CollisionWorld])
-    )
+# def spawn_player(resources: Resources):
+#     entities = resources[EntityWorld]
+#     entities.push_entity(
+#         Player(entities.get_entity_uid(), (0, 0), resources[CollisionManager])
+#     )
 
 def update_players(resources: Resources):
     dt = resources[Clock].get_delta()
@@ -79,7 +79,6 @@ def move_camera(resources: Resources):
 
 class PlayerPlugin(Plugin):
     def build(self, app):
-        app.add_systems(Schedule.Startup, spawn_player)
         app.add_systems(Schedule.Update, update_players)
         app.add_systems(Schedule.PreRender, move_camera)
 

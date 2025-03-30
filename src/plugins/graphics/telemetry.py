@@ -4,7 +4,8 @@ from core.pg import Clock
 from core.assets import AssetManager
 from core.telemetry import Telemetry
 
-from core.graphics import FontGPU, Renderer2D
+from .render2d import Renderer2D
+from core.graphics import FontGPU
 
 class TelemetryFont:
     def __init__(self, assets: AssetManager):

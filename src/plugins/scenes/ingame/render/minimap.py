@@ -1,20 +1,18 @@
-from plugin import Resources, Schedule, Plugin
+from plugin import Resources, Schedule, Plugin, run_if, resource_exists
 
 from core.entity import EntityWorld
 
-from core.graphics import Renderer2D
+from plugins.graphics import Renderer2D
+from plugins.entities.player import Player
+from plugins.entities.sprite import Sprite
 
-from ..entities.player import Player
-from ..entities.sprite import Sprite
+from modules.tilemap import WorldMap
 
-from ..map import WorldMap, TILE_SIZE
-
+# Remove this constant. A minimap should be a GUI element, not a standalone plugin
+TILE_SIZE = 48
 MINIMAP_SCALE = 0.5
 
-class MinimapPlugin(Plugin):
-    def build(self, app):
-        app.add_systems(Schedule.Render, draw_minimap)
-
+@run_if(resource_exists, WorldMap)
 def draw_minimap(resources: Resources):
     wmap = resources[WorldMap]
     renderer = resources[Renderer2D]
@@ -42,3 +40,7 @@ def draw_minimap(resources: Resources):
     for sprite in entities.get_group(Sprite):
         pos = sprite.pos.copy()/TILE_SIZE*tile_size
         renderer.draw_circle((pos.x, pos.y), sprite_size, (1, 0, 0))
+
+class MinimapPlugin(Plugin):
+    def build(self, app):
+        app.add_systems(Schedule.Render, draw_minimap)

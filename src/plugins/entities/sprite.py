@@ -6,11 +6,11 @@ from plugin import Plugin, Resources, Schedule
 from .player import Player
 
 from core.entity import EntityWorld, Entity
-from core.collisions import DynCollider, CollisionWorld
+from core.collisions import DynCollider, CollisionManager
 from core.assets import AssetManager
 from core.pg import Clock
 
-from core.graphics.sprite import SpriteRenderer
+from plugins.graphics import SpriteRenderer
 
 class Sprite(Entity):
     HITBOX_SIZE = 16
@@ -25,7 +25,7 @@ class Sprite(Entity):
         self.pos = self.collider.get_position_ptr()
         self.vel = pg.Vector2(0, 0)
 
-        resources[CollisionWorld].add_collider(self.collider)
+        resources[CollisionManager].add_collider(self.collider)
         
     def update(self, entities: EntityWorld, dt: float):
         if (players := entities.get_group(Player)):
@@ -47,13 +47,13 @@ class Sprite(Entity):
             (0, 0, 1, 1)
         )
     
-def spawn_sprite(resources: Resources):
-    entities = resources[EntityWorld]
+# def spawn_sprite(resources: Resources):
+#     entities = resources[EntityWorld]
 
-    for i in range(5):
-        entities.push_entity(
-            Sprite(entities.get_entity_uid(), (200*i, 0), resources)
-        )
+#     for i in range(5):
+#         entities.push_entity(
+#             Sprite(entities.get_entity_uid(), (200*i, 0), resources)
+#         )
 
 def update_sprites(resources: Resources):
     entities = resources[EntityWorld]
@@ -71,6 +71,6 @@ def render_sprites(resources: Resources):
 
 class SpritePlugin(Plugin):
     def build(self, app):
-        app.add_systems(Schedule.Startup, spawn_sprite)
+        # app.add_systems(Schedule.Startup, spawn_sprite)
         app.add_systems(Schedule.Update, update_sprites)
         app.add_systems(Schedule.Render, render_sprites)

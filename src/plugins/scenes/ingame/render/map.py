@@ -3,12 +3,12 @@
 import numpy as np
 import moderngl as gl
 
-from plugin import Resources, Plugin, Schedule
+from plugin import Resources, Plugin, Schedule, run_if, resource_exists
 
-from ..map import WorldMap
+from modules.tilemap import WorldMap
 from typing import Optional
 from core.graphics import *
-from core.graphics.render3d import ModelRenderer
+from plugins.graphics import ModelRenderer
 
 from core.assets import AssetManager
 
@@ -154,32 +154,26 @@ def gen_map_models(
 class MapModel:
     def __init__(
             self, 
-            gfx: GraphicsContext, 
-            assets: AssetManager, 
-            model_renderer: ModelRenderer, 
+            resources: Resources,
             world_map: WorldMap
         ):
-        self.models = gen_map_models(gfx, assets, model_renderer, world_map)
+        self.models = gen_map_models(
+            resources[GraphicsContext], 
+            resources[AssetManager], 
+            resources[ModelRenderer], 
+            world_map)
 
     def get_models(self) -> list[tuple[Model, gl.Texture]]:
-        return self.models
+        return self.models    
 
-def create_map(resources: Resources):
-    resources.insert(MapModel(
-        resources[GraphicsContext], 
-        resources[AssetManager], 
-        resources[ModelRenderer],
-        resources[WorldMap]
-    ))
-    
+@run_if(resource_exists, MapModel)
 def render_map(resources: Resources):
-    map_model = resources.get(MapModel)
+    map_model = resources[MapModel]
     renderer = resources[ModelRenderer]
-    if map_model is not None:
-        for model in map_model.get_models():
-            renderer.push_model(*model)
+
+    for model in map_model.get_models():
+        renderer.push_model(*model)
 
 class MapRendererPlugin(Plugin):
     def build(self, app):
-        app.add_systems(Schedule.Startup, create_map)
         app.add_systems(Schedule.PostRender, render_map)
