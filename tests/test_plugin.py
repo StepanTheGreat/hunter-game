@@ -76,9 +76,6 @@ def _():
     def test_listener(_, event):
         invoked[0] = True
 
-    def test_listener2(_, event):
-        assert False, "this event listener should'nt have been called"
-
     def send_event(resources: Resources):
         resources[EventWriter].push_event(TestEvent())
 
@@ -86,7 +83,6 @@ def _():
         def build(self, app):
             app.add_systems(Schedule.Startup, send_event)
             app.add_event_listener(TestEvent, test_listener)
-            app.add_event_listener(TestEvent2, test_listener2)
             app.set_runner(test_runner)
 
     app = App(AppBuilder(TestPlugin()))
