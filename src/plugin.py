@@ -123,9 +123,15 @@ class Plugin:
     def build(self, app: "AppBuilder"):
         "A plugin's custom registration logic"
 
+DEFAULT_PRIORITY = 0
+
 class AppBuilder:
     def __init__(self, *plugins: Plugin):
-        self.systems: dict[Schedule, list[Callable[[Resources]]]] = {}
+        self.systems: dict[Schedule, dict[int, list[Callable[[Resources]]]]] = {}
+        # When building systems, we're using a dictionary that sorts systems based on their
+        # priorityy number. This is only a build-time concept though! When finalizing the build - it will sort
+        # all systems and collect them into a unified list, where they will be all executed in their proper order!
+
         self.event_listeners: dict[type, list[Callable[[Resources, object]]]] = {}
         self.resources: Resources = Resources(
             EventWriter()
@@ -133,6 +139,29 @@ class AppBuilder:
         self.runner = None
 
         self.add_plugins(*plugins)
+
+    def build_systems(self) -> dict[Schedule, list[Callable[[Resources], None]]]:
+        """
+        Sort all systems based on their priority into a single dictionary. This is only called once when
+        finalizing the app.
+        """
+
+        # First we create a new dictionary
+        ret_systems: dict[Schedule, list[Callable[[Resources]]]] = {}
+
+        sort_key = lambda pair: pair[0]
+
+        # Then we iterate every pair in our systems collection (that maps schedules to priority-systems maps)
+        for schedule, priority_system_map in self.systems.items():
+
+            # We will initialize an empty list for every schedule
+            ret_systems[schedule] = []
+
+            # In ascending order, we will add our systems to the list, based on their priority number
+            for _, systems in sorted(priority_system_map.items(), key=sort_key):
+                ret_systems[schedule] += systems
+
+        return ret_systems
 
     def add_plugins(self, *plugins: Plugin):
         for plugin in plugins:
@@ -153,14 +182,15 @@ class AppBuilder:
         "Remove a resource from the resources"
         self.resources.remove(resource)
     
-    def add_systems(self, schedule: Schedule, *systems: Callable[[Resources], None]):
+    def add_systems(self, schedule: Schedule, *systems: Callable[[Resources], None], priority: int = DEFAULT_PRIORITY):
         "Add to this schedule a number of executable systems. Each of them takes a `Storage` object as their first argument"
-        systems_list = self.systems.get(schedule)
-
-        if systems_list is None:
-            self.systems[schedule] = list(systems)
-        else:
-            systems_list += systems
+        if schedule not in self.systems:
+            self.systems[schedule] = {}
+        
+        if priority not in self.systems[schedule]:
+            self.systems[schedule][priority] = []
+        
+        self.systems[schedule][priority] += systems
         
     def add_event_listener(self, event_ty: Type[E], listener: Callable[[Resources, E], None]):
         "Add an event listener to the provided event ID"
@@ -186,7 +216,7 @@ class App:
         assert app_builder.runner is not None, "No runner function was provided to the application"
 
         self.runner = app_builder.runner
-        self.systems: dict[Schedule, Callable[[Resources], None]] = app_builder.systems
+        self.systems: dict[Schedule, Callable[[Resources], None]] = app_builder.build_systems()
         self.event_listeners: dict[int, Callable[[Resources, object], None]] = app_builder.event_listeners
         self.resources: Resources = app_builder.resources
 
