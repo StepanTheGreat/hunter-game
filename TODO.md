@@ -1,10 +1,10 @@
 ## Current things to do:
 1. ~~Add input manager (collect input, map it to actions and so on). Instead of treating input in terms of~~
    ~~keys - treat it in terms of actions (But essentially it boils down to transforming keys into said actions)~~
-2. Add priority for systems (custom execution order. A system can request to be executed earlier or later than
-   other systems. Essentially it means just sorting them when building the app, so it's not that expensive.
-   Make sure to collect systems of the same priority into the same lists, since sorting all systems in a giant list
-   will change their intended priority-local order)
+2. ~~Add priority for systems (custom execution order. A system can request to be executed earlier or later than~~
+   ~~other systems. Essentially it means just sorting them when building the app, so it's not that expensive.~~
+   ~~Make sure to collect systems of the same priority into the same lists, since sorting all systems in a giant list~~
+   ~~will change their intended priority-local order)~~
 3. Add a really simple GUI framework. It should be able to listen for mouse movements, clicks and do actions
    based on that. GUI elements should have an ability to be sorted in a specific order.
    It should be simple for the game to find and modify a specific GUI element at any time.
