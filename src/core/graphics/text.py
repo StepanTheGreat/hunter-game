@@ -5,7 +5,7 @@ import moderngl as gl
 
 from plugin import Plugin, Schedule, Resources
 from core.assets import add_loaders
-from .ctx import GraphicsContext
+from .ctx import GraphicsContext, DEFAULT_FILTER
 from modules.atlas import SpriteAtlas, SpriteRect
 
 DEFAULT_FONT_SIZE = 64
@@ -14,10 +14,10 @@ class FontGPU:
     DEFAULT_CHARACTERS = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890_~=\|-?.,><+@!#$%^&*()"
     TEXTURE_LIMIT = 1024
 
-    def __init__(self, ctx: gl.Context, font: pg.font.Font):
+    def __init__(self, ctx: gl.Context, font: pg.font.Font, filter: int = DEFAULT_FILTER):
         self.ctx = ctx
         self.font = font
-        self.atlas = SpriteAtlas(ctx, 256, True, FontGPU.TEXTURE_LIMIT)
+        self.atlas = SpriteAtlas(ctx, 256, True, FontGPU.TEXTURE_LIMIT, filter)
         
         # Prerender a default character set
         self.load_chars(FontGPU.DEFAULT_CHARACTERS)
@@ -77,12 +77,12 @@ class FontGPU:
         "Free the GPU resources for this font atlas"
         self.atlas.release()
 
-def loader_font_gpu(resources: Resources, path: str):
+def loader_font_gpu(resources: Resources, path: str, filter: int = DEFAULT_FILTER):
     "A custom loader for GPU fonts"
     gfx = resources[GraphicsContext]
     font_cpu = pg.font.Font(path, DEFAULT_FONT_SIZE)
 
-    return FontGPU(gfx.get_context(), font_cpu)
+    return FontGPU(gfx.get_context(), font_cpu, filter)
 
 class TextPlugin(Plugin):
     def build(self, app):

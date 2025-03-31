@@ -3,7 +3,7 @@
 import pygame as pg
 import moderngl as gl
 
-from core.graphics.ctx import make_texture
+from core.graphics.ctx import make_texture, DEFAULT_FILTER
 
 from typing import Any, Optional
 
@@ -60,10 +60,18 @@ class SpriteAtlas:
     TEXTURE_LIMIT = 2048
     "A reasonable limit on most hardware"
 
-    def __init__(self, ctx: gl.Context, texture_size: int, resizable: bool, texture_limit: int = None):
+    def __init__(
+            self, 
+            ctx: gl.Context, 
+            texture_size: int, 
+            resizable: bool, 
+            texture_limit: int = None, 
+            filter: int = DEFAULT_FILTER
+        ):
         self.ctx = ctx
 
         self.sprite_map: dict[Any, SpriteRect] = {}
+        self.filter = filter
         self.resizable = resizable
         self.texture_width: int = texture_size
         self.texture_height: int = texture_size
@@ -193,7 +201,7 @@ class SpriteAtlas:
         if self.__cached_texture is None:
             # If a texture is not initialized - just make a new one with our data! 
 
-            self.__cached_texture = make_texture(self.ctx, new_surf)
+            self.__cached_texture = make_texture(self.ctx, new_surf, self.filter)
         else:
             # Else we would need to update an existing one
 
@@ -202,7 +210,7 @@ class SpriteAtlas:
                 # and create a new one
 
                 self.__cached_texture.release()
-                self.__cached_texture = make_texture(self.ctx, new_surf)
+                self.__cached_texture = make_texture(self.ctx, new_surf, self.filter)
             else:
                 # In any other case, just write our surface data to our texture
                 

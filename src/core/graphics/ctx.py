@@ -12,10 +12,13 @@ from .objects import *
 from .camera import *
 
 CLEAR_COLOR = (0, 0, 0, 1)
+DEFAULT_FILTER = gl.NEAREST
 
-def make_texture(ctx: gl.Context, surf: pg.Surface) -> gl.Texture:
+def make_texture(ctx: gl.Context, surf: pg.Surface, filter: int = DEFAULT_FILTER) -> gl.Texture:
     "Create a GPU texture from a CPU surface"
-    return ctx.texture(surf.get_size(), surf.get_bytesize(), surf.get_view("1"))
+    texture = ctx.texture(surf.get_size(), surf.get_bytesize(), surf.get_view("1"))
+    texture.filter = (filter, filter)
+    return texture
 
 def make_white_texture(ctx: gl.Context) -> gl.Texture:
     "Generate a white pixel GPU texture"
@@ -39,11 +42,11 @@ def loader_shader_program(resources: Resources, path: str) -> gl.Program:
 
     return ctx.program(vertex_shader, fragment_shader)
 
-def loader_texture(resources: Resources, path: str) -> gl.Program:
+def loader_texture(resources: Resources, path: str, filter: int = DEFAULT_FILTER) -> gl.Program:
     "A custom GPU texture loader from files"
     ctx: gl.Context = resources[GraphicsContext].get_context()
     surface = pg.image.load(path)
-    return make_texture(ctx, surface)
+    return make_texture(ctx, surface, filter)
 
 class GraphicsContext:
     "The global ModernGL"
