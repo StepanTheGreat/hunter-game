@@ -59,10 +59,10 @@ def gen_tile_mesh(
     if not bottom_neighbour:
         mesh.add_geometry(
             np.array([
-                x,   s, y-s,    r, g, b,    0, 0,
-                x+s, s, y-s,    r, g, b,    1, 0,
-                x,   0, y-s,    r, g, b,    0, 1,
-                x+s, 0, y-s,    r, g, b,    1, 1,
+                x,   s, y-s,    r, g, b,    1, 0,
+                x+s, s, y-s,    r, g, b,    0, 0,
+                x,   0, y-s,    r, g, b,    1, 1,
+                x+s, 0, y-s,    r, g, b,    0, 1,
             ], dtype=np.float32),
             np.array([1, 0, 2, 1, 2, 3], dtype=np.uint32)
         )
@@ -70,10 +70,10 @@ def gen_tile_mesh(
     if not left_neighbour:
         mesh.add_geometry(
             np.array([
-                x, s, y,        r, g, b,    0, 0,
-                x, s, y-s,      r, g, b,    1, 0,
-                x, 0, y,        r, g, b,    0, 1,
-                x, 0, y-s,      r, g, b,    1, 1,
+                x, s, y,        r, g, b,    1, 0,
+                x, s, y-s,      r, g, b,    0, 0,
+                x, 0, y,        r, g, b,    1, 1,
+                x, 0, y-s,      r, g, b,    0, 1,
             ], dtype=np.float32),
             np.array([1, 0, 2, 1, 2, 3], dtype=np.uint32)
         )

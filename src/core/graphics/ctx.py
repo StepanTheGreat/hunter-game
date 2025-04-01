@@ -16,7 +16,9 @@ DEFAULT_FILTER = gl.NEAREST
 
 def make_texture(ctx: gl.Context, surf: pg.Surface, filter: int = DEFAULT_FILTER) -> gl.Texture:
     "Create a GPU texture from a CPU surface"
-    texture = ctx.texture(surf.get_size(), surf.get_bytesize(), surf.get_view("1"))
+    bytesize = surf.get_bytesize()
+    format = "RGBA" if bytesize == 4 else "RGB"
+    texture = ctx.texture(surf.get_size(), bytesize, pg.image.tostring(surf, format, False))
     texture.filter = (filter, filter)
     return texture
 

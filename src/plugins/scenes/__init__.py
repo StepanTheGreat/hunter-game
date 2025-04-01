@@ -2,7 +2,7 @@ from plugin import Plugin
 
 from modules.scene import SceneManager
 
-from .ingame import IngamePlugin
+from .ingame import IngamePlugin, IngameScene
 from .mainmenu import MainMenuPlugin, MainMenuScene
 
 class ScenesPlugin(Plugin):
@@ -14,5 +14,5 @@ class ScenesPlugin(Plugin):
         # We will also initialize our scene manager with MainMenu being the default scene
         app.insert_resource(SceneManager(
             app.get_resources(),
-            MainMenuScene(app.get_resources())
+            IngameScene(app.get_resources())
         ))

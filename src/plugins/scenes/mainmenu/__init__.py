@@ -9,7 +9,7 @@ from modules.scene import SceneManager, SceneBundle
 
 from plugins.graphics import Renderer2D, FontGPU
 
-from ..ingame import IngameBundle
+from ..ingame import IngameScene
 
 class MainMenu:
     def __init__(self, assets: AssetManager):

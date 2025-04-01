@@ -19,12 +19,12 @@ def make_world_map(resources: Resources) -> tuple[WorldMap, MapModel]:
             [1, 0, 0, 4, 1, 1, 0, 1],
             [3, 0, 0, 0, 0, 0, 0, 2],
             [2, 0, 0, 0, 0, 0, 0, 2],
-            [2, 0, 0, 0, 0, 0, 0, 3],
+            [2, 0, 0, 2, 0, 0, 0, 3],
             [1, 3, 0, 0, 0, 0, 3, 3],
         ], dtype=np.uint32)),
         color_map = {
             1: "images/window.png",
-            2: "images/brick.jpg",
+            2: "images/cool_texture.png",
             3: (0.8, 0.8, 0.55),
             4: (0.12, 0.8, 0.6)
         },
@@ -38,7 +38,7 @@ def make_world_map(resources: Resources) -> tuple[WorldMap, MapModel]:
 
     return world_map, map_model
 
-class IngameBundle(SceneBundle):
+class IngameScene(SceneBundle):
     def __init__(self, resources: Resources):
         super().__init__(
             *make_world_map(resources),
