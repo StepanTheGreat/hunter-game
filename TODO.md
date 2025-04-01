@@ -16,7 +16,10 @@
    The player can have a special attribute `main`, that would mean that this player is controlled by the 
    current client. Main players have direct control over their characters, and update events don't get 
    applied to them (well, only movements don't)
-5. Add a `SoundManager`, whose entire purpose is... to... you know, play sounds and music... Also
+5. Add lighting (through normals). It should be similar to how sprites are stored (using uniforms,
+   but this time for light). Light should be applied to both tiles and sprites, with additional custom information
+   like light's color, position and radius.
+6. Add a `SoundManager`, whose entire purpose is... to... you know, play sounds and music... Also
    custom asset loaders for sounds and music!!
-6. How about a simple intro? I mean, really simple...? No...? Well, it will be short, like, a few seconds
+7. How about a simple intro? I mean, really simple...? No...? Well, it will be short, like, a few seconds
    max! Thanks!
