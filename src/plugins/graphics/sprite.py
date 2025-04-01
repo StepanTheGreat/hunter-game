@@ -11,6 +11,16 @@ from core.telemetry import Telemetry
 from core.assets import AssetManager
 
 SPRITE_MESH = DumbMeshCPU(
+    # To explain this confusing matrix of 4 numbers (the last one)
+    # It is essentially a UV coordinate matrix that goes like this: x, y, x+w, y+h
+    #
+    # We're doing this because when drawing textures with specific texture coordinates - each vertex should
+    # have its own specific x,y UV coordinate. But to do this we will have to perform `if` checks that are quite
+    # expensive on the GPU or reconstruct the geometry entirely every time, thus not allowing us to 
+    # benefit from instancing. Well, using this simple matrix mask, we can get our UV coordinates using extremely 
+    # simple math:
+    # (uv.x*mat.x+uv.w*mat.w, uv.y*mat.y+uv.h+mat.h) 
+    # That's it!
     np.array([
         -0.5, 1, 0,     1, 1, 0, 0,
          0.5, 1, 0,     0, 1, 1, 0,
