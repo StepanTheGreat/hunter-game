@@ -164,6 +164,31 @@ class Renderer2D:
         )
         self.push_draw_call(DrawCall(rect_mesh, self.white_texture))
 
+    def draw_textre(
+            self, 
+            texture: gl.Texture,
+            pos: tuple[int, ...], 
+            size: tuple[int, ...] = None, 
+            color: tuple[float, ...] = (1, 1, 1, 1),
+            uv: tuple[int, ...] = (0, 0, 1, 1)
+        ):
+        """
+        Draw a texture at a specified position with a specified size.
+
+        The UV rect argument provided to this function takes absolute coordinates, instead of a normal rectangle
+        `x, y, w, h`, you should instead provide `x, y, x+w, y+h`
+        """
+        x, y = pos
+        w, h = size if size is not None else texture.size
+        uv_x, uv_y, uv_w, uv_h = uv
+
+        self.push_draw_call(DrawCall(make_quad(
+            ((x,    y),    (uv_x,     uv_y),         color),
+            ((x+w, y),    (uv_w,      uv_y),         color),
+            ((x,    y+h), (uv_x,     uv_h),     color),
+            ((x+w, y+h), (uv_w, uv_h),     color)
+        ), texture))
+
     def draw_circle(self, pos: tuple[float, float], radius: float, color: tuple[float, ...], points: int = 20):
         circle_mesh = make_circle(pos, radius, color, points)
         self.push_draw_call(DrawCall(circle_mesh, self.white_texture))
@@ -178,13 +203,13 @@ class Renderer2D:
             cw, ch = cw*size, ch*size
             lx = x+x_offset
 
-            self.push_draw_call(DrawCall(make_quad(
-                ((lx,    y),    (uvx,     uvy),         color),
-                ((lx+cw, y),    (uvx+uvw, uvy),         color),
-                ((lx,    y+ch), (uvx,     uvy+uvh),     color),
-                ((lx+cw, y+ch), (uvx+uvw, uvy+uvh),     color)
-
-            ), font.get_texture()))
+            self.draw_textre(
+                font.get_texture(),
+                (lx, y),
+                (cw, ch),
+                color,
+                (uvx, uvy, uvx+uvw, uvy+uvh)
+            )
 
             x_offset += cw
 
