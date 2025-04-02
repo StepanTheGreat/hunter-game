@@ -5,8 +5,6 @@ from core.collisions import CollisionManager
 from modules.scene import SceneBundle
 from modules.tilemap import WorldMap, Tilemap
 
-from plugins.gui import GUIContext
-
 from .render.map import *
 from .render.minimap import *
 
@@ -40,13 +38,6 @@ def make_world_map(resources: Resources) -> tuple[WorldMap, MapModel]:
 
     return world_map, map_model
 
-def draw_ingame(resources: Resources):
-    font = resources[AssetManager].load(FontGPU, "fonts/font.ttf")
-    resources[GUIContext].label(font, "hi there", (1, 1, 1))
-    resources[GUIContext].label(font, "hi there 2", (1, 1, 1))
-    resources[GUIContext].label(font, "hello?", (1, 1, 1))
-
-
 class IngameScene(SceneBundle):
     def __init__(self, resources: Resources):
         super().__init__(
@@ -59,4 +50,3 @@ class IngamePlugin(Plugin):
             MapRendererPlugin(),
             MinimapPlugin(),
         )
-        app.add_systems(Schedule.Render, draw_ingame)
