@@ -164,7 +164,43 @@ class Renderer2D:
         )
         self.push_draw_call(DrawCall(rect_mesh, self.white_texture))
 
-    def draw_textre(
+    def draw_rect_lines(self, rect: tuple[int, ...], color: tuple[float, ...], thickness: float = 1):
+        x, y, w, h = rect
+        r, g, b = color
+        t = thickness/2
+
+        top = make_quad(
+            ((x-t, y-t),     (0, 1), (r, g, b)),
+            ((x+w+t, y-t),   (1, 1), (r, g, b)),
+            ((x-t, y+t),   (0, 0), (r, g, b)),
+            ((x+w+t, y+t), (1, 0), (r, g, b)),
+        )
+
+        left = make_quad(
+            ((x-t, y-t),     (0, 1), (r, g, b)),
+            ((x+t, y-t),   (1, 1), (r, g, b)),
+            ((x-t, y+h+t),   (0, 0), (r, g, b)),
+            ((x+t, y+h+t), (1, 0), (r, g, b)),
+        )
+
+        right = make_quad(
+            ((x+w-t, y-t),     (0, 1), (r, g, b)),
+            ((x+w+t, y-t),   (1, 1), (r, g, b)),
+            ((x+w-t, y+h+t),   (0, 0), (r, g, b)),
+            ((x+w+t, y+h+t), (1, 0), (r, g, b)),
+        )
+
+        down = make_quad(
+            ((x-t, y+h-t),     (0, 1), (r, g, b)),
+            ((x+w+t, y+h-t),   (1, 1), (r, g, b)),
+            ((x-t, y+h+t),   (0, 0), (r, g, b)),
+            ((x+w+t, y+h+t), (1, 0), (r, g, b)),
+        )
+
+        for edge_mesh in (left, top, right, down):
+            self.push_draw_call(DrawCall(edge_mesh, self.white_texture))
+
+    def draw_texture(
             self, 
             texture: gl.Texture,
             pos: tuple[int, ...], 
@@ -203,7 +239,7 @@ class Renderer2D:
             cw, ch = cw*size, ch*size
             lx = x+x_offset
 
-            self.draw_textre(
+            self.draw_texture(
                 font.get_texture(),
                 (lx, y),
                 (cw, ch),
