@@ -6,7 +6,7 @@ from enum import Enum, auto
 from plugin import Resources, Plugin, Schedule
 
 from core.pg import MouseMotionEvent, Screen, WindowResizeEvent
-from core.input import InputManager
+from core.input import InputManager, MouseButton
 from core.graphics import FontGPU
 from core.assets import AssetManager
 
@@ -90,6 +90,43 @@ class Label(GUIElement):
         self.resize()
 
     def draw(self, _, renderer):
+        renderer.draw_text(self.font, self.text, self.draw_rect.topleft, (1, 1, 1), self.text_scale)
+
+class Button(Label):
+    def __init__(
+            self, 
+            id, 
+            font, 
+            text, 
+            position, 
+            pivot = (0, 0), 
+            text_scale = 1,
+            button_color: tuple[float, ...] = (0.2, 0.2, 0.2),
+            clicked_color: tuple[float, ...] = (0.1, 0.1, 0.1)
+        ):
+        super().__init__(id, font, text, position, pivot, text_scale)
+        self.button_color = button_color
+        self.clicked_color = clicked_color
+        self.clicked = True
+
+    def update(self, _, input: InputManager):
+        pressed = input.is_mouse_down(MouseButton.Left)
+
+        if not self.clicked and pressed:
+            x, y, w, h = self.draw_rect
+            mx, my = input.get_mouse_pos()
+
+            if x <= mx <= x+w and y <= my <= y+h:
+                self.clicked = True
+                print("Clicked on the button!")
+        elif self.clicked and not pressed:
+            self.clicked = False
+
+    def draw(self, _, renderer: Renderer2D):
+        x, y, w, h = self.draw_rect
+
+        bg_color = self.clicked_color if self.clicked else self.button_color 
+        renderer.draw_rect((x, y, w, h), bg_color)
         renderer.draw_text(self.font, self.text, self.draw_rect.topleft, (1, 1, 1), self.text_scale)
 
 class GUIManager:

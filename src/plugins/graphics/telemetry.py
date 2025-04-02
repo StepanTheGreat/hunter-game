@@ -6,7 +6,7 @@ from core.telemetry import Telemetry
 
 from core.graphics import FontGPU
 
-from plugins.gui import GUIManager, Label
+from plugins.gui import GUIManager, Label, Button
 
 class TelemetryState:
     def __init__(self, assets: AssetManager, gui: GUIManager):
@@ -14,10 +14,12 @@ class TelemetryState:
         
         self.fps_label = Label("fps_counter", self.font, "0", (0, 0), scale=0.5)
         self.drawcalls_label = Label("drawcalls", self.font, "Draw calls {{}}", (0, 0.05), scale=0.5)
+        self.button = Button("btn", self.font, "Click me", (0.5, 0.5), pivot=(0.5, 0.5), text_scale=0.5)
 
         gui.add_elements(
             (10, self.fps_label),
-            (10, self.drawcalls_label)
+            (10, self.drawcalls_label),
+            (1, self.button)
         )
 
 def update_counters(resources: Resources):
