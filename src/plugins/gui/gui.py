@@ -1,209 +1,183 @@
+"""
+Stack based GUI system.
+This doesn't use stacking inherently, but the key idea behind it is to treat your GUI as boxes stacked on
+top (or below) each other.
+
+```
+[button1][input]
+[button2]
+```
+
+In this case we have a `button1` box, to which we have attached `button2` box below and `input` box to the right.
+This is essentially what most GUI libraries do, but here we avoid the concept of a layour container entirely.
+
+This concept allows us to easily model custom GUI elements, recalculate layout, customize layout
+direction and so much more
+"""
+
+# TODO: Add more documentation on how this GUI system works
+
 import pygame as pg
-from typing import Optional, Callable
 
-from enum import Enum, auto
+from typing import Optional
 
-from plugin import Resources, Plugin, Schedule
-
-from core.pg import MouseMotionEvent, Screen, WindowResizeEvent
-from core.input import InputManager, MouseButton
-from core.graphics import FontGPU
-from core.assets import AssetManager
+from collections import deque
 
 from plugins.graphics.render2d import Renderer2D
+from core.graphics import FontGPU
+
+from plugin import Plugin, Schedule, Resources
 
 class GUIElement:
     """
     The purpose of using GUI elements is to centralize all update and rendering logic into one
     """
-    def __init__(self, id: str, position: tuple[float, float], size: tuple[float, float], pivot: tuple[float, float]):
-        self.id: str = id
-
-        self.resolution_ptr: pg.Vector2 = None
-        # This is a highly ugly approach, but we need some way to pass a shared resolution object to 
-        # our objects, so that they can resize whenever they need 
-
-        self.size = size
-        self.position = position
-        self.draw_rect = None
-        self.pivot = pivot
-
-    def bind_resolution_ptr(self, resolution: pg.Vector2):
-        self.resolution_ptr = resolution
+    def __init__(self, edge: tuple[float, float], pivot: tuple[float, float]):
         
-    def compute_rect(self, width: int, height: int) -> pg.Rect:
-        "Compute this element's position accross the entire . Highly useful to avoid manual positioning"
+        self.position: tuple[float, float] = (0, 0)
+        "The position that will be used by the element if it doesn't have a parent"
+
+        self.parent: Optional[GUIElement] = None
+        "The element to which this element is attached"
+
+        self.children: list[GUIElement] = []
+        "The elements that are attached to this element"
+
+        self.__rect: pg.Rect = None
+        self.__size: tuple[float, float] = None
+
+        self.pivot: tuple[float, float] = pivot
+        self.edge: tuple[float, float] = edge
+
+    def __add_child(self, child: "GUIElement"):
+        self.children.append(child)
+
+    def __remove_child(self, child: "GUIElement"):
+        try:
+            self.children.remove(child)
+        except ValueError:
+            pass
+
+    def get_parent(self) -> Optional["GUIElement"]:
+        return self.parent
+
+    def get_children(self) -> list["GUIElement"]:
+        return self.children
+
+    def attach_to(self, parent: Optional["GUIElement"]):
+        if self.parent is not None:
+            # If we had a parent, we need to remove ourselves from it 
+            self.parent.__remove_child(self)
+
+        self.parent = parent
+
+        if self.parent is not None:
+            # Of course, if we attach to nothing - we don't need to notify anything
+            self.parent.__add_child(self)
+
+        self.recompute_position()
+
+    def get_rect(self) -> pg.Rect:
+        return self.__rect.copy()
+    
+    def __compute_position(self, width: float, height: float) -> tuple[float, float]:
+        if self.parent is None:
+            assert self.position is not None, "The root element's position must be defined"
+            return self.position
+        else:
+            rect = self.parent.get_rect()
+
+            pivotx, pivoty = self.pivot
+            edgex, edgey = self.edge
+
+            return (rect.x+rect.w*edgex) - pivotx*width, (rect.y+rect.h*edgey) - pivoty*height
+            
+    def __compute_rect(self, new_width: float, new_height: float) -> pg.Rect:
         return pg.Rect(
-            (self.position[0] - self.pivot[0] * self.size[0])*width,
-            (self.position[1] - self.pivot[1] * self.size[1])*height,
-            self.size*width,
-            self.size*height
+            *self.__compute_position(new_width, new_height), 
+            new_width, 
+            new_height
         )
     
-    def get_rect(self) -> pg.Rect:
-        return self.draw_rect.copy()
+    def recompute_position(self):
+        "Requests the element to recompute its position (in case its parent has changed its size or position)"
+        self.__rect = self.__compute_rect(*self.__size)
 
-    def resize(self):
-        "Element's custom resizing"
-        w, h = self.resolution_ptr.x, self.resolution_ptr.y
-        self.draw_rect = self.compute_rect(w, h)
-
-    def get_id(self) -> str:
-        return self.id
+    def get_position(self) -> tuple[float, float]:
+        return self.__rect.topleft
+    
+    def set_size(self, new_width: float, new_height: float):
+        "Update this element's size, while also notifying its children of its new size"
+        self.__size = (new_width, new_height)
+        self.__rect = self.__compute_rect(*self.__size)
         
-    def update(self, resources: Resources, input: InputManager):
-        "Element's update logic whenever input is present"
+        for child in self.children:
+            child.recompute_position()
 
-    def draw(self, resources: Resources, renderer: Renderer2D):
+    def set_position(self, x: float, y: float):
+        "This is essentially the same as `set_size`, but for changing element's position"
+        assert self.parent is None, "Can't set a position on child elements"
+        
+        self.position = (x, y)
+        self.set_size(*self.__size)
+
+    def draw(self, renderer: Renderer2D):
         "Element's draw logic"
+            
+    def draw_root(self, renderer: Renderer2D):
+        assert self.parent is None, "A child is not a root GUI element"
+
+        queue = deque([self])
+
+        while len(queue) > 0:
+            element = queue.popleft()
+            element.draw(renderer)
+
+            queue += element.get_children()
 
 class Label(GUIElement):
-    def __init__(
-            self, 
-            id: int, 
-            font: FontGPU, 
-            text: str, 
-            position: tuple[float, float],
-            pivot: tuple[float, float] = (0, 0),
-            scale: float = 1
-        ):
+    def __init__(self, font: FontGPU, text: str, edge: tuple[float, float], pivot: tuple[float, float]):
+        super().__init__(edge, pivot)
         self.font = font
-        self.text = text
-        self.text_scale = scale
+        self.text = None
 
-        super().__init__(id, position, (0, 0), pivot)
+        self.set_text(text)
 
-    def compute_rect(self, width: int, height: int) -> pg.Rect:
-        textw, texth = self.font.measure(self.text)
-        textw, texth = textw*self.text_scale, texth*self.text_scale
-
-        return pg.Rect(
-            self.position[0]*width - self.pivot[0]*textw,
-            self.position[1]*height - self.pivot[1]*texth,
-            textw,
-            texth
-        )
-    
     def set_text(self, text: str):
-        "Changing the text will recompute its rectangle"
         self.text = text
-        self.resize()
 
-    def draw(self, _, renderer):
-        renderer.draw_text(self.font, self.text, self.draw_rect.topleft, (1, 1, 1), self.text_scale)
+        textw, texth = self.font.measure(self.text)
+        self.set_size(textw, texth)
 
-class Button(Label):
-    def __init__(
-            self, 
-            id, 
-            font, 
-            text, 
-            position, 
-            pivot = (0, 0), 
-            text_scale = 1,
-            button_color: tuple[float, ...] = (0.2, 0.2, 0.2),
-            clicked_color: tuple[float, ...] = (0.1, 0.1, 0.1)
-        ):
-        super().__init__(id, font, text, position, pivot, text_scale)
-        self.button_color = button_color
-        self.clicked_color = clicked_color
-        self.clicked = True
-
-    def update(self, _, input: InputManager):
-        pressed = input.is_mouse_down(MouseButton.Left)
-
-        if not self.clicked and pressed:
-            x, y, w, h = self.draw_rect
-            mx, my = input.get_mouse_pos()
-
-            if x <= mx <= x+w and y <= my <= y+h:
-                self.clicked = True
-                print("Clicked on the button!")
-        elif self.clicked and not pressed:
-            self.clicked = False
-
-    def draw(self, _, renderer: Renderer2D):
-        x, y, w, h = self.draw_rect
-
-        bg_color = self.clicked_color if self.clicked else self.button_color 
-        renderer.draw_rect((x, y, w, h), bg_color)
-        renderer.draw_text(self.font, self.text, self.draw_rect.topleft, (1, 1, 1), self.text_scale)
+    def draw(self, renderer):
+        x, y, w, h = self.get_rect()
+        renderer.draw_rect_lines((x, y, w, h), (1, 0, 0), 1)
+        renderer.draw_text(self.font, self.text, self.get_position(), (1, 1, 1), 1)
 
 class GUIManager:
-    def __init__(self, screen: Screen):
-        self.resolution_ptr = pg.Vector2(*screen.get_size())
-        self.elements: dict[int, list[GUIElement]] = {}
+    def __init__(self):
+        self.elements: list[GUIElement] = []
 
-        self.should_update = False
+    def add_elements(self, *elements: GUIElement):
+        for element in elements:
+            self.elements.append(element)
 
-    def queue_update(self):
-        self.should_update = True
-
-    def resize(self, new_width: int, new_height: int):
-        "Resize the container and its children elements"
-        self.resolution_ptr.x = new_width
-        self.resolution_ptr.y = new_height
-
-        for elements in self.elements.values():
-            for element in elements:
-                element.resize()
-
-    def add_elements(self, *elements: tuple[int, GUIElement]):
-        for item in elements:
-            assert len(item) == 2, "GUI elements should be added in pairs `(z, element)`"
-
-            z, element = item
-
-            # We need to compute our element's initial rectangle
-            element.bind_resolution_ptr(self.resolution_ptr)
-            element.resize()
-
-            if z not in self.elements:
-                self.elements[z] = []
-
-            self.elements[z].append(element)
-
-    def update(self, resources: Resources):
-        "This should be called only when there's actual input from the app"
-        
-        if not self.should_update:
-            return
-        self.should_update = False
-
-        input_manager = resources[InputManager]
-
-        for elements in self.elements.values():
-            for element in elements:
-                element.update(resources, input_manager)
-
-    def draw(self, resources: Resources):
-        renderer = resources[Renderer2D]
-
-        sort_func = lambda item: item[0]
-        for _, elements in sorted(self.elements.items(), key=sort_func):
-            for element in elements:
-                element.draw(resources, renderer)
-
-    def clear(self):
-        self.elements.clear()
-
-def update_gui(resources: Resources):
-    resources[GUIManager].update(resources)
+    def draw(self, renderer: Renderer2D):
+        for root_element in self.elements:
+            root_element.draw_root(renderer)
 
 def draw_gui(resources: Resources):
-    resources[GUIManager].draw(resources)
-
-def resize_gui(resources: Resources, event: WindowResizeEvent):
-    resources[GUIManager].resize(event.new_width, event.new_height)
-
-def queue_update_gui(resources: Resources, _):
-    resources[GUIManager].queue_update()
+    resources[GUIManager].draw(resources[Renderer2D])
 
 class GUIManagerPlugin(Plugin):
     def build(self, app):
-        app.insert_resource(GUIManager(app.get_resource(Screen)))
-        app.add_systems(Schedule.Update, update_gui)
-        app.add_systems(Schedule.Render, draw_gui)
+        app.insert_resource(GUIManager())
+        app.add_systems(Schedule.Draw, draw_gui)
 
-        app.add_event_listener(MouseMotionEvent, queue_update_gui)
-        app.add_event_listener(WindowResizeEvent, resize_gui)
+        # We will just make it so every single input event will wakeup our GUI
+        # for event_ty in WAKEUP_EVENTS:
+        #     app.add_event_listener(event_ty, queue_update_gui)
+
+        # app.add_event_listener(WindowResizeEvent, resize_gui)
+
+
