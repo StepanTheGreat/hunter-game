@@ -1,5 +1,7 @@
 from plugin import Resources, Schedule, Plugin
 
+from pygame.time import get_ticks
+
 from core.pg import Clock
 from core.assets import AssetManager
 from core.telemetry import Telemetry
@@ -12,18 +14,28 @@ class TelemetryState:
     def __init__(self, assets: AssetManager, gui: GUIManager):
         self.font = assets.load(FontGPU, "fonts/font.ttf")
         
-        label = Label(self.font, "hello", (0, 0), (0, 0))
-        label.set_position(0, 0)
-        label2 = Label(self.font, "again?", (1, 0), (0, 0))
-        label2.attach_to(label)
+        self.fps_label = Label(self.font, "FPS: 0", (0, 0), text_scale=0.5)
+        self.fps_label.set_position(0, 0)
 
-        label3 = Label(self.font, "This is cool!", (0, 1), (0, 0))
-        label3.attach_to(label2)
+        self.draw_calls_label = Label(self.font, "Draw calls {{}}", (0, 1), text_scale=0.5)
+        self.draw_calls_label.attach_to(self.fps_label)
 
-        label4 = Label(self.font, "Indeed!", (1, 1), (0, 0))
-        label4.attach_to(label3)
+        self.frames_label = Label(self.font, "0", (0, 1), text_scale=0.5)
+        self.frames_label.attach_to(self.draw_calls_label)
 
-        gui.add_elements(label)
+        self.testing1 = Label(self.font, "Just testing!", (1, 0), text_scale=0.5)
+        self.testing1.attach_to(self.frames_label)
+
+        self.testing2 = Label(self.font, "Me too!", (0.5, 1), text_scale=0.5)
+        self.testing2.attach_to(self.testing1)
+
+        self.testing3 = Label(self.font, "And me!", (1, 0), text_scale=0.5)
+        self.testing3.attach_to(self.testing2)
+
+        self.testing4 = Label(self.font, "(Nope)", (0, 0), pivot=(1, 0), text_scale=0.5)
+        self.testing4.attach_to(self.testing2)
+
+        gui.add_elements(self.fps_label)
 
 def update_counters(resources: Resources):
     telemetry = resources[Telemetry]
@@ -31,12 +43,14 @@ def update_counters(resources: Resources):
 
     fps = int(resources[Clock].get_fps())
 
-    # state.fps_label.set_text(
-    #     f"FPS: {fps}"
-    # )
-    # state.drawcalls_label.set_text(
-    #     f"Draw calls{{ 3D {telemetry.render3d_dcs}, 2D: {telemetry.render2d_dcs}, Sprite: {telemetry.sprite_dcs}}}"
-    # )
+    state.frames_label.set_text(str(get_ticks()))
+
+    state.fps_label.set_text(
+        f"FPS: {fps}"
+    )
+    state.draw_calls_label.set_text(
+        f"Draw calls{{ 3D {telemetry.render3d_dcs}, 2D: {telemetry.render2d_dcs}, Sprite: {telemetry.sprite_dcs}}}"
+    )
 
 def create_telemetry(resources: Resources):
     resources.insert(TelemetryState(resources[AssetManager], resources[GUIManager]))
