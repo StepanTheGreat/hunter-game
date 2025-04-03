@@ -69,8 +69,12 @@ class WorldMap:
             color_map: dict[int, Union[str, tuple]],
             transparent_tiles: set[int],
             collisions: CollisionManager,
-            tile_size: float
+            tile_size: float,
+            offset: tuple[int, int] = (0, 0)
         ):
+        self.offset = offset
+        # Offset is a grid vector from which the map's chunks should get either rendered or turned into colliders
+
         self.tile_size = tile_size
         self.map = tilemap
         self.color_map = color_map
@@ -83,14 +87,20 @@ class WorldMap:
         tile_size = self.tile_size
         tiles = self.map.get_tiles()
 
+        offsetx, offsety = self.offset
+
         for y, row in enumerate(tiles):
             for x, tile in enumerate(row):
                 if tile == 0:
                     continue
                 
-                collider = StaticCollider(x*tile_size, y*tile_size, tile_size, tile_size)
+                posx, posy = offsetx+x, offsety+y
+                collider = StaticCollider(posx*tile_size, posy*tile_size, tile_size, tile_size)
                 self.colliders.append(collider)
                 collisions.add_collider(collider)
+
+    def get_offset(self) -> tuple[int, int]:
+        return self.offset
     
     def get_transparent_tiles(self) -> set[int]:
         """

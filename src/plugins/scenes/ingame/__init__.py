@@ -10,7 +10,7 @@ from .render.minimap import *
 
 TILE_SIZE = 48
 
-def make_world_map(resources: Resources) -> tuple[WorldMap, MapModel]:
+def make_world_map(resources: Resources, offset: tuple[float, float] = (0, 0)) -> tuple[WorldMap, MapModel]:
     world_map = WorldMap(
         Tilemap(8, 8, np.array([
             [0, 0, 0, 0, 0, 0, 2, 2],
@@ -32,7 +32,8 @@ def make_world_map(resources: Resources) -> tuple[WorldMap, MapModel]:
             1
         ]),
         collisions = resources[CollisionManager],
-        tile_size=TILE_SIZE
+        tile_size=TILE_SIZE,
+        offset=offset
     )
     map_model = MapModel(resources, world_map)
 
@@ -41,7 +42,7 @@ def make_world_map(resources: Resources) -> tuple[WorldMap, MapModel]:
 class IngameScene(SceneBundle):
     def __init__(self, resources: Resources):
         super().__init__(
-            *make_world_map(resources),
+            *make_world_map(resources, (0, 0)),
         )
 
 class IngamePlugin(Plugin):

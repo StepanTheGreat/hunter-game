@@ -22,14 +22,17 @@ def draw_minimap(resources: Resources):
     tiles = wmap.get_map().get_tiles()
     scale = MINIMAP_SCALE
 
+    offsetx, offsety = wmap.get_offset()
+
     tile_size = TILE_SIZE * scale
     player_size = Player.HITBOX_SIZE * scale
     sprite_size = Sprite.HITBOX_SIZE * scale
 
     for y, row in enumerate(tiles):
         for x, tile in enumerate(row):
+            posx, posy = offsetx+x, offsety+y
             if tile != 0:
-                renderer.draw_rect((x*tile_size, y*tile_size, tile_size, tile_size), (0.2, 0.2, 0.2))
+                renderer.draw_rect((posx*tile_size, posy*tile_size, tile_size, tile_size), (0.2, 0.2, 0.2))
 
     players = entities.get_group(Player)
     if len(players) > 0:

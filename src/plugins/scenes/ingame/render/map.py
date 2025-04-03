@@ -95,7 +95,7 @@ def gen_map_models(
         gfx: GraphicsContext, 
         assets: AssetManager, 
         model_renderer: ModelRenderer,
-        worldmap: WorldMap
+        worldmap: WorldMap,
     ) -> list[tuple[Model, gl.Texture]]:
     "Generate an array of renderable map models"
 
@@ -122,6 +122,9 @@ def gen_map_models(
     # A mesh group is a dictionary, where keys are textures, and values are meshes
     mesh_group: dict[gl.Texture, DumbMeshCPU] = {}
 
+    # Our offset position
+    offsetx, offsety = worldmap.get_offset()
+
     for y, row in enumerate(tiles):
         for x, tile in enumerate(row):
             if tile != 0:
@@ -135,7 +138,7 @@ def gen_map_models(
                 texture = assets.load(gl.Texture, material) if type(material) is str else None
 
                 tile_mesh = gen_tile_mesh(
-                    (x, -y), 
+                    (offsetx+x, -offsety-y), 
                     TILE_SIZE,
                     color,
                     neighbours
@@ -161,7 +164,8 @@ class MapModel:
             resources[GraphicsContext], 
             resources[AssetManager], 
             resources[ModelRenderer], 
-            world_map)
+            world_map
+        )
 
     def get_models(self) -> list[tuple[Model, gl.Texture]]:
         return self.models    
