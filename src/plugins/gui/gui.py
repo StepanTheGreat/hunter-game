@@ -81,14 +81,16 @@ class GUIElement:
         return self.__rect.copy()
     
     def __compute_position(self, width: float, height: float) -> tuple[float, float]:
+        pivotx, pivoty = self.pivot
+        edgex, edgey = self.edge
+        
         if self.parent is None:
             assert self.position is not None, "The root element's position must be defined"
-            return self.position
+
+            x, y = self.position
+            return x - pivotx*width, y - pivoty*height
         else:
             rect = self.parent.get_rect()
-
-            pivotx, pivoty = self.pivot
-            edgex, edgey = self.edge
 
             return (rect.x+rect.w*edgex) - pivotx*width, (rect.y+rect.h*edgey) - pivoty*height
             
@@ -100,8 +102,11 @@ class GUIElement:
         )
     
     def recompute_position(self):
-        "Requests the element to recompute its position (in case its parent has changed its size or position)"
+        "Recursively recompute this element's and its childrens' positions"
         self.__rect = self.__compute_rect(*self.__size)
+
+        for child in self.children:
+            child.recompute_position()
 
     def get_position(self) -> tuple[float, float]:
         return self.__rect.topleft
@@ -109,10 +114,7 @@ class GUIElement:
     def set_size(self, new_width: float, new_height: float):
         "Update this element's size, while also notifying its children of its new size"
         self.__size = (new_width, new_height)
-        self.__rect = self.__compute_rect(*self.__size)
-        
-        for child in self.children:
-            child.recompute_position()
+        self.recompute_position()
 
     def set_position(self, x: float, y: float):
         "This is essentially the same as `set_size`, but for changing element's position"
@@ -136,23 +138,33 @@ class GUIElement:
             queue += element.get_children()
 
 class Label(GUIElement):
-    def __init__(self, font: FontGPU, text: str, edge: tuple[float, float], pivot: tuple[float, float]):
+    def __init__(
+            self, 
+            font: FontGPU, 
+            text: str, 
+            edge: tuple[float, float], 
+            pivot: tuple[float, float] = (0, 0),
+            text_scale: float = 1
+        ):
         super().__init__(edge, pivot)
         self.font = font
         self.text = None
+        self.text_scale = text_scale
 
         self.set_text(text)
+
+    def set_text_scale(self, new_scale: float):
+        self.text_scale = new_scale
+        self.set_text(self.text)
 
     def set_text(self, text: str):
         self.text = text
 
         textw, texth = self.font.measure(self.text)
-        self.set_size(textw, texth)
+        self.set_size(textw*self.text_scale, texth*self.text_scale)
 
     def draw(self, renderer):
-        x, y, w, h = self.get_rect()
-        renderer.draw_rect_lines((x, y, w, h), (1, 0, 0), 1)
-        renderer.draw_text(self.font, self.text, self.get_position(), (1, 1, 1), 1)
+        renderer.draw_text(self.font, self.text, self.get_position(), (1, 1, 1), self.text_scale)
 
 class GUIManager:
     def __init__(self):
