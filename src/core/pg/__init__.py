@@ -146,7 +146,9 @@ class PygamePlugin(Plugin):
         add_pygame_event_maps(
             app,
             (pg.MOUSEMOTION, MouseMotionEvent),
-            (pg.VIDEORESIZE, WindowResizeEvent)
+            (pg.VIDEORESIZE, WindowResizeEvent),
+            (pg.MOUSEBUTTONDOWN, MouseButtonDownEvent),
+            (pg.MOUSEBUTTONUP, MouseButtonUpEvent)
         )
 
         app.add_event_listener(WindowResizeEvent, update_sceen_size)
