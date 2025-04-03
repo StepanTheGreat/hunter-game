@@ -20,9 +20,9 @@ def _():
         Schedule.PreUpdate,
         Schedule.Update,
         Schedule.PostUpdate,
-        Schedule.PreRender,
-        Schedule.Render,
-        Schedule.PostRender,
+        Schedule.PreDraw,
+        Schedule.Draw,
+        Schedule.PostDraw,
         Schedule.Last,
         Schedule.Finalize,
     )

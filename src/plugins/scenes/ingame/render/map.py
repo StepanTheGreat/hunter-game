@@ -176,4 +176,4 @@ def render_map(resources: Resources):
 
 class MapRendererPlugin(Plugin):
     def build(self, app):
-        app.add_systems(Schedule.PostRender, render_map)
+        app.add_systems(Schedule.PostDraw, render_map)

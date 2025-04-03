@@ -104,13 +104,13 @@ class Schedule(Enum):
     PostUpdate = auto()
     "Operations like physics updates and so on that are supposed to take action after the update phase"
 
-    PreRender = auto()
-    "A stage before rendering. This is used internally for clearing the screen and overal preparation"
+    PreDraw = auto()
+    "A stage before drawing. This is used internally for clearing the screen and overal preparation"
 
-    Render = auto()
+    Draw = auto()
     "The main rendering stage where a user submits their commands"
 
-    PostRender = auto()
+    PostDraw = auto()
     "All render requests are flushed"
 
     Last = auto()
@@ -263,9 +263,9 @@ class App:
     def render(self):
         "Execute all render systems"
         self.__execute_schedules(
-            Schedule.PreRender,
-            Schedule.Render,
-            Schedule.PostRender,
+            Schedule.PreDraw,
+            Schedule.Draw,
+            Schedule.PostDraw,
             Schedule.Last
         )
     

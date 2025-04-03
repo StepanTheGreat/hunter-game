@@ -289,4 +289,4 @@ class Renderer2DPlugin(Plugin):
             INDEX_ELEMENTS,
             MAX_DRAW_CALLS
         ))
-        app.add_systems(Schedule.PostRender, issue_draw_calls)
+        app.add_systems(Schedule.PostDraw, issue_draw_calls)

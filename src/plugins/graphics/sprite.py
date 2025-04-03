@@ -152,5 +152,5 @@ class SpriteRendererPlugin(Plugin):
             app.get_resource(GraphicsContext),
             app.get_resource(AssetManager)
         ))
-        app.add_systems(Schedule.PostRender, draw_sprites)
+        app.add_systems(Schedule.PostDraw, draw_sprites)
 

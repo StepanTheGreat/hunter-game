@@ -43,4 +43,4 @@ def draw_minimap(resources: Resources):
 
 class MinimapPlugin(Plugin):
     def build(self, app):
-        app.add_systems(Schedule.Render, draw_minimap)
+        app.add_systems(Schedule.Draw, draw_minimap)

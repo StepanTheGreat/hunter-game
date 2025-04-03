@@ -73,4 +73,4 @@ class SpritePlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.Startup, spawn_sprite)
         app.add_systems(Schedule.Update, update_sprites)
-        app.add_systems(Schedule.Render, render_sprites)
+        app.add_systems(Schedule.Draw, render_sprites)

@@ -89,5 +89,5 @@ def move_camera(resources: Resources):
 class PlayerPlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.Update, update_players)
-        app.add_systems(Schedule.PreRender, move_camera)
+        app.add_systems(Schedule.PreDraw, move_camera)
         app.add_systems(Schedule.Startup, spawn_player)

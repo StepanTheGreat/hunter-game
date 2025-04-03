@@ -35,4 +35,4 @@ class MainMenuScene(SceneBundle):
 
 class MainMenuPlugin(Plugin):
     def build(self, app):
-        app.add_systems(Schedule.Render, draw_main_menu)
+        app.add_systems(Schedule.Draw, draw_main_menu)

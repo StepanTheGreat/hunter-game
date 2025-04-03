@@ -71,7 +71,7 @@ def clear_screen(resources: Resources):
 class GraphicsContextPlugin(Plugin):
     def build(self, app):
         app.insert_resource(GraphicsContext(gl.get_context()))
-        app.add_systems(Schedule.PreRender, clear_screen)
+        app.add_systems(Schedule.PreDraw, clear_screen)
 
         # Add asset loaders for textures and shaders
         add_loaders(
