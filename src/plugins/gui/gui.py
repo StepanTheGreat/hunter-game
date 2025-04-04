@@ -55,14 +55,22 @@ even this has some performance cost.
 
 import pygame as pg
 
-from typing import Optional
+from typing import Optional, Callable
 
 from collections import deque
 
 from plugins.graphics.render2d import Renderer2D
 from core.graphics import FontGPU
 
+from core.pg.events import *
+
 from plugin import Plugin, Schedule, Resources
+
+INPUT_EVENTS = (
+    MouseMotionEvent,
+    MouseButtonDownEvent,
+    MouseButtonUpEvent
+)
 
 class GUIElement:
     """
@@ -161,17 +169,28 @@ class GUIElement:
 
     def draw(self, renderer: Renderer2D):
         "Element's draw logic"
-            
-    def draw_root(self, renderer: Renderer2D):
+
+    def on_event(self, event: object):
+        "Element's custom logic whenever an input event is dispatched"
+    
+    def call_root(self, f: Callable[["GUIElement"], None]):
         assert self.parent is None, "A child is not a root GUI element"
 
         queue = deque([self])
 
         while len(queue) > 0:
             element = queue.popleft()
-            element.draw(renderer)
+            f(element)
 
             queue += element.get_children()
+
+    def draw_root(self, renderer: Renderer2D):
+        "Draw the box tree"
+        self.call_root(lambda element: element.draw(renderer))
+
+    def on_event_root(self, event: object):
+        "Pass an input event across the box tree"
+        self.call_root(lambda element: element.on_event(event))
 
 class Label(GUIElement):
     def __init__(
@@ -200,7 +219,64 @@ class Label(GUIElement):
         self.set_size(textw*self.text_scale, texth*self.text_scale)
 
     def draw(self, renderer):
+        rect = self.get_rect()
+        # renderer.draw_rect_lines((rect.x, rect.y, rect.w, rect.h), (1, 0, 0), 1)
         renderer.draw_text(self.font, self.text, self.get_position(), (1, 1, 1), self.text_scale)
+
+class Button(GUIElement):
+    def __init__(
+            self, 
+            font: FontGPU, 
+            text: str, 
+            edge: tuple[float, float], 
+            pivot: tuple[float, float] = (0, 0),
+            text_scale: float = 1
+        ):
+        super().__init__(edge, pivot)
+        self.font = font
+        self.text = None
+        self.text_scale = text_scale
+
+        self.clicked = False
+        self.callback: Callable[[], None] = None
+
+        self.set_text(text)
+
+    def set_text_scale(self, new_scale: float):
+        self.text_scale = new_scale
+        self.set_text(self.text)
+
+    def set_text(self, text: str):
+        self.text = text
+
+        textw, texth = self.font.measure(self.text)
+        self.set_size(textw*self.text_scale, texth*self.text_scale)
+
+    def __call_callback(self):
+        if self.callback is not None:
+            self.callback()
+
+    def set_callback(self, f: Callable[[], None]):
+        self.callback = f
+
+    def on_event(self, event):
+        rect = self.get_rect()
+
+        if not self.clicked and type(event) == MouseButtonDownEvent:
+            if rect.collidepoint((event.x, event.y)):
+                self.clicked = True
+        elif self.clicked and type(event) == MouseButtonUpEvent:
+            if rect.collidepoint((event.x, event.y)):
+                self.__call_callback()
+            self.clicked = False
+
+    def draw(self, renderer):
+        rect = self.get_rect()
+        
+        bg_color = (0.2, 0.2, 0.2) if self.clicked else (0.4, 0.4, 0.4)
+
+        renderer.draw_rect((rect.x, rect.y, rect.w, rect.h), bg_color)
+        renderer.draw_text(self.font, self.text, rect.topleft, (1, 1, 1), self.text_scale)
 
 class GUIManager:
     def __init__(self):
@@ -210,22 +286,29 @@ class GUIManager:
         for element in elements:
             self.elements.append(element)
 
+    def clear_elements(self):
+        "Remove all elements from the GUI manager"
+        self.elements.clear()
+
     def draw(self, renderer: Renderer2D):
         for root_element in self.elements:
             root_element.draw_root(renderer)
+    
+    def pass_event(self, event: object):
+        for root_element in self.elements:
+            root_element.on_event_root(event)
 
 def draw_gui(resources: Resources):
     resources[GUIManager].draw(resources[Renderer2D])
+
+def update_gui(resources: Resources, event: object):
+    resources[GUIManager].pass_event(event)
 
 class GUIManagerPlugin(Plugin):
     def build(self, app):
         app.insert_resource(GUIManager())
         app.add_systems(Schedule.Draw, draw_gui)
 
-        # We will just make it so every single input event will wakeup our GUI
-        # for event_ty in WAKEUP_EVENTS:
-        #     app.add_event_listener(event_ty, queue_update_gui)
-
-        # app.add_event_listener(WindowResizeEvent, resize_gui)
-
+        for event_ty in INPUT_EVENTS:
+            app.add_event_listener(event_ty, update_gui)
 

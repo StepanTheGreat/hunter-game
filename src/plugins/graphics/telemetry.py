@@ -8,7 +8,8 @@ from core.telemetry import Telemetry
 
 from core.graphics import FontGPU
 
-from plugins.gui import GUIManager, Label
+from plugins.gui import GUIManager, Label, Button
+from .render2d import Renderer2D
 
 class TelemetryState:
     def __init__(self, assets: AssetManager, gui: GUIManager):
@@ -32,7 +33,8 @@ class TelemetryState:
         self.testing3 = Label(self.font, "And me!", (1, 0), text_scale=0.5)
         self.testing3.attach_to(self.testing2)
 
-        self.testing4 = Label(self.font, "(Nope)", (0, 0), pivot=(1, 0), text_scale=0.5)
+        self.testing4 = Button(self.font, "(Nope)", (0, 0), pivot=(1, 0), text_scale=0.5)
+        self.testing4.set_callback(lambda: print("Clicked!"))
         self.testing4.attach_to(self.testing2)
 
         gui.add_elements(self.fps_label)
@@ -40,6 +42,7 @@ class TelemetryState:
 def update_counters(resources: Resources):
     telemetry = resources[Telemetry]
     state = resources[TelemetryState]
+    renderer = resources[Renderer2D]
 
     fps = int(resources[Clock].get_fps())
 
@@ -51,6 +54,9 @@ def update_counters(resources: Resources):
     state.draw_calls_label.set_text(
         f"Draw calls{{ 3D {telemetry.render3d_dcs}, 2D: {telemetry.render2d_dcs}, Sprite: {telemetry.sprite_dcs}}}"
     )
+
+    # for _ in range(1):
+    #     renderer.draw_text(state.font, "jdoaihweidiajdojwiodjaiowjdajwidjawjiodjawdioajwdi", (0,0), (1, 1, 1), 1)
 
 def create_telemetry(resources: Resources):
     resources.insert(TelemetryState(resources[AssetManager], resources[GUIManager]))

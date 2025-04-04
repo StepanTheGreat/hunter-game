@@ -26,10 +26,14 @@ def draw_minimap(resources: Resources):
     player_size = Player.HITBOX_SIZE * scale
     sprite_size = Sprite.HITBOX_SIZE * scale
 
+    rects = []
     for y, row in enumerate(tiles):
         for x, tile in enumerate(row):
             if tile != 0:
-                renderer.draw_rect((x*tile_size, y*tile_size, tile_size, tile_size), (0.2, 0.2, 0.2))
+                rects.append(
+                    ((x*tile_size, y*tile_size, tile_size, tile_size), (0.2, 0.2, 0.2))
+    )
+    renderer.draw_rects(rects)
 
     players = entities.get_group(Player)
     if len(players) > 0:

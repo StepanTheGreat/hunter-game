@@ -9,8 +9,6 @@ from core.telemetry import Telemetry
 from core.assets import AssetManager
 from core.graphics import *
 
-from app_config import CONFIG
-
 VERTEX_ELEMENTS = 5000
 INDEX_ELEMENTS = 1000
 MAX_DRAW_CALLS = 32
@@ -35,6 +33,29 @@ def make_quad(*points: tuple[tuple[float], tuple[float], tuple[float]]) -> DumbM
         np.array([0, 1, 2, 1, 2, 3], dtype=np.uint32)
     )
 
+def make_quads(quads: list[tuple[tuple[float], tuple[float], tuple[float]]]) -> DumbMeshCPU:
+    "A more efficient version of `make_quad`, but for generating multiple quads at the same time"
+
+    quads_len = len(quads)
+
+    verticies = np.zeros((quads_len, 7*4), dtype=np.float32)
+    indices = np.zeros((quads_len, 6), dtype=np.uint32)
+
+    lind = 0
+    for ind, quad in enumerate(quads):
+        p1, p2, p3, p4 = quad
+
+        verticies[ind] = [
+            *p1[0],   *p1[1],  *p1[2],
+            *p2[0],   *p2[1],  *p2[2],
+            *p3[0],   *p3[1],  *p3[2],
+            *p4[0],   *p4[1],  *p4[2],
+        ]
+        indices[ind] = [lind, lind+1, lind+2, lind+1, lind+2, lind+3]
+        lind += 4
+    
+    return DumbMeshCPU(verticies.ravel(), indices.ravel())
+
 def make_circle(pos: tuple[float, float], radius: float, color: tuple[float, ...], points: int = 20) -> DumbMeshCPU:
     assert points > 2, "Can't build a circle mesh with less than 3 points" 
     assert radius > 0, "Why?"
@@ -48,13 +69,13 @@ def make_circle(pos: tuple[float, float], radius: float, color: tuple[float, ...
     angle = 0
     dt_angle = (np.pi*2)/points
     for point in range(points):
-        verticies[point] = np.array([
+        verticies[point] = [
             x+np.cos(angle)*r, y+np.sin(angle)*r, 0, 0, *color
-        ])
+        ]
         angle += dt_angle
 
     for ind in range(1, points-1):
-        indices[ind-1] = np.array([0, ind, ind+1])
+        indices[ind-1] = [0, ind, ind+1]
 
     return DumbMeshCPU(verticies.flatten(), indices.flatten())
 
@@ -164,41 +185,55 @@ class Renderer2D:
         )
         self.push_draw_call(DrawCall(rect_mesh, self.white_texture))
 
+    def draw_rects(self, entries: list[tuple[int, ...], tuple[float, ...]]):
+        "The same as `draw_rect`, but for A LOT of rectangles. Highly efficient"
+        quads = make_quads([
+            (
+                ((x, y),     (0, 1), color),
+                ((x+w, y),   (1, 1), color),
+                ((x, y+h),   (0, 0), color),
+                ((x+w, y+h), (1, 0), color),
+            ) for (x, y, w, h), color in entries
+        ])
+        self.push_draw_call(DrawCall(quads, self.white_texture))
+
     def draw_rect_lines(self, rect: tuple[int, ...], color: tuple[float, ...], thickness: float = 1):
         x, y, w, h = rect
         r, g, b = color
         t = thickness/2
 
-        top = make_quad(
-            ((x-t, y-t),     (0, 1), (r, g, b)),
-            ((x+w+t, y-t),   (1, 1), (r, g, b)),
-            ((x-t, y+t),   (0, 0), (r, g, b)),
-            ((x+w+t, y+t), (1, 0), (r, g, b)),
-        )
+        quads = make_quads([
+            # TOP
+            (
+                ((x-t, y-t),     (0, 1), (r, g, b)),
+                ((x+w+t, y-t),   (1, 1), (r, g, b)),
+                ((x-t, y+t),   (0, 0), (r, g, b)),
+                ((x+w+t, y+t), (1, 0), (r, g, b)),
+            ),
+            #LEFT
+            (
+                ((x-t, y-t),     (0, 1), (r, g, b)),
+                ((x+t, y-t),   (1, 1), (r, g, b)),
+                ((x-t, y+h+t),   (0, 0), (r, g, b)),
+                ((x+t, y+h+t), (1, 0), (r, g, b)),
+            ),
+            # RIGHT
+            (
+                ((x+w-t, y-t),     (0, 1), (r, g, b)),
+                ((x+w+t, y-t),   (1, 1), (r, g, b)),
+                ((x+w-t, y+h+t),   (0, 0), (r, g, b)),
+                ((x+w+t, y+h+t), (1, 0), (r, g, b)),
+            ),
+            # DOWN
+            (
+                ((x-t, y+h-t),     (0, 1), (r, g, b)),
+                ((x+w+t, y+h-t),   (1, 1), (r, g, b)),
+                ((x-t, y+h+t),   (0, 0), (r, g, b)),
+                ((x+w+t, y+h+t), (1, 0), (r, g, b)),
+            )
+        ])
 
-        left = make_quad(
-            ((x-t, y-t),     (0, 1), (r, g, b)),
-            ((x+t, y-t),   (1, 1), (r, g, b)),
-            ((x-t, y+h+t),   (0, 0), (r, g, b)),
-            ((x+t, y+h+t), (1, 0), (r, g, b)),
-        )
-
-        right = make_quad(
-            ((x+w-t, y-t),     (0, 1), (r, g, b)),
-            ((x+w+t, y-t),   (1, 1), (r, g, b)),
-            ((x+w-t, y+h+t),   (0, 0), (r, g, b)),
-            ((x+w+t, y+h+t), (1, 0), (r, g, b)),
-        )
-
-        down = make_quad(
-            ((x-t, y+h-t),     (0, 1), (r, g, b)),
-            ((x+w+t, y+h-t),   (1, 1), (r, g, b)),
-            ((x-t, y+h+t),   (0, 0), (r, g, b)),
-            ((x+w+t, y+h+t), (1, 0), (r, g, b)),
-        )
-
-        for edge_mesh in (left, top, right, down):
-            self.push_draw_call(DrawCall(edge_mesh, self.white_texture))
+        self.push_draw_call(DrawCall(quads, self.white_texture))
 
     def draw_texture(
             self, 
@@ -229,25 +264,28 @@ class Renderer2D:
         circle_mesh = make_circle(pos, radius, color, points)
         self.push_draw_call(DrawCall(circle_mesh, self.white_texture))
 
-
     def draw_text(self, font: FontGPU, text: str, pos: tuple[int], color: tuple[float], size: float):
         x, y = pos
         x_offset = 0
+
+        quads = []
         for char in text:
-            uvx, uvy, uvw, uvh = font.get_char_uvs(char)
+            uv_x, uv_y, uv_w, uv_h = font.get_char_uvs(char)
+            uv_w, uv_h = uv_x+uv_w, uv_y+uv_h
             cw, ch = font.get_char_size(char)
             cw, ch = cw*size, ch*size
-            lx = x+x_offset
+            offsetted_x = x+x_offset
 
-            self.draw_texture(
-                font.get_texture(),
-                (lx, y),
-                (cw, ch),
-                color,
-                (uvx, uvy, uvx+uvw, uvy+uvh)
-            )
+            quads.append((
+                ((offsetted_x,    y),    (uv_x, uv_y), color),
+                ((offsetted_x+cw, y),    (uv_w, uv_y), color),
+                ((offsetted_x,    y+ch), (uv_x, uv_h), color),
+                ((offsetted_x+cw, y+ch), (uv_w, uv_h), color)
+            ))
 
             x_offset += cw
+        
+        self.push_draw_call(DrawCall(make_quads(quads), font.get_texture()))
 
     def draw(self, camera: Camera2D) -> int:
         "Render everything with the provided projection matrix, reset the draw batches and return the amount of draw calls"
