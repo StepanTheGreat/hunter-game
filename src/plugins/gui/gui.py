@@ -90,8 +90,31 @@ class GUIElement:
         self.__rect: pg.Rect = None
         self.__size: tuple[float, float] = None
 
+        self.margin: tuple[int, int] = (0, 0)
+        """
+        The offset in pixels from this element that goes (left, top, right, bottom). 
+        It doesn't affect the rectangle, but child position calculations instead (it can also stack with the child's margin as well)
+        """
+
         self.pivot: tuple[float, float] = pivot
         self.edge: tuple[float, float] = edge
+    
+    def set_margin(self, new_x: float, new_y: float):
+        self.margin = (new_x, new_y)
+
+        self.recompute_position()
+
+    def with_margin(self, new_x: float, new_y: float):
+        self.set_margin(new_x, new_y)
+        return self
+    
+    def with_position(self, x: float, y: float):
+        self.set_position(x, y)
+        return self
+    
+    def attached_to(self, to: "GUIElement"):
+        self.attach_to(to)
+        return self
 
     def __add_child(self, child: "GUIElement"):
         self.children.append(child)
@@ -135,8 +158,9 @@ class GUIElement:
             return x - pivotx*width, y - pivoty*height
         else:
             rect = self.parent.get_rect()
+            mx, my = self.margin
 
-            return (rect.x+rect.w*edgex) - pivotx*width, (rect.y+rect.h*edgey) - pivoty*height
+            return (rect.x+rect.w*edgex) - pivotx*width + mx, (rect.y+rect.h*edgey) - pivoty*height + my
             
     def __compute_rect(self, new_width: float, new_height: float) -> pg.Rect:
         return pg.Rect(
