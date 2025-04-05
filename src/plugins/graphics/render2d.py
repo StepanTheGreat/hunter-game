@@ -21,9 +21,9 @@ RENDERER_PIPELINE_PARAMS = PipelineParams(
 
 RENDERER_VERTEX_ATTRIBUTES = ("position", "uv", "color")
 
-def make_quad(*points: tuple[tuple[float], tuple[float], tuple[float]]) -> DumbMeshCPU:
+def make_quad(*points: tuple[tuple[float], tuple[float], tuple[float]]) -> DynamicMeshCPU:
     p1, p2, p3, p4 = points
-    return DumbMeshCPU(
+    return DynamicMeshCPU(
         np.array([
             *p1[0],   *p1[1],  *p1[2],
             *p2[0],   *p2[1],  *p2[2],
@@ -33,7 +33,7 @@ def make_quad(*points: tuple[tuple[float], tuple[float], tuple[float]]) -> DumbM
         np.array([0, 1, 2, 1, 2, 3], dtype=np.uint32)
     )
 
-def make_quads(quads: list[tuple[tuple[float], tuple[float], tuple[float]]]) -> DumbMeshCPU:
+def make_quads(quads: list[tuple[tuple[float], tuple[float], tuple[float]]]) -> DynamicMeshCPU:
     "A more efficient version of `make_quad`, but for generating multiple quads at the same time"
 
     quads_len = len(quads)
@@ -54,9 +54,9 @@ def make_quads(quads: list[tuple[tuple[float], tuple[float], tuple[float]]]) -> 
         indices[ind] = [lind, lind+1, lind+2, lind+1, lind+2, lind+3]
         lind += 4
     
-    return DumbMeshCPU(verticies.ravel(), indices.ravel())
+    return DynamicMeshCPU(verticies.ravel(), indices.ravel())
 
-def make_circle(pos: tuple[float, float], radius: float, color: tuple[float, ...], points: int = 20) -> DumbMeshCPU:
+def make_circle(pos: tuple[float, float], radius: float, color: tuple[float, ...], points: int = 20) -> DynamicMeshCPU:
     assert points > 2, "Can't build a circle mesh with less than 3 points" 
     assert radius > 0, "Why?"
     
@@ -77,14 +77,14 @@ def make_circle(pos: tuple[float, float], radius: float, color: tuple[float, ...
     for ind in range(1, points-1):
         indices[ind-1] = [0, ind, ind+1]
 
-    return DumbMeshCPU(verticies.flatten(), indices.flatten())
+    return DynamicMeshCPU(verticies.flatten(), indices.flatten())
 
 class DrawCall:
     """
     A single draw call is a combination of geometry and texture. 
     Draw calls can merge if their texture is the same
     """
-    def __init__(self, mesh: DumbMeshCPU, texture: gl.Texture):
+    def __init__(self, mesh: DynamicMeshCPU, texture: gl.Texture):
         self.mesh = mesh
         self.texture = texture
 
