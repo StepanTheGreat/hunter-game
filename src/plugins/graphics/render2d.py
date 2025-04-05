@@ -9,8 +9,8 @@ from core.telemetry import Telemetry
 from core.assets import AssetManager
 from core.graphics import *
 
-VERTEX_ELEMENTS = 5000
-INDEX_ELEMENTS = 1000
+VERTEX_ELEMENTS = 10000
+INDEX_ELEMENTS = 2000
 MAX_DRAW_CALLS = 32
 
 RENDERER_PIPELINE_PARAMS = PipelineParams(
