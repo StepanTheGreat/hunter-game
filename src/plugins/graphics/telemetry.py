@@ -7,8 +7,6 @@ from core.telemetry import Telemetry
 
 from core.graphics import FontGPU
 
-from plugins.graphics.render2d import Renderer2D
-
 from plugins.gui import GUIManager, Label
 
 class TelemetryState:
@@ -25,7 +23,6 @@ class TelemetryState:
 def update_counters(resources: Resources):
     telemetry = resources[Telemetry]
     state = resources[TelemetryState]
-    renderer = resources[Renderer2D]
 
     fps = int(resources[Clock].get_fps())
 
@@ -35,9 +32,6 @@ def update_counters(resources: Resources):
     state.draw_calls_label.set_text(
         f"Draw calls{{ 3D {telemetry.render3d_dcs}, 2D: {telemetry.render2d_dcs}, Sprite: {telemetry.sprite_dcs}}}"
     )
-
-    for _ in range(10):
-        renderer.draw_text(state.font, "aiodjawidawjoidaoiwjdiooijdad", (0, 0), (1, 1, 1), 0.25)
 
 def create_telemetry(resources: Resources):
     resources.insert(TelemetryState(resources[AssetManager], resources[GUIManager]))
