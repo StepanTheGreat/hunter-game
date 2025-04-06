@@ -10,6 +10,6 @@ class PluginsCollection(Plugin):
         app.add_plugins(
             GraphicsPlugin(),
             EntitiesPlugin(),
+            GUIPlugin(),
             ScenesPlugin(),
-            GUIPlugin()
         )
