@@ -67,11 +67,11 @@ class Player(Entity):
     def get_pos(self) -> pg.Vector2:
         return self.pos.copy()
     
-def spawn_player(resources: Resources):
-    entities = resources[EntityWorld]
-    entities.push_entity(
-        Player(entities.get_entity_uid(), (0, 0), resources[CollisionManager])
-    )
+# def spawn_player(resources: Resources):
+#     entities = resources[EntityWorld]
+#     entities.push_entity(
+#         Player(entities.get_entity_uid(), (0, 0), resources[CollisionManager])
+#     )
 
 def update_players(resources: Resources):
     dt = resources[Clock].get_delta()
@@ -90,4 +90,3 @@ class PlayerPlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.Update, update_players)
         app.add_systems(Schedule.PreDraw, move_camera)
-        app.add_systems(Schedule.Startup, spawn_player)

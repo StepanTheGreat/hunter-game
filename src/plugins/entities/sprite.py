@@ -16,16 +16,16 @@ class Sprite(Entity):
     HITBOX_SIZE = 16
     SPEED = 60
 
-    def __init__(self, uid: int, pos: tuple[float, float], resources: Resources):
+    def __init__(self, uid: int, pos: tuple[float, float], assets: AssetManager, collisions: CollisionManager):
         super().__init__(uid)
 
-        self.texture = resources[AssetManager].load(gl.Texture, "images/character.png")
+        self.texture = assets.load(gl.Texture, "images/character.png")
 
         self.collider = DynCollider(Sprite.HITBOX_SIZE, pos, 1)
         self.pos = self.collider.get_position_ptr()
         self.vel = pg.Vector2(0, 0)
 
-        resources[CollisionManager].add_collider(self.collider)
+        collisions.add_collider(self.collider)
         
     def update(self, entities: EntityWorld, dt: float):
         if (players := entities.get_group(Player)):
@@ -47,13 +47,13 @@ class Sprite(Entity):
             (0, 0, 1, 1)
         )
     
-def spawn_sprite(resources: Resources):
-    entities = resources[EntityWorld]
+# def spawn_sprite(resources: Resources):
+#     entities = resources[EntityWorld]
 
-    for i in range(5):
-        entities.push_entity(
-            Sprite(entities.get_entity_uid(), (200*i, 0), resources)
-        )
+#     for i in range(5):
+#         entities.push_entity(
+#             Sprite(entities.get_entity_uid(), (200*i, 0), resources)
+#         )
 
 def update_sprites(resources: Resources):
     entities = resources[EntityWorld]
@@ -71,6 +71,6 @@ def render_sprites(resources: Resources):
 
 class SpritePlugin(Plugin):
     def build(self, app):
-        app.add_systems(Schedule.Startup, spawn_sprite)
+        # app.add_systems(Schedule.Startup, spawn_sprite)
         app.add_systems(Schedule.Update, update_sprites)
         app.add_systems(Schedule.Draw, render_sprites)
