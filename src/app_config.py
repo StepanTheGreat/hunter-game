@@ -11,6 +11,7 @@ class AppConfig:
     height: int = 560
     vsync: bool = True
     fps: int = 60
+    fixed_fps: int = 60
     title: str = "Maze Runner"
     assets_dir: str = localize_path("assets")
     keys: str = "keys/azerty.json"

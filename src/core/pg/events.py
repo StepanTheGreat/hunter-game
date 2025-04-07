@@ -14,3 +14,19 @@ class MouseMotionEvent:
     def __init__(self, event: pg.event.Event):
         self.x = event.pos[0]
         self.y = event.pos[1]
+
+@event
+class MouseButtonDownEvent:
+    "The mouse button is down"
+    def __init__(self, event: pg.event.Event):
+        self.x = event.pos[0]
+        self.y = event.pos[1]
+        self.button = event.button
+
+@event
+class MouseButtonUpEvent:
+    "The mouse button is up"
+    def __init__(self, event: pg.event.Event):
+        self.x = event.pos[0]
+        self.y = event.pos[1]
+        self.button = event.button

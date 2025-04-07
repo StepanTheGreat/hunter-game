@@ -39,15 +39,35 @@ def make_world_map(resources: Resources, offset: tuple[float, float] = (0, 0)) -
 
     return world_map, map_model
 
+def spawn_entities(resources: Resources):
+    entities = resources[EntityWorld]
+    collisions = resources[CollisionManager]
+    assets = resources[AssetManager]
+
+    entities.push_entity(
+        Player(entities.get_entity_uid(), (0, 0), collisions)
+    )
+
+    player_list = entities.get_group(Player)
+    for i in range(5):
+        sprite = Sprite(entities.get_entity_uid(), (200*i, 0), assets, collisions)
+        sprite.bind_player_list(player_list)
+        entities.push_entity(sprite)
+
 class IngameScene(SceneBundle):
     def __init__(self, resources: Resources):
         super().__init__(
             *make_world_map(resources, (0, 0)),
         )
+        spawn_entities(resources)
+
+    def destroy(self, resources):
+        # We need to remove all our entities before leaving
+        resources[EntityWorld].clear()
 
 class IngamePlugin(Plugin):
     def build(self, app):
         app.add_plugins(
             MapRendererPlugin(),
-            MinimapPlugin()
+            MinimapPlugin(),
         )

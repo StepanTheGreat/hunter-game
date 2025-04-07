@@ -101,16 +101,22 @@ class Schedule(Enum):
     Update = auto()
     "Main application logic schedule. Use it for most cases"
 
+    FixedUpdate = auto()
+    """
+    This schedule is highly different from others, in a sense that it runs at a constant rate, no matter the framerate.
+    It is highly advised to use it for physics calculations and other calculations that require stable tickrate.
+    """
+
     PostUpdate = auto()
     "Operations like physics updates and so on that are supposed to take action after the update phase"
 
-    PreRender = auto()
-    "A stage before rendering. This is used internally for clearing the screen and overal preparation"
+    PreDraw = auto()
+    "A stage before drawing. This is used internally for clearing the screen and overal preparation"
 
-    Render = auto()
+    Draw = auto()
     "The main rendering stage where a user submits their commands"
 
-    PostRender = auto()
+    PostDraw = auto()
     "All render requests are flushed"
 
     Last = auto()
@@ -241,7 +247,7 @@ class App:
         "Execute all startup systems"
         self.__execute_schedules(Schedule.Startup)
 
-    def update(self):
+    def update(self, fixed_steps: int):
         "Execute all update systems"
 
         # Execute the first schedule
@@ -253,19 +259,21 @@ class App:
             self.__push_event(event)
 
         ewriter.clear_events()
+        
+        self.__execute_schedules(Schedule.PreUpdate)
+        
+        while fixed_steps > 0:
+            fixed_steps -= 1
+            self.__execute_schedules(Schedule.FixedUpdate)
 
-        # Continue all the other schedules like PreUpdate and Update
-        self.__execute_schedules(Schedule.PreUpdate, Schedule.Update, Schedule.PostUpdate)
-
-        # This approach can have huge benefits in systems that need to fetch some data and immediately
-        # let other event listeners respond to it without 1-frame delay (like networking).
+        self.__execute_schedules(Schedule.Update, Schedule.PostUpdate)
     
     def render(self):
         "Execute all render systems"
         self.__execute_schedules(
-            Schedule.PreRender,
-            Schedule.Render,
-            Schedule.PostRender,
+            Schedule.PreDraw,
+            Schedule.Draw,
+            Schedule.PostDraw,
             Schedule.Last
         )
     

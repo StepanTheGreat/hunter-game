@@ -19,7 +19,7 @@ def gen_tile_mesh(
     size: float, 
     color: tuple[int, int, int],
     neighbours: tuple[bool, bool, bool, bool]
-) -> Optional[DumbMeshCPU]:
+) -> Optional[DynamicMeshCPU]:
     """ 
     This function generates tile meshes, automatically culling faces based on neighbour information..
 
@@ -40,7 +40,7 @@ def gen_tile_mesh(
     r, g, b = color
     top_neighbour, left_neighbour, right_neighbour, bottom_neighbour = neighbours
 
-    mesh = DumbMeshCPU(
+    mesh = DynamicMeshCPU(
         np.array([], dtype=np.float32),
         np.array([], dtype=np.uint32)
     )
@@ -120,7 +120,7 @@ def gen_map_models(
     transparent_tiles = worldmap.get_transparent_tiles()
 
     # A mesh group is a dictionary, where keys are textures, and values are meshes
-    mesh_group: dict[gl.Texture, DumbMeshCPU] = {}
+    mesh_group: dict[gl.Texture, DynamicMeshCPU] = {}
 
     # Our offset position
     offsetx, offsety = worldmap.get_offset()
@@ -180,4 +180,4 @@ def render_map(resources: Resources):
 
 class MapRendererPlugin(Plugin):
     def build(self, app):
-        app.add_systems(Schedule.PostRender, render_map)
+        app.add_systems(Schedule.PostDraw, render_map)

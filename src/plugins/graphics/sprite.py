@@ -10,7 +10,7 @@ from core.graphics import *
 from core.telemetry import Telemetry
 from core.assets import AssetManager
 
-SPRITE_MESH = DumbMeshCPU(
+SPRITE_MESH = DynamicMeshCPU(
     # To explain this confusing matrix of 4 numbers (the last one)
     # It is essentially a UV coordinate matrix that goes like this: x, y, x+w, y+h
     #
@@ -152,5 +152,5 @@ class SpriteRendererPlugin(Plugin):
             app.get_resource(GraphicsContext),
             app.get_resource(AssetManager)
         ))
-        app.add_systems(Schedule.PostRender, draw_sprites)
+        app.add_systems(Schedule.PostDraw, draw_sprites)
 

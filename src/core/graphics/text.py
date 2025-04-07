@@ -31,7 +31,7 @@ class FontGPU:
 
     def get_or_insert_char(self, char: str) -> SpriteRect:
         if not self.atlas.contains_sprite(char):
-            assert self.push_char(char), "Couldn't fit a character. Maybe hit a texture limit"
+            assert self.push_char(char), "Couldn't fit a character"
                     
         return self.atlas.get_sprite(char)
 
@@ -42,11 +42,15 @@ class FontGPU:
         This function returns a rectangle in coordinates between 0 and 1, and is useful solely
         for text rendering
         """
-        self.get_or_insert_char(char)
+        if not self.contains_char(char):
+            self.get_or_insert_char(char)
         return self.atlas.get_local_sprite_rect(char)
     
     def get_char_size(self, char: str) -> tuple[int, int]:
         return self.get_or_insert_char(char).get_size()
+    
+    def contains_char(self, char: str) -> bool:
+        return self.atlas.contains_sprite(char)
     
     def push_char(self, char: str) -> bool:
         char_w, char_h = self.measure(char)

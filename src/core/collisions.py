@@ -2,6 +2,10 @@ import pygame as pg
 
 from plugin import Plugin, Schedule, Resources
 
+from core.pg import Clock
+
+from modules.inteprolation import Interpolated
+
 from typing import Union
 
 class StaticCollider:
@@ -19,16 +23,23 @@ class DynCollider:
         assert mass > 0, "A dynamic collider's mass can't be negative or 0"
         
         self.pos = pg.Vector2(*pos)
+        self.velocity = pg.Vector2(0, 0)
+
+        self.positions = Interpolated(self.pos.copy())
+        self.interpolated_position = self.positions.get_value()
+
         self.radius = radius
         self.mass = mass
         self.sensor = sensor
-
-    def get_position_ptr(self) -> pg.Vector2:
-        """
-        The position returned by this method is an object reference. 
-        All operations on it will be reflected on the collider as well.
-        """
-        return self.pos
+    
+    def get_position(self) -> pg.Vector2:
+        return self.pos.copy()
+    
+    def get_interpolated_position(self) -> pg.Vector2:
+        return self.interpolated_position.copy()
+    
+    def set_velocity(self, new_vel: pg.Vector2):
+        self.velocity = new_vel
     
     def is_colliding_dynamic(self, other: "DynCollider") -> bool:
         "Check if this dynamic collider collides with another dynamic collider"
@@ -79,10 +90,22 @@ class DynCollider:
 
         if not rect.collidepoint(pos):
             distance = pos.distance_to(point)
-            # This method doesn't resolve collisions inside the the box, so this could be a future
+            # This method doesn't resolve collisions inside the box, so this could be a future
             # addition. Hope no one will get stuck (but if they do - they can easily leave)
             if 0 < distance <= radius:
                 pos += (pos-point).normalize() * (radius-distance)
+
+    def update_position(self, fixed_delta: float):
+        "Update the collider's position with velocity"
+        self.pos += self.velocity * fixed_delta
+    
+    def update_interpolation(self):
+        "Update interpolation with the most recent, resolved position"
+        self.positions.push_value(self.pos.copy())
+
+    def update_interpolated_position(self, alpha: float):
+        "Store the interpolated position for the frame"
+        self.interpolated_position = self.positions.get_interpolated(alpha)
 
 class CollisionManager:
     def __init__(self):
@@ -130,10 +153,35 @@ class CollisionManager:
         self.static_colliders.clear()
         self.dynamic_colliders.clear()
 
-def resolve_collisions(resources: Resources):
-    resources[CollisionManager].resolve_collisions()
+    def update(self, fixed_delta: float):
+        "Move all colliders, resolve their collisions and update their interpolations"
+
+        # First we move all colliders
+        for collider in self.dynamic_colliders:
+            collider.update_position(fixed_delta)
+        
+        # Then we resolve their collisions
+        self.resolve_collisions()
+
+        # Now we need to interpolate them
+        for collider in self.dynamic_colliders:
+            collider.update_interpolation()
+
+    def update_interpolations(self, alpha: float):
+        "Update the interpolated positions with the most recent alpha"
+        for collider in self.dynamic_colliders:
+            collider.update_interpolated_position(alpha)
+
+def update_collisions(resources: Resources):
+    fixed_delta = resources[Clock].get_fixed_delta()
+    resources[CollisionManager].update(fixed_delta)
+
+def update_positions(resources: Resources):
+    alpha = resources[Clock].get_alpha()
+    resources[CollisionManager].update_interpolations(alpha)
 
 class CollisionsPlugin(Plugin):
     def build(self, app):
         app.insert_resource(CollisionManager())
-        app.add_systems(Schedule.PostUpdate, resolve_collisions)
+        app.add_systems(Schedule.FixedUpdate, update_collisions)
+        app.add_systems(Schedule.Update, update_positions, priority=-1)

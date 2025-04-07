@@ -1,6 +1,8 @@
 import numpy as np
 import moderngl as gl
 
+from modules.numpylist import NumpyList
+
 class PipelineParams:
     "Pipeline parameters control settings like face culling, depth testing, drawing mode and so on"
     def __init__(
@@ -75,27 +77,20 @@ class ReservedMeshCPU:
         self.vertex_size = vertex_size
         self.index_size = index_size
 
-        self.verticies = np.zeros(vertex_size, dtype=np.float32)
-        self.indices = np.zeros(index_size, dtype=np.uint32)
-
-        # Pointers to free index locations
-        self.vertex_ptr = 0
-        self.index_ptr = 0
+        self.verticies = NumpyList(reserve=vertex_size, dtype=np.float32)
+        self.indices = NumpyList(reserve=index_size, dtype=np.uint32)
 
         self.free_index = 0
 
     def can_fit(self, verticies: int, indices: int) -> bool:
         "Check whether this amount of verticies and indices can be fit into a mesh"
         return (
-            verticies <= len(self.verticies)-self.vertex_ptr 
+            verticies <= self.vertex_size-len(self.verticies) 
             and
-            indices <= len(self.indices)-self.index_ptr 
+            indices <= self.index_size-len(self.indices) 
         )
 
     def push_geometry(self, verticies: np.ndarray, indices: np.ndarray):
-        # Datatypes should be equal
-        assert verticies.dtype == self.verticies.dtype and indices.dtype == self.indices.dtype
-
         # Obviously there's no reason to push empty arrays
         assert verticies.size > 0 and indices.size > 0
 
@@ -111,55 +106,50 @@ class ReservedMeshCPU:
         # Increment our free index by the max index array's index + 1
         self.free_index += new_index_offset+1
         
-        # Insert our 2 new arrays at free locations
-        self.verticies[self.vertex_ptr:self.vertex_ptr+len(verticies)] = verticies
-        self.indices[self.index_ptr:self.index_ptr+len(indices)] = indices
-
-        # Increment our array pointers
-        self.vertex_ptr += len(verticies)
-        self.index_ptr += len(indices)
+        # Append our 2 new arrays
+        self.verticies.append(verticies)
+        self.indices.append(indices)
 
     def can_fit_geometry(self, verticies: np.ndarray, indices: np.ndarray) -> bool:
         return self.can_fit(len(verticies), len(indices))
     
-    def can_fit_mesh(self, mesh: "DumbMeshCPU") -> bool:
-        return self.can_fit_geometry(mesh.verticies, mesh.indices)
+    def can_fit_mesh(self, mesh: "DynamicMeshCPU") -> bool:
+        return self.can_fit(mesh.vertex_elements(), mesh.index_elements())
 
-    def push_mesh(self, mesh: "DumbMeshCPU"):
+    def push_mesh(self, mesh: "DynamicMeshCPU"):
         """
         Push a dumb mesh onto this static mesh. 
         
         First make sure to check if it can even fit with `can_fit_mesh`
         """
-        self.push_geometry(mesh.verticies, mesh.indices.copy())
+        self.push_geometry(mesh.get_verticies(), mesh.get_indices().copy())
 
     def get_verticies(self) -> np.ndarray:
         "Get a slice of verticies with actual data. Not all parts of the array are filled with actual data"
-        return self.verticies[:self.vertex_ptr]
+        return self.verticies.get_array()
     
     def get_indices(self) -> np.ndarray:
         "Get a slice of indices with actual data. Not all parts of the array are filled with actual data"
-        return self.indices[:self.index_ptr]
+        return self.indices.get_array()
 
     def vertex_elements(self) -> int:
-        return self.vertex_ptr
+        return len(self.verticies)
     
     def index_elements(self) -> int:
-        return self.index_ptr
+        return len(self.indices)
     
     def is_empty(self) -> bool:
-        return self.vertex_ptr == 0 or self.index_ptr == 0
+        return self.verticies.is_empty() or self.indices.is_empty()
     
     def clear(self):
         "Reset the internal vertex and index pointer. This essentially \"clears\" space in the array"
-        self.vertex_ptr = 0
-        self.index_ptr = 0
+        self.verticies.clear()
+        self.indices.clear()
         self.free_index = 0
 
-class DumbMeshCPU:
+class DynamicMeshCPU:
     """
-    A growable, primitve mesh implementation. It's dumb because it doesn't have a static size, thus all merge
-    operation will lead in new array allocations.
+    A growable CPU mesh. It's no longer dumb!
 
     Okay for static data, but not for dynamic.
     """
@@ -167,8 +157,8 @@ class DumbMeshCPU:
         
         assert verticies.dtype == np.float32 and indices.dtype == np.uint32
 
-        self.verticies = verticies
-        self.indices = indices
+        self.verticies = NumpyList(verticies, dtype=np.float32)
+        self.indices = NumpyList(indices, dtype=np.uint32)
 
         self.free_index = indices.max() if indices.size > 0 else 0
 
@@ -181,7 +171,7 @@ class DumbMeshCPU:
         The index array will be modified during the call, so make sure to clone it if you're going to use it later.
         """
 
-        assert verticies.dtype == self.verticies.dtype and indices.dtype == self.indices.dtype
+        # assert verticies.dtype == self.verticies.dtype() and indices.dtype == self.indices.dtype()
 
         assert verticies.size > 0 and indices.size > 0
         
@@ -189,12 +179,20 @@ class DumbMeshCPU:
         indices += self.free_index
         self.free_index += new_index_offset
         
-        self.verticies = np.append(self.verticies, verticies)
-        self.indices = np.append(self.indices, indices)
+        self.verticies.append(verticies)
+        self.indices.append(indices)
+        # self.verticies = np.append(self.verticies, verticies)
+        # self.indices = np.append(self.indices, indices)
 
-    def add_mesh(self, other: "DumbMeshCPU"):
+    def add_mesh(self, other: "DynamicMeshCPU"):
         "The same as `add_geometry`, but works on meshes. The mesh will not get modified"
-        self.add_geometry(other.verticies, other.indices.copy())
+        self.add_geometry(other.get_verticies(), other.get_indices().copy())
+
+    def get_verticies(self) -> np.ndarray:
+        return self.verticies.get_array()
+    
+    def get_indices(self) -> np.ndarray:
+        return self.indices.get_array()
 
     def vertex_elements(self) -> int:
         return len(self.verticies)
@@ -204,18 +202,18 @@ class DumbMeshCPU:
 
     def is_empty(self) -> bool:
         "Is this mesh empty? (i.e. doesn't contain any geometry)"
-        return self.verticies.size == 0 or self.indices.size == 0
+        return self.verticies.is_empty() or self.indices.is_empty()
 
 class Model:
     "A model is a combination of a CPU mesh and a material. It has all the neccessary information to be rendered"
-    def __init__(self, ctx: gl.Context, mesh: DumbMeshCPU, pipeline: Pipeline):
+    def __init__(self, ctx: gl.Context, mesh: DynamicMeshCPU, pipeline: Pipeline):
         self.ctx = ctx
         
         self.mesh = mesh
         self.pipeline = pipeline
 
-        self.vbo = self.ctx.buffer(mesh.verticies)
-        self.ibo = self.ctx.buffer(mesh.indices)
+        self.vbo = self.ctx.buffer(mesh.get_verticies())
+        self.ibo = self.ctx.buffer(mesh.get_indices())
         self.vao = self.ctx.vertex_array(pipeline.program, self.vbo, *pipeline.vertex_attributes, index_buffer=self.ibo)
 
     def render(self, vertices: int = -1, first: int = 0, instances: int = -1):

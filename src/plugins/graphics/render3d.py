@@ -81,4 +81,4 @@ class Renderer3DPlugin(Plugin):
             app.get_resource(GraphicsContext),
             app.get_resource(AssetManager)
         ))
-        app.add_systems(Schedule.PostRender, draw_models)
+        app.add_systems(Schedule.PostDraw, draw_models)

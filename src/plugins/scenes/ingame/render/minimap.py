@@ -28,11 +28,15 @@ def draw_minimap(resources: Resources):
     player_size = Player.HITBOX_SIZE * scale
     sprite_size = Sprite.HITBOX_SIZE * scale
 
+    rects = []
     for y, row in enumerate(tiles):
         for x, tile in enumerate(row):
             posx, posy = offsetx+x, offsety+y
             if tile != 0:
-                renderer.draw_rect((posx*tile_size, posy*tile_size, tile_size, tile_size), (0.2, 0.2, 0.2))
+                rects.append(
+                    ((x*tile_size, y*tile_size, tile_size, tile_size), (0.2, 0.2, 0.2))
+    )
+    renderer.draw_rects(rects)
 
     players = entities.get_group(Player)
     if len(players) > 0:
@@ -41,9 +45,9 @@ def draw_minimap(resources: Resources):
         renderer.draw_circle((pos.x, pos.y), player_size, (0, 1, 0))
 
     for sprite in entities.get_group(Sprite):
-        pos = sprite.pos.copy()/TILE_SIZE*tile_size
+        pos = sprite.get_pos()/TILE_SIZE*tile_size
         renderer.draw_circle((pos.x, pos.y), sprite_size, (1, 0, 0))
 
 class MinimapPlugin(Plugin):
     def build(self, app):
-        app.add_systems(Schedule.Render, draw_minimap)
+        app.add_systems(Schedule.Draw, draw_minimap)

@@ -31,7 +31,7 @@ def loader_key_mappings(_: Resources, path: str) -> KeyMappings:
     return KeyMappings(tuple(mappings))
 
 
-class MouseButton(Enum):
+class MouseButton:
     "A simple enumerator for mouse buttons"
     Left = 0
     Center = 1
