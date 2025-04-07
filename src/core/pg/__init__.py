@@ -10,7 +10,7 @@ pg.font.init()
 
 from app_config import CONFIG
 
-VIDEO_FLAGS = pg.OPENGL | pg.DOUBLEBUF | pg.RESIZABLE
+VIDEO_FLAGS = pg.OPENGL | pg.DOUBLEBUF
 
 @event
 class PygameEvent:
