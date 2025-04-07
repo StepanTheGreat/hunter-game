@@ -5,7 +5,7 @@ from plugin import *
 def test_runner(app: App):
     "A basic runner that will be used for tests"
     app.startup()
-    app.update()
+    app.update(1)
     app.render()
     app.finalize()
 
@@ -19,6 +19,7 @@ def _():
         Schedule.First,
         Schedule.PreUpdate,
         Schedule.Update,
+        Schedule.FixedUpdate,
         Schedule.PostUpdate,
         Schedule.PreDraw,
         Schedule.Draw,

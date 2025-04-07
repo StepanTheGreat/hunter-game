@@ -47,10 +47,11 @@ def spawn_entities(resources: Resources):
         Player(entities.get_entity_uid(), (0, 0), collisions)
     )
 
+    player_list = entities.get_group(Player)
     for i in range(5):
-        entities.push_entity(
-            Sprite(entities.get_entity_uid(), (200*i, 0), assets, collisions)
-        )
+        sprite = Sprite(entities.get_entity_uid(), (200*i, 0), assets, collisions)
+        sprite.bind_player_list(player_list)
+        entities.push_entity(sprite)
 
 class IngameScene(SceneBundle):
     def __init__(self, resources: Resources):

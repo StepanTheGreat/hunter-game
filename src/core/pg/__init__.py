@@ -73,9 +73,13 @@ class Screen:
 
 class Clock:
     "A general time keeping structure that automatically manages clock execution"
-    def __init__(self, fps: int):
+    def __init__(self, fps: int, fixed_fps: int):
         self.clock = pg.time.Clock()
         self.fps = fps
+        self.fixed_fps = fixed_fps
+
+        self.alpha_timer = 0
+        self.fixed_updates = 0
 
         self.ticks = 0
         self.delta_time = 0.0
@@ -91,7 +95,29 @@ class Clock:
 
         self.delta_time = delta_time
         self.time += delta_time
+
+        self.alpha_timer += delta_time
+        self.fixed_updates = int(self.alpha_timer/self.get_fixed_delta())
+        self.alpha_timer -= self.get_fixed_delta()*self.fixed_updates
+        
         self.ticks += 1
+
+    def get_fixed_delta(self) -> float:
+        return 1/self.fixed_fps
+    
+    def get_alpha(self) -> float:
+        """
+        Alpha is the fraction that represents the current position of the visual frame 
+        between last fixed step and the current one. It is measured between 0 and 1, where 0 is the last frame and
+        1 is the current one.
+
+        This is highly used in interpolation, since physics updates are separate from visual updates.
+        """
+        return max(0, min(self.alpha_timer/self.get_fixed_delta(), 1))
+    
+    def get_fixed_updates(self) -> int:
+        "Tells how many fixed updates there should be for this tick"
+        return self.fixed_updates
 
     def get_delta(self) -> float:
         "Get the amount of time that passed since last frame. Preferable over `get_ticks`"
@@ -128,7 +154,7 @@ def pygame_runner(app: App):
             else:
                 should_quit = True
 
-        app.update()
+        app.update(clock.get_fixed_updates())
         app.render()
         
         pg.display.flip()
@@ -140,7 +166,7 @@ class PygamePlugin(Plugin):
     def build(self, app):
         app.insert_resource(PygameEventMap())
         app.insert_resource(Screen(CONFIG.width, CONFIG.height, CONFIG.title, VIDEO_FLAGS, CONFIG.vsync))
-        app.insert_resource(Clock(CONFIG.fps))
+        app.insert_resource(Clock(CONFIG.fps, CONFIG.fixed_fps))
         app.set_runner(pygame_runner)
 
         add_pygame_event_maps(

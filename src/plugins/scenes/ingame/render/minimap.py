@@ -42,7 +42,7 @@ def draw_minimap(resources: Resources):
         renderer.draw_circle((pos.x, pos.y), player_size, (0, 1, 0))
 
     for sprite in entities.get_group(Sprite):
-        pos = sprite.pos.copy()/TILE_SIZE*tile_size
+        pos = sprite.get_pos()/TILE_SIZE*tile_size
         renderer.draw_circle((pos.x, pos.y), sprite_size, (1, 0, 0))
 
 class MinimapPlugin(Plugin):
