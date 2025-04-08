@@ -1,24 +1,19 @@
 #version 330 core
 
-const float LIGHT_RADIUS = 600;
+const float LIGHT_RADIUS = 150;
 const int LIGHT_LIMIT = 256;
-
-struct Light {
-    vec3 position;
-    vec3 color;
-};
 
 uniform mat4 projection;
 uniform mat3 camera_rot;
 uniform vec3 camera_pos;
 
-uniform Light[LIGHT_LIMIT] lights;
+uniform vec3[LIGHT_LIMIT] light_positions;
+uniform vec3[LIGHT_LIMIT] light_colors;
 uniform int lights_amount;
 
 layout (location = 0) in vec3 position;
 layout (location = 1) in vec3 normal;
 layout (location = 2) in vec3 color;
-// Texture coordinates
 layout (location = 3) in vec2 uv;
 
 out vec3 in_color;
@@ -28,23 +23,19 @@ void main() {
     vec3 pos = camera_rot*(position-camera_pos);
     gl_Position = projection*(vec4(pos, 1));
 
-    in_uv = uv;
     in_color = color;
 
-    if (lights_amount > 0) {
-        Light light = lights[0];
+    for (int i = 0; i < lights_amount; ++i) {
+        vec3 light_position = light_positions[i];
+        vec3 light_color = light_colors[i];
 
-        float camera_dist = distance(light.position, camera_pos);
-        vec3 camera_dir = camera_pos-light.position;
+        float light_dist = distance(light_position + normal/1000, position);
+        vec3 light_dir = normalize(position-light_position);
+        float dt = max(-dot(normal, light_dir), 0);
 
-        in_color *= light.color * (1-clamp(camera_dist/LIGHT_RADIUS*dot(normal, camera_dir), 0, 1));
+        in_color += light_color*(1-(min(light_dist/LIGHT_RADIUS, 1)));
+        // in_color += light_color*(1-clamp(light_dist/LIGHT_RADIUS, 0, 1));
     }
-    // for (int i = 0; i < lights_amount; i++) {
-    //     Light light = lights[i];
 
-    //     float camera_dist = distance(light.position, camera_pos);
-    //     vec3 camera_dir = camera_pos-light.position;
-
-    //     in_color *= light.color * (1-clamp(camera_dist/LIGHT_RADIUS*dot(normal, camera_dir), 0, 1));
-    // }
+    in_uv = uv;
 }  

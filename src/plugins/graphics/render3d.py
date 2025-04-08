@@ -27,18 +27,25 @@ class Light:
 class LightManager:
     def __init__(self, max_lights: int):
         self.max_lights = max_lights
-        self.lights = []
-        self.array = np.empty(self.max_lights, dtype=Light.DTYPE)
+        self.lights: list[Light] = []
+
+        self.light_positions = np.empty((self.max_lights, 3), dtype=np.float32)
+        self.light_colors = np.empty((self.max_lights, 3), dtype=np.float32)
 
     def push_light(self, light: Light):
         assert len(self.lights) < self.max_lights
         self.lights.append(light)
 
-    def get_as_array(self) -> np.ndarray:
+    def update_array(self):
         for ind, light in enumerate(self.lights):
-            self.array[ind] = (light.pos, light.color)
-        
-        return self.array.ravel()
+            self.light_positions[ind] = light.pos
+            self.light_colors[ind] = light.color
+    
+    def get_light_positions(self) -> np.ndarray:
+        return self.light_positions
+
+    def get_light_colors(self) -> np.ndarray:
+        return self.light_colors
     
     def get_lights_amount(self) -> int:
         return len(self.lights)
@@ -89,7 +96,9 @@ class ModelRenderer:
         self.pipeline["camera_pos"] = camera.get_camera_position()
         self.pipeline["camera_rot"] = camera.get_camera_rotation().flatten()
 
-        self.pipeline["lights"] = lights.get_as_array()
+        lights.update_array()
+        self.pipeline["light_positions"] = lights.get_light_positions()
+        self.pipeline["light_colors"] = lights.get_light_colors()
         self.pipeline["lights_amount"] = lights.get_lights_amount()
 
         draw_calls = 0
@@ -104,7 +113,6 @@ class ModelRenderer:
 
 def draw_models(resources: Resources):
     lights = resources[LightManager]
-    lights.push_light(Light((30, 48, 30), (1, 1, 1)))
     draw_calls = resources[ModelRenderer].draw(lights, resources[Camera3D])
 
     resources[Telemetry].render3d_dcs = draw_calls
