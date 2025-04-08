@@ -17,7 +17,9 @@ MODEL_PIPELINE_PARAMS = PipelineParams(
 
 MODEL_VERTEX_ATTRIBUTES = ("position", "normal", "color", "uv")
 
-class Light:    
+class Light:
+    DTYPE = np.dtype([('position', np.float32, 3), ('color', np.float32, 3)])
+
     def __init__(self, pos: tuple[float, float, float], color: tuple[float, float, float]):
         self.pos = pos
         self.color = color
@@ -26,7 +28,7 @@ class LightManager:
     def __init__(self, max_lights: int):
         self.max_lights = max_lights
         self.lights = []
-        self.array = np.empty((self.max_lights, 6), dtype=np.float32)
+        self.array = np.empty(self.max_lights, dtype=Light.DTYPE)
 
     def push_light(self, light: Light):
         assert len(self.lights) < self.max_lights
@@ -34,7 +36,7 @@ class LightManager:
 
     def get_as_array(self) -> np.ndarray:
         for ind, light in enumerate(self.lights):
-            self.array[ind] = [*light.pos, *light.color]
+            self.array[ind] = (light.pos, light.color)
         
         return self.array.ravel()
     

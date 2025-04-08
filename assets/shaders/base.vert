@@ -31,12 +31,20 @@ void main() {
     in_uv = uv;
     in_color = color;
 
-    for (int i = 0; i < lights_amount; ++i) {
-        Light light = lights[i];
+    if (lights_amount > 0) {
+        Light light = lights[0];
 
         float camera_dist = distance(light.position, camera_pos);
         vec3 camera_dir = camera_pos-light.position;
 
         in_color *= light.color * (1-clamp(camera_dist/LIGHT_RADIUS*dot(normal, camera_dir), 0, 1));
     }
+    // for (int i = 0; i < lights_amount; i++) {
+    //     Light light = lights[i];
+
+    //     float camera_dist = distance(light.position, camera_pos);
+    //     vec3 camera_dir = camera_pos-light.position;
+
+    //     in_color *= light.color * (1-clamp(camera_dist/LIGHT_RADIUS*dot(normal, camera_dir), 0, 1));
+    // }
 }  
