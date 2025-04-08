@@ -160,7 +160,7 @@ class DynamicMeshCPU:
         self.verticies = NumpyList(verticies, dtype=np.float32)
         self.indices = NumpyList(indices, dtype=np.uint32)
 
-        self.free_index = indices.max() if indices.size > 0 else 0
+        self.free_index = indices.max()+1 if indices.size > 0 else 0
 
     def add_geometry(self, verticies: np.ndarray, indices: np.ndarray):
         """
@@ -170,9 +170,6 @@ class DynamicMeshCPU:
         ## Warning
         The index array will be modified during the call, so make sure to clone it if you're going to use it later.
         """
-
-        # assert verticies.dtype == self.verticies.dtype() and indices.dtype == self.indices.dtype()
-
         assert verticies.size > 0 and indices.size > 0
         
         new_index_offset = indices.max()+1
