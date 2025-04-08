@@ -1,5 +1,7 @@
 #version 330 core
 
+const float LIGHT_RADIUS = 600;
+
 const int SPRITE_LIMIT = 256;
 
 uniform mat4 projection;
@@ -22,6 +24,7 @@ layout (location = 1) in mat2 uv_mat;
 // Sprites then need to send their uv_rects, which are matrices of: [x, y, x+w, y+h]
 
 out vec2 in_uv;
+out vec3 in_color;
 
 void main()
 {   
@@ -52,4 +55,6 @@ void main()
         uv_rect[0].x * uv_mat[0].x + uv_rect[1].x * uv_mat[1].x,
         uv_rect[0].y * uv_mat[0].y + uv_rect[1].y * uv_mat[1].y
     );
+
+    in_color = vec3(1, 1, 1) * 1-clamp(0, distance(pos, camera_pos)/LIGHT_RADIUS, 1);
 }  

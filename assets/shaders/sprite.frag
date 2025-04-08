@@ -5,6 +5,7 @@ out vec4 FragColor;
 uniform sampler2D material;
 
 in vec2 in_uv;
+in vec3 in_color;
 
 void main()
 {
@@ -12,5 +13,5 @@ void main()
     if (color.a < 0.1) {
         discard;
     }
-    FragColor = color;
+    FragColor = color * vec4(in_color, 1);
 }
