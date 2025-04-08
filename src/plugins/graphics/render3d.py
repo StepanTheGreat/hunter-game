@@ -15,7 +15,34 @@ MODEL_PIPELINE_PARAMS = PipelineParams(
     mode=gl.TRIANGLES
 )
 
-MODEL_VERTEX_ATTRIBUTES = ("position", "color", "uv")
+MODEL_VERTEX_ATTRIBUTES = ("position", "normal", "color", "uv")
+
+class Light:    
+    def __init__(self, pos: tuple[float, float, float], color: tuple[float, float, float]):
+        self.pos = pos
+        self.color = color
+
+class LightManager:
+    def __init__(self, max_lights: int):
+        self.max_lights = max_lights
+        self.lights = []
+        self.array = np.empty((self.max_lights, 6), dtype=np.float32)
+
+    def push_light(self, light: Light):
+        assert len(self.lights) < self.max_lights
+        self.lights.append(light)
+
+    def get_as_array(self) -> np.ndarray:
+        for ind, light in enumerate(self.lights):
+            self.array[ind] = [*light.pos, *light.color]
+        
+        return self.array.ravel()
+    
+    def get_lights_amount(self) -> int:
+        return len(self.lights)
+
+    def clear(self):
+        self.lights.clear()
 
 class ModelRenderer:
     """
@@ -54,11 +81,14 @@ class ModelRenderer:
         "Clear all models that are about to get rendered"
         self.models.clear()
     
-    def draw(self, camera: Camera3D) -> int:
+    def draw(self, lights: LightManager, camera: Camera3D) -> int:
         "Render all models and clear the list of models to draw"
         self.pipeline["projection"] = camera.get_projection_matrix()
         self.pipeline["camera_pos"] = camera.get_camera_position()
         self.pipeline["camera_rot"] = camera.get_camera_rotation().flatten()
+
+        self.pipeline["lights"] = lights.get_as_array()
+        self.pipeline["lights_amount"] = lights.get_lights_amount()
 
         draw_calls = 0
         for model, texture in self.models:
@@ -71,9 +101,12 @@ class ModelRenderer:
         return draw_calls
 
 def draw_models(resources: Resources):
-    draw_calls = resources[ModelRenderer].draw(resources[Camera3D])
+    lights = resources[LightManager]
+    lights.push_light(Light((30, 48, 30), (1, 1, 1)))
+    draw_calls = resources[ModelRenderer].draw(lights, resources[Camera3D])
 
     resources[Telemetry].render3d_dcs = draw_calls
+    lights.clear()
 
 class Renderer3DPlugin(Plugin):
     def build(self, app):
@@ -81,4 +114,5 @@ class Renderer3DPlugin(Plugin):
             app.get_resource(GraphicsContext),
             app.get_resource(AssetManager)
         ))
+        app.insert_resource(LightManager(256))
         app.add_systems(Schedule.PostDraw, draw_models)

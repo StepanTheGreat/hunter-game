@@ -56,5 +56,5 @@ void main()
         uv_rect[0].y * uv_mat[0].y + uv_rect[1].y * uv_mat[1].y
     );
 
-    in_color = vec3(1, 1, 1) * 1-clamp(0, distance(pos, camera_pos)/LIGHT_RADIUS, 1);
+    in_color = vec3(1, 1, 1) * 1-clamp(distance(pos, camera_pos)/LIGHT_RADIUS, 0, 1);
 }  
