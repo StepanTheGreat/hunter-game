@@ -13,6 +13,8 @@ from plugins.graphics import ModelRenderer
 from core.assets import AssetManager
 
 TILE_SIZE = 48
+FLOOR_COLOR = (0.1, 0.1, 0.1)
+CEILING_COLOR = FLOOR_COLOR
 
 def gen_tile_mesh(
     coords: tuple[int, int], 
@@ -91,6 +93,29 @@ def gen_tile_mesh(
 
     return mesh if not mesh.is_empty() else None 
 
+def gen_platform_mesh(
+    coords: tuple[int, int], 
+    size: float, 
+    y: float,
+    color: tuple[int, int, int],
+    reverse: bool
+) -> DynamicMeshCPU:
+    s = size
+    x, z = coords
+    x, z = x*s, z*s
+    r, g, b = color
+
+    indices = [0, 1, 2, 1, 3, 2] if reverse else [2, 1, 0, 1, 2, 3]
+    return DynamicMeshCPU(
+        np.array([
+            x,   y, z,    r, g, b,    0, 0,
+            x+s, y, z,    r, g, b,    1, 0,
+            x,   y, z-s,  r, g, b,    0, 1,
+            x+s, y, z-s,  r, g, b,    1, 1,
+        ], dtype=np.float32),
+        np.array(indices, dtype=np.uint32)
+    )
+
 def gen_map_models(
         gfx: GraphicsContext, 
         assets: AssetManager, 
@@ -149,6 +174,16 @@ def gen_map_models(
                         group_mesh.add_mesh(tile_mesh)
                     else:
                         mesh_group[texture] = tile_mesh
+            else:
+                floor_mesh = gen_platform_mesh((offsetx+x, -offsety-y), TILE_SIZE, 0, FLOOR_COLOR, False)
+                floor_mesh.add_mesh(
+                    gen_platform_mesh((offsetx+x, -offsety-y), TILE_SIZE, TILE_SIZE, CEILING_COLOR, True)
+                )
+                texture = None
+                if texture in mesh_group:
+                    mesh_group[texture].add_mesh(floor_mesh)
+                else:
+                    mesh_group[texture] = floor_mesh
 
     pipeline = model_renderer.get_pipeline()
     models = [(Model(ctx, group_mesh, pipeline), group_texture) for group_texture, group_mesh in mesh_group.items()]
