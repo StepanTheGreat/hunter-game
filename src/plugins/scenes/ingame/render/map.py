@@ -174,7 +174,8 @@ def gen_map_models(
                         group_mesh.add_mesh(tile_mesh)
                     else:
                         mesh_group[texture] = tile_mesh
-            else:
+            
+            if tile == 0 or tile in transparent_tiles:
                 floor_mesh = gen_platform_mesh((offsetx+x, -offsety-y), TILE_SIZE, 0, FLOOR_COLOR, False)
                 floor_mesh.add_mesh(
                     gen_platform_mesh((offsetx+x, -offsety-y), TILE_SIZE, TILE_SIZE, CEILING_COLOR, True)
