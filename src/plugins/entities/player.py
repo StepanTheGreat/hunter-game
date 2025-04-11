@@ -8,6 +8,8 @@ from core.entity import EntityWorld, Entity
 from core.input import InputManager
 from core.collisions import CollisionManager, DynCollider
 
+from plugins.graphics import LightManager, Light
+
 from modules.inteprolation import InterpolatedAngle
 
 class InputAction:
@@ -86,14 +88,24 @@ def move_players(resources: Resources):
         player.horizontal_vel = input[InputAction.Right]-input[InputAction.Left]
 
 def move_camera(resources: Resources):
+    lighting = resources[LightManager]
     cam = resources[Camera3D]
     players = resources[EntityWorld].get_group(Player)
     if players:
         player = players[0]
-        cam.set_pos(player.get_pos())
+
+        player_pos = player.get_pos()
+        cam.set_pos(player_pos)
         cam.set_angle(player.get_angle())
+        lighting.push_light(Light((player_pos.x, 24, -player_pos.y), (1, 1, 1), 500))
+
+def make_test_lights(resources: Resources):
+    lighting = resources[LightManager]
+
+    for (x, y) in ((3*48, 5*48),):
+        lighting.push_light(Light((x, 24, y), (0.3, 0.5, 1), 1000))
 
 class PlayerPlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.Update, move_players)
-        app.add_systems(Schedule.PreDraw, move_camera)
+        app.add_systems(Schedule.PreDraw, move_camera, make_test_lights)

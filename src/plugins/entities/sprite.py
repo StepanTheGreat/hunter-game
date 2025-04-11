@@ -69,13 +69,10 @@ class Sprite(Entity):
 
 def render_sprites(resources: Resources):
     entities = resources[EntityWorld]
-    lighting = resources[LightManager]
     sprite_container = resources[SpriteRenderer]
 
     for sprite in entities.get_group(Sprite):
         sprite.draw(sprite_container)
-        sprite_pos = sprite.get_pos()
-        lighting.push_light(Light((sprite_pos.x, 48, -sprite_pos.y), (0.8, 0.8, 0.8)))
 
 class SpritePlugin(Plugin):
     def build(self, app):

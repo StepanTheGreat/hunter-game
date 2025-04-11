@@ -13,7 +13,7 @@ from plugins.graphics import ModelRenderer
 from core.assets import AssetManager
 
 TILE_SIZE = 48
-FLOOR_COLOR = (0.1, 0.1, 0.1)
+FLOOR_COLOR = (0.1, 0.8, 0.1)
 CEILING_COLOR = FLOOR_COLOR
 
 def gen_tile_mesh(
@@ -106,7 +106,7 @@ def gen_platform_mesh(
     r, g, b = color
 
     indices = [0, 1, 2, 1, 3, 2] if reverse else [2, 1, 0, 1, 2, 3]
-    normal_dir = 1 if not reverse else -1
+    normal_dir = 1 if reverse else -1
     return DynamicMeshCPU(
         np.array([
             x,   y, z,    0, normal_dir, 0,  r, g, b,    0, 0,

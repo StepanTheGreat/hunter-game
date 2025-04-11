@@ -1,7 +1,6 @@
 #version 330 core
 
-const float LIGHT_RADIUS = 600;
-
+const int LIGHT_LIMIT = 256;
 const int SPRITE_LIMIT = 256;
 
 uniform mat4 projection;
@@ -11,6 +10,12 @@ uniform vec3 camera_pos;
 uniform vec2[SPRITE_LIMIT] sprite_positions;
 uniform vec2[SPRITE_LIMIT] sprite_sizes;
 uniform mat2[SPRITE_LIMIT] sprite_uv_rects;
+
+uniform vec3[LIGHT_LIMIT] light_positions;
+uniform vec3[LIGHT_LIMIT] light_colors;
+uniform float[LIGHT_LIMIT] light_radiuses;
+uniform int lights_amount;
+uniform vec3 ambient_color;
 
 layout (location = 0) in vec3 position;
 layout (location = 1) in mat2 uv_mat;
@@ -25,6 +30,27 @@ layout (location = 1) in mat2 uv_mat;
 
 out vec2 in_uv;
 out vec3 in_color;
+
+// This function is slightly different from the one in base shader, but it applies the same shading for sprites as well.
+// For sprites, the only significant difference is that their normal is always pointing towards the player, thus it's calculated based on
+// the position of the sprite's vertex and the camera's position
+vec3 apply_lights(vec3 material_color, vec3 vert_pos, vec3 normal) {
+    vec3 ret_color = material_color * ambient_color;
+
+    for (int i = 0; i < lights_amount; ++i) {
+        vec3 light_position = light_positions[i];
+        vec3 light_color = light_colors[i];
+        float light_radius = light_radiuses[i];
+
+        float light_dist = distance(light_position, vert_pos);
+        vec3 light_dir = normalize(vert_pos-light_position);
+        float dt = max(dot(normal, light_dir), 0);
+
+        ret_color += light_color*dt*(1-(min(light_dist/light_radius, 1)));
+    }
+
+    return ret_color;
+}
 
 void main()
 {   
@@ -49,12 +75,14 @@ void main()
     pos.xz *= sprite_size.x;
     pos.xz *= sprite_rot;
     pos.xz += sprite_pos;
-    gl_Position = projection*(vec4(camera_rot*(pos-camera_pos), 1));
+
+    vec3 world_pos = pos-camera_pos;
+    gl_Position = projection*(vec4(camera_rot*world_pos, 1));
 
     in_uv = vec2(
         uv_rect[0].x * uv_mat[0].x + uv_rect[1].x * uv_mat[1].x,
         uv_rect[0].y * uv_mat[0].y + uv_rect[1].y * uv_mat[1].y
     );
 
-    in_color = vec3(1, 1, 1) * 1-clamp(distance(pos, camera_pos)/LIGHT_RADIUS, 0, 1);
+    in_color = apply_lights(vec3(1, 1, 1), pos, normalize(world_pos));
 }  

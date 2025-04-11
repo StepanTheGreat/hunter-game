@@ -10,6 +10,8 @@ from core.graphics import *
 from core.telemetry import Telemetry
 from core.assets import AssetManager
 
+from .render3d import LightManager
+
 SPRITE_MESH = DynamicMeshCPU(
     # To explain this confusing matrix of 4 numbers (the last one)
     # It is essentially a UV coordinate matrix that goes like this: x, y, x+w, y+h
@@ -121,10 +123,12 @@ class SpriteRenderer:
         self.count = 0
         self.groups.clear()
 
-    def draw(self, camera: Camera3D) -> int:
+    def draw(self, lights: LightManager, camera: Camera3D) -> int:
         self.pipeline["projection"] = camera.get_projection_matrix()
         self.pipeline["camera_pos"] = camera.get_camera_position()
         self.pipeline["camera_rot"] = camera.get_camera_rotation().flatten()
+
+        lights.apply_to_pipeline(self.pipeline)
 
         draw_calls = 0
         
@@ -142,7 +146,8 @@ class SpriteRenderer:
         return draw_calls
 
 def draw_sprites(resources: Resources):
-    draw_calls = resources[SpriteRenderer].draw(resources[Camera3D])
+    lights = resources[LightManager]
+    draw_calls = resources[SpriteRenderer].draw(lights, resources[Camera3D])
 
     resources[Telemetry].sprite_dcs = draw_calls
 
