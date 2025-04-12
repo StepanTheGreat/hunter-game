@@ -4,7 +4,7 @@ from core.entity import EntityWorld
 
 from plugins.graphics import Renderer2D
 from plugins.entities.player import Player
-from plugins.entities.sprite import Sprite
+from plugins.entities.enemy import Enemy
 
 from modules.tilemap import WorldMap
 
@@ -26,7 +26,7 @@ def draw_minimap(resources: Resources):
 
     tile_size = TILE_SIZE * scale
     player_size = Player.HITBOX_SIZE * scale
-    sprite_size = Sprite.HITBOX_SIZE * scale
+    enemy_size = Enemy.HITBOX_SIZE * scale
 
     rects = []
     for y, row in enumerate(tiles):
@@ -44,9 +44,9 @@ def draw_minimap(resources: Resources):
         pos = player.get_pos()/TILE_SIZE*tile_size
         renderer.draw_circle((pos.x, pos.y), player_size, (0, 1, 0))
 
-    for sprite in entities.get_group(Sprite):
-        pos = sprite.get_pos()/TILE_SIZE*tile_size
-        renderer.draw_circle((pos.x, pos.y), sprite_size, (1, 0, 0))
+    for enemy in entities.get_group(Enemy):
+        pos = enemy.get_pos()/TILE_SIZE*tile_size
+        renderer.draw_circle((pos.x, pos.y), enemy_size, (1, 0, 0))
 
 class MinimapPlugin(Plugin):
     def build(self, app):

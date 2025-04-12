@@ -26,9 +26,7 @@ class Player(Entity):
     SPEED = 250
     ROTATION_SPEED = 3
 
-    def __init__(self, uid: int, pos: tuple[float, float], collisions: CollisionManager):
-        super().__init__(uid)
-
+    def __init__(self, pos: tuple[float, float], collisions: CollisionManager):
         self.collider = DynCollider(Player.HITBOX_SIZE, pos, 10)
 
         self.angle_vel = 0

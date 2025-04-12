@@ -5,6 +5,8 @@ from core.collisions import CollisionManager
 from modules.scene import SceneBundle
 from modules.tilemap import WorldMap, Tilemap
 
+from plugins.graphics import SpriteRenderer
+
 from .render.map import *
 from .render.minimap import *
 
@@ -43,16 +45,17 @@ def spawn_entities(resources: Resources):
     entities = resources[EntityWorld]
     collisions = resources[CollisionManager]
     assets = resources[AssetManager]
+    sprites = resources[SpriteRenderer]
 
     entities.push_entity(
-        Player(entities.get_entity_uid(), (0, 0), collisions)
+        Player((0, 0), collisions)
     )
 
     player_list = entities.get_group(Player)
-    for i in range(2):
-        sprite = Sprite(entities.get_entity_uid(), (200*i, 0), assets, collisions)
-        sprite.bind_player_list(player_list)
-        entities.push_entity(sprite)
+    for i in range(1):
+        enemy = Enemy((200*i, 0), assets, collisions, sprites)
+        enemy.bind_player_list(player_list)
+        entities.push_entity(enemy)
 
 class IngameScene(SceneBundle):
     def __init__(self, resources: Resources):

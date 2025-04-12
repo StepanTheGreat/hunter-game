@@ -54,6 +54,18 @@ def sprite_model(ctx: gl.Context, assets: AssetManager) -> tuple[Model, Pipeline
     )
     return model, pipeline
 
+class Sprite:
+    def __init__(self, texture: gl.Texture, pos: pg.Vector2, size: pg.Vector2, uv_rect: tuple):
+        self.texture = texture
+        self.position = pos
+        self.size = size
+        self.uv_rect = uv_rect
+class Sprite:
+    def __init__(self, texture: gl.Texture, pos: pg.Vector2, size: pg.Vector2, uv_rect: tuple):
+        self.texture = texture
+        self.position = pos
+        self.size = size
+        self.uv_rect = uv_rect
 
 class SpriteRenderer:
     "A separate pipeline for rendering 2D sprites in 3D"
@@ -64,8 +76,17 @@ class SpriteRenderer:
             self.sprite_sizes = np.zeros((size, 2), dtype=np.float32)
             self.sprite_uv_rects = np.zeros((size, 4), dtype=np.float32)
 
-        def add(self, pos: pg.Vector2, size: pg.Vector2, uv_rect: tuple[float]):
+        def add(self, sprite: Sprite):
+        def add(self, sprite: Sprite):
             "uv_rect is a tuple of 4 absolute texture coordinates"
+
+            pos = sprite.position
+            size = sprite.size
+            uv_rect = sprite.uv_rect
+
+            pos = sprite.position
+            size = sprite.size
+            uv_rect = sprite.uv_rect
 
             self.sprite_positions[self.amount] = np.array([pos.x, -pos.y])
             self.sprite_sizes[self.amount] = np.array([size.x, size.y])
@@ -97,21 +118,27 @@ class SpriteRenderer:
         self.model: Model = model
         self.pipeline: Pipeline = pipeline
         
-        self.count = 0
+        self.sprites: list[Sprite] = []
+        self.sprites: list[Sprite] = []
 
-    def push_sprite(self, texture: gl.Texture, pos: pg.Vector2, size: pg.Vector2, uv_rect: tuple[float]):
-        assert self.count < 255, "Reached a sprite limit"
+    def push_sprite(self, sprite: Sprite):        
+        self.sprites.append(sprite)
 
-        if texture in self.groups:
-            group = self.groups[texture]
-            group.add(pos, size, uv_rect)
-        else:
+    def remove_sprite(self, sprite: Sprite):
+        "Try remove the sprite if it's present"
+        try:
+            self.sprites.remove(sprite)
+        except ValueError:
+            pass
+    def push_sprite(self, sprite: Sprite):        
+        self.sprites.append(sprite)
 
-            group = SpriteRenderer.SpriteGroup(256)
-            group.add(pos, size, uv_rect)
-            self.groups[texture] = group
-
-        self.count += 1
+    def remove_sprite(self, sprite: Sprite):
+        "Try remove the sprite if it's present"
+        try:
+            self.sprites.remove(sprite)
+        except ValueError:
+            pass
 
     def get_sprite_uniform_arrays(self) -> list[tuple[int, gl.Texture, np.ndarray, np.ndarray, np.ndarray]]:
         """Transform this sprite map into a list of tuples of:
@@ -119,11 +146,33 @@ class SpriteRenderer:
         """
         return [(sprite_group.get_amount(), texture, *sprite_group.get_uniforms()) for texture, sprite_group in self.groups.items()]
     
-    def clear(self):
-        self.count = 0
+    def build_sprite_groups(self):
+        for sprite in self.sprites:
+            texture = sprite.texture
+
+            if texture not in self.groups:
+                self.groups[texture] = SpriteRenderer.SpriteGroup(256)
+
+            group = self.groups[texture]
+            group.add(sprite)
+
+    def clear_sprite_groups(self):
+    def build_sprite_groups(self):
+        for sprite in self.sprites:
+            texture = sprite.texture
+
+            if texture not in self.groups:
+                self.groups[texture] = SpriteRenderer.SpriteGroup(256)
+
+            group = self.groups[texture]
+            group.add(sprite)
+
+    def clear_sprite_groups(self):
         self.groups.clear()
 
     def draw(self, lights: LightManager, camera: Camera3D) -> int:
+        self.build_sprite_groups()
+        
         self.pipeline["projection"] = camera.get_projection_matrix()
         self.pipeline["camera_pos"] = camera.get_camera_position()
         self.pipeline["camera_rot"] = camera.get_camera_rotation().flatten()
@@ -141,7 +190,8 @@ class SpriteRenderer:
             self.model.render(instances=amount)
             draw_calls += 1
 
-        self.clear()
+        self.clear_sprite_groups()
+        self.clear_sprite_groups()
 
         return draw_calls
 
