@@ -18,28 +18,33 @@ MODEL_PIPELINE_PARAMS = PipelineParams(
 MODEL_VERTEX_ATTRIBUTES = ("position", "normal", "color", "uv")
 
 class Light:
-    DTYPE = np.dtype([('position', np.float32, 3), ('color', np.float32, 3)])
-
-    def __init__(self, pos: tuple[float, float, float], color: tuple[float, float, float]):
+    def __init__(self, pos: tuple[float, float, float], color: tuple[float, float, float], radius: float):
         self.pos = pos
         self.color = color
+        self.radius = radius
 
 class LightManager:
-    def __init__(self, max_lights: int):
+    def __init__(self, ambient_color: tuple, max_lights: int):
         self.max_lights = max_lights
         self.lights: list[Light] = []
 
+        self.ambient_color: tuple[float, float, float] = ambient_color
+        "A public attribute which describes the color of the entire scene"
+
         self.light_positions = np.empty((self.max_lights, 3), dtype=np.float32)
         self.light_colors = np.empty((self.max_lights, 3), dtype=np.float32)
+        self.light_radiuses = np.empty(self.max_lights, dtype=np.float32)
 
     def push_light(self, light: Light):
         assert len(self.lights) < self.max_lights
         self.lights.append(light)
 
     def update_array(self):
+        "This is updated internally"
         for ind, light in enumerate(self.lights):
             self.light_positions[ind] = light.pos
             self.light_colors[ind] = light.color
+            self.light_radiuses[ind] = light.radius
     
     def get_light_positions(self) -> np.ndarray:
         return self.light_positions
@@ -49,6 +54,14 @@ class LightManager:
     
     def get_lights_amount(self) -> int:
         return len(self.lights)
+    
+    def apply_to_pipeline(self, pipeline: Pipeline):
+        pipeline["light_positions"] = self.light_positions
+        pipeline["light_colors"] = self.light_colors
+        pipeline["light_radiuses"] = self.light_radiuses
+
+        pipeline["lights_amount"] = len(self.lights)
+        pipeline["ambient_color"] = self.ambient_color
 
     def clear(self):
         self.lights.clear()
@@ -96,10 +109,7 @@ class ModelRenderer:
         self.pipeline["camera_pos"] = camera.get_camera_position()
         self.pipeline["camera_rot"] = camera.get_camera_rotation().flatten()
 
-        lights.update_array()
-        self.pipeline["light_positions"] = lights.get_light_positions()
-        self.pipeline["light_colors"] = lights.get_light_colors()
-        self.pipeline["lights_amount"] = lights.get_lights_amount()
+        lights.apply_to_pipeline(self.pipeline)
 
         draw_calls = 0
         for model, texture in self.models:
@@ -110,13 +120,18 @@ class ModelRenderer:
         self.models.clear()
 
         return draw_calls
+    
+def update_lights(resources: Resources):
+    resources[LightManager].update_array()
+
+def clear_lights(resources: Resources):
+    resources[LightManager].clear()
 
 def draw_models(resources: Resources):
     lights = resources[LightManager]
     draw_calls = resources[ModelRenderer].draw(lights, resources[Camera3D])
 
     resources[Telemetry].render3d_dcs = draw_calls
-    lights.clear()
 
 class Renderer3DPlugin(Plugin):
     def build(self, app):
@@ -124,5 +139,7 @@ class Renderer3DPlugin(Plugin):
             app.get_resource(GraphicsContext),
             app.get_resource(AssetManager)
         ))
-        app.insert_resource(LightManager(256))
+        app.insert_resource(LightManager((0.05, 0.05, 0.1), 256))
+        app.add_systems(Schedule.PostDraw, update_lights, priority=-1)
+        app.add_systems(Schedule.PostDraw, clear_lights, priority=1)
         app.add_systems(Schedule.PostDraw, draw_models)

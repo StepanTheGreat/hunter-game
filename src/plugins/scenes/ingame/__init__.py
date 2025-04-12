@@ -49,7 +49,7 @@ def spawn_entities(resources: Resources):
     )
 
     player_list = entities.get_group(Player)
-    for i in range(1):
+    for i in range(2):
         sprite = Sprite(entities.get_entity_uid(), (200*i, 0), assets, collisions)
         sprite.bind_player_list(player_list)
         entities.push_entity(sprite)
