@@ -7,6 +7,8 @@ from modules.tilemap import WorldMap, Tilemap
 
 from plugins.graphics import SpriteRenderer
 
+from plugins.entities.door import Door
+
 from .render.map import *
 from .render.minimap import *
 
@@ -49,6 +51,9 @@ def spawn_entities(resources: Resources):
 
     player = Player((0, 0), collisions)
     entities.push_entity(player)
+
+    door_entity = Door((2*48, 3*48), assets, collisions)
+    entities.push_entity(door_entity)
 
     for i in range(2):
         enemy = Enemy((50*i, 0), assets, collisions, sprites, player)
