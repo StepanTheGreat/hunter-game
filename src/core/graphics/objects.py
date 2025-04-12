@@ -178,8 +178,6 @@ class DynamicMeshCPU:
         
         self.verticies.append(verticies)
         self.indices.append(indices)
-        # self.verticies = np.append(self.verticies, verticies)
-        # self.indices = np.append(self.indices, indices)
 
     def add_mesh(self, other: "DynamicMeshCPU"):
         "The same as `add_geometry`, but works on meshes. The mesh will not get modified"
@@ -196,6 +194,12 @@ class DynamicMeshCPU:
 
     def index_elements(self) -> int:
         return len(self.indices)
+    
+    def vertex_capacity(self) -> int:
+        return self.verticies.capacity()
+    
+    def index_capacity(self) -> int:
+        return self.indices.capacity()
 
     def is_empty(self) -> bool:
         "Is this mesh empty? (i.e. doesn't contain any geometry)"
@@ -203,19 +207,77 @@ class DynamicMeshCPU:
 
 class Model:
     "A model is a combination of a CPU mesh and a material. It has all the neccessary information to be rendered"
-    def __init__(self, ctx: gl.Context, mesh: DynamicMeshCPU, pipeline: Pipeline):
+    def __init__(
+        self, 
+        ctx: gl.Context, 
+        mesh: DynamicMeshCPU, 
+        pipeline: Pipeline, 
+        dynamic_buffers: bool = False,
+    ):
         self.ctx = ctx
         
         self.mesh = mesh
         self.pipeline = pipeline
 
-        self.vbo = self.ctx.buffer(mesh.get_verticies())
-        self.ibo = self.ctx.buffer(mesh.get_indices())
+        self.is_dynamic = dynamic_buffers
+
+        self.vbo = self.ctx.buffer(reserve=mesh.vertex_capacity()*4, dynamic=self.is_dynamic)
+        self.ibo = self.ctx.buffer(reserve=mesh.index_capacity()*4, dynamic=self.is_dynamic)
+        self.vertices_to_draw = mesh.index_elements()
+
         self.vao = self.ctx.vertex_array(pipeline.program, self.vbo, *pipeline.vertex_attributes, index_buffer=self.ibo)
+
+        self.sync_mesh()
 
     def render(self, vertices: int = -1, first: int = 0, instances: int = -1):
         self.pipeline.apply_params()
-        self.vao.render(self.pipeline.get_mode(), vertices, first, instances)
+        vertices = self.vertices_to_draw if vertices == -1 else vertices
+        self.vao.render(self.pipeline.get_mode(), vertices, first, instances)  
+
+    def get_mesh(self) -> DynamicMeshCPU:
+        return self.mesh
+    
+    def sync_mesh(self):
+        """
+        When updating a model's mesh, it also needs to be syncronized on the GPU. For this exact reason
+        you should use this method (but, only when changes are really neccessary).
+
+        A model takes into account the capacity of the mesh (the capacity of its index and vertex array).
+        If your mesh changes its capacity - the model will recreate its GPU buffers, recopying the internal data;
+        In any other case it will just rewrite the buffers, which is pretty efficient (even more if the model is dynamic)
+
+        Overall, don't use this method too often, since it's expensive.
+        """
+
+        rebuild_vao = False
+
+        # Update the vertex buffer
+        if self.mesh.vertex_elements()*4 > self.vbo.size:
+            rebuild_vao = True
+            self.vbo.release()
+            self.vbo = self.ctx.buffer(reserve=self.mesh.vertex_capacity()*4, dynamic=self.is_dynamic)
+
+        self.vbo.write(self.mesh.get_verticies())
+
+        # Update the index buffer
+        if self.mesh.index_elements()*4 > self.ibo.size:
+            rebuild_vao = True
+            self.ibo.release()
+            self.ibo = self.ctx.buffer(reserve=self.mesh.index_capacity()*4, dynamic=self.is_dynamic)
+        
+        self.ibo.write(self.mesh.get_indices())
+        
+        # If neccessary, rebuild the vertex attribute array
+        if rebuild_vao:
+            self.vao.release()
+            self.vao = self.vao = self.ctx.vertex_array(
+                self.pipeline.program, 
+                self.vbo, 
+                *self.pipeline.vertex_attributes, 
+                index_buffer=self.ibo
+            )
+        
+        self.vertices_to_draw = self.mesh.index_elements()
 
     def release(self):
         "Release this model by cleaning its vertex, index buffers and vertex array object. Doesn't "
