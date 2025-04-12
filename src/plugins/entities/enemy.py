@@ -20,31 +20,26 @@ class Enemy(Entity):
             pos: tuple[float, float], 
             assets: AssetManager, 
             collisions: CollisionManager,
-            sprites: SpriteRenderer
+            sprites: SpriteRenderer,
+            player: Player = None,
     ):
         self.texture = assets.load(gl.Texture, "images/character.png")
-        self.sprite = Sprite(self.texture, pos, pg.Vector2(48, 48), (0, 0, 1, 1))
+        self.sprite = Sprite(self.texture, pg.Vector2(pos), pg.Vector2(48, 48), (0, 0, 1, 1))
         sprites.push_sprite(self.sprite)
 
         self.collider = DynCollider(Enemy.HITBOX_SIZE, pos, 1)
-        self.player_list = []
+        self.player = player
 
         self.vel = pg.Vector2(0, 0)
 
         collisions.add_collider(self.collider)
 
-    def bind_player_list(self, player_list: list[Player]):
-        """
-        Bind this player list to the sprite so it can target players. 
-        This is an essential operation, as without this method, the sprite wouldn't be able to find and 
-        follow the player.
-        """
-        self.player_list = player_list
+    def bind_player(self, player: Player):
+        self.player = player
         
     def update_fixed(self, dt: float):
-        if len(self.player_list) > 0:
-            player = self.player_list[0]
-            player_pos = player.get_pos()
+        if self.player is not None:
+            player_pos = self.player.get_pos()
             self.vel = (player_pos-self.collider.get_position())
 
             if self.vel.length_squared() != 0:

@@ -47,14 +47,11 @@ def spawn_entities(resources: Resources):
     assets = resources[AssetManager]
     sprites = resources[SpriteRenderer]
 
-    entities.push_entity(
-        Player((0, 0), collisions)
-    )
+    player = Player((0, 0), collisions)
+    entities.push_entity(player)
 
-    player_list = entities.get_group(Player)
-    for i in range(1):
-        enemy = Enemy((200*i, 0), assets, collisions, sprites)
-        enemy.bind_player_list(player_list)
+    for i in range(2):
+        enemy = Enemy((50*i, 0), assets, collisions, sprites, player)
         entities.push_entity(enemy)
 
 class IngameScene(SceneBundle):

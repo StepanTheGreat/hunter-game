@@ -1,17 +1,13 @@
 import pygame as pg
 import moderngl as gl 
 
-from plugin import Plugin, Resources, Schedule
-
 from .player import Player
 
-from core.entity import EntityWorld, Entity
+from core.entity import Entity
 from core.collisions import StaticCollider, CollisionManager
 from core.assets import AssetManager
 
-from modules.inteprolation import Interpolated
-
-from plugins.graphics import SpriteRenderer, Sprite, LightManager, Light
+from plugins.graphics import SpriteRenderer, Sprite
 
 class Door(Entity):
     HITBOX_SIZE = 24

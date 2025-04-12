@@ -10,7 +10,9 @@ from core.graphics import *
 from core.telemetry import Telemetry
 from core.assets import AssetManager
 
-from .render3d import LightManager
+from .lights import LightManager
+
+SPRITE_LIMIT = 256
 
 SPRITE_MESH = DynamicMeshCPU(
     # To explain this confusing matrix of 4 numbers (the last one)
@@ -55,28 +57,22 @@ def sprite_model(ctx: gl.Context, assets: AssetManager) -> tuple[Model, Pipeline
     return model, pipeline
 
 class Sprite:
-    def __init__(self, texture: gl.Texture, pos: pg.Vector2, size: pg.Vector2, uv_rect: tuple):
-        self.texture = texture
-        self.position = pos
-        self.size = size
-        self.uv_rect = uv_rect
-class Sprite:
-    def __init__(self, texture: gl.Texture, pos: pg.Vector2, size: pg.Vector2, uv_rect: tuple):
-        self.texture = texture
-        self.position = pos
-        self.size = size
-        self.uv_rect = uv_rect
+    def __init__(self, texture: gl.Texture, pos: pg.Vector2, size: pg.Vector2, uv_rect: tuple, y: float = 0):
+        self.texture: gl.Texture = texture
+        self.position: pg.Vector2 = pos
+        self.y = y
+        self.size: pg.Vector2 = size
+        self.uv_rect: tuple[float, ...] = uv_rect
 
 class SpriteRenderer:
     "A separate pipeline for rendering 2D sprites in 3D"
     class SpriteGroup:
         def __init__(self, size: int):
             self.amount = 0
-            self.sprite_positions = np.zeros((size, 2), dtype=np.float32)
+            self.sprite_positions = np.zeros((size, 3), dtype=np.float32)
             self.sprite_sizes = np.zeros((size, 2), dtype=np.float32)
             self.sprite_uv_rects = np.zeros((size, 4), dtype=np.float32)
 
-        def add(self, sprite: Sprite):
         def add(self, sprite: Sprite):
             "uv_rect is a tuple of 4 absolute texture coordinates"
 
@@ -85,10 +81,11 @@ class SpriteRenderer:
             uv_rect = sprite.uv_rect
 
             pos = sprite.position
+            y = sprite.y
             size = sprite.size
             uv_rect = sprite.uv_rect
 
-            self.sprite_positions[self.amount] = np.array([pos.x, -pos.y])
+            self.sprite_positions[self.amount] = np.array([pos.x, y, -pos.y])
             self.sprite_sizes[self.amount] = np.array([size.x, size.y])
             self.sprite_uv_rects[self.amount] = np.array(uv_rect)
             self.amount += 1
@@ -109,8 +106,9 @@ class SpriteRenderer:
     Every frame, sprites are supposed to push their positions, sizes, uv_rects and textures to this container.
     All the sprites will automatically get grouped based on their texture and rendred at the end of the frame.
     """
-    def __init__(self, gfx: GraphicsContext, assets: AssetManager):
+    def __init__(self, sprite_limit: int, gfx: GraphicsContext, assets: AssetManager):
         self.ctx = gfx.get_context()
+        self.sprite_limit = sprite_limit
 
         self.groups: dict[gl.Texture, SpriteRenderer.SpriteGroup] = {}
 
@@ -119,17 +117,7 @@ class SpriteRenderer:
         self.pipeline: Pipeline = pipeline
         
         self.sprites: list[Sprite] = []
-        self.sprites: list[Sprite] = []
 
-    def push_sprite(self, sprite: Sprite):        
-        self.sprites.append(sprite)
-
-    def remove_sprite(self, sprite: Sprite):
-        "Try remove the sprite if it's present"
-        try:
-            self.sprites.remove(sprite)
-        except ValueError:
-            pass
     def push_sprite(self, sprite: Sprite):        
         self.sprites.append(sprite)
 
@@ -151,18 +139,7 @@ class SpriteRenderer:
             texture = sprite.texture
 
             if texture not in self.groups:
-                self.groups[texture] = SpriteRenderer.SpriteGroup(256)
-
-            group = self.groups[texture]
-            group.add(sprite)
-
-    def clear_sprite_groups(self):
-    def build_sprite_groups(self):
-        for sprite in self.sprites:
-            texture = sprite.texture
-
-            if texture not in self.groups:
-                self.groups[texture] = SpriteRenderer.SpriteGroup(256)
+                self.groups[texture] = SpriteRenderer.SpriteGroup(self.sprite_limit)
 
             group = self.groups[texture]
             group.add(sprite)
@@ -191,7 +168,6 @@ class SpriteRenderer:
             draw_calls += 1
 
         self.clear_sprite_groups()
-        self.clear_sprite_groups()
 
         return draw_calls
 
@@ -204,6 +180,7 @@ def draw_sprites(resources: Resources):
 class SpriteRendererPlugin(Plugin):
     def build(self, app):
         app.insert_resource(SpriteRenderer(
+            SPRITE_LIMIT,
             app.get_resource(GraphicsContext),
             app.get_resource(AssetManager)
         ))

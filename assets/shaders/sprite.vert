@@ -1,15 +1,15 @@
 #version 330 core
 
-const int LIGHT_LIMIT = 256;
+const int LIGHT_LIMIT = 64;
 const int SPRITE_LIMIT = 256;
 
 uniform mat4 projection;
 uniform mat3 camera_rot;
 uniform vec3 camera_pos;
 
-uniform vec2[SPRITE_LIMIT] sprite_positions;
-uniform vec2[SPRITE_LIMIT] sprite_sizes;
-uniform mat2[SPRITE_LIMIT] sprite_uv_rects;
+uniform vec3 sprite_positions[SPRITE_LIMIT];
+uniform vec2 sprite_sizes[SPRITE_LIMIT];
+uniform mat2 sprite_uv_rects[SPRITE_LIMIT];
 
 uniform vec3[LIGHT_LIMIT] light_positions;
 uniform vec3[LIGHT_LIMIT] light_colors;
@@ -54,7 +54,7 @@ vec3 apply_lights(vec3 material_color, vec3 vert_pos, vec3 normal) {
 
 void main()
 {   
-    vec2 sprite_pos = sprite_positions[gl_InstanceID];
+    vec3 sprite_pos = sprite_positions[gl_InstanceID];
     vec2 sprite_size = sprite_sizes[gl_InstanceID];
     mat2 uv_rect = sprite_uv_rects[gl_InstanceID];
 
@@ -62,7 +62,7 @@ void main()
     // produces the "billboard" effect, always looking at the player
     float player_sprite_angle = atan(
         camera_pos.x-sprite_pos.x,
-        -camera_pos.z+sprite_pos.y
+        -camera_pos.z+sprite_pos.z
     );
 
     mat2 sprite_rot = mat2(
@@ -74,7 +74,7 @@ void main()
     pos.y *= sprite_size.y; 
     pos.xz *= sprite_size.x;
     pos.xz *= sprite_rot;
-    pos.xz += sprite_pos;
+    pos += sprite_pos;
 
     vec3 world_pos = pos-camera_pos;
     gl_Position = projection*(vec4(camera_rot*world_pos, 1));
