@@ -11,7 +11,6 @@ from .pg import PygamePlugin
 from .input import InputPlugin
 from .assets import AssetsPlugin
 from .ecs import ECSPlugin
-from .collisions import CollisionsPlugin
 from .telemetry import *
 
 class CoreModulesPlugin(Plugin):
@@ -23,6 +22,5 @@ class CoreModulesPlugin(Plugin):
             InputPlugin(),
             GraphicsPlugin(),
             ECSPlugin(),
-            CollisionsPlugin(),
             TelemetryPlugin()
         )
