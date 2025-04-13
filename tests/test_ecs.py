@@ -1,9 +1,11 @@
 from ward import test, raises
-from modules.ecs import WorldECS
+from core.ecs import WorldECS
+
+from plugin import EventWriter
 
 @test("Test basic ECS")
 def _():
-    w = WorldECS()
+    w = WorldECS(EventWriter())
 
     # Let's say we have components Name and Value
     Name, Value = str, int

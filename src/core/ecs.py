@@ -1,4 +1,4 @@
-from plugin import Plugin, Resources, Schedule
+from plugin import Plugin, Resources, Schedule, event, EventWriter
 
 "A really minimal ECS module mostly inspired by [esper](https://github.com/benmoran56/esper)"
 
@@ -18,7 +18,9 @@ class WorldECS:
     This is the most primitive version of ECS, thus it doesn't even feature caching (currently). If performance becomes a bottleneck (it will pretty soon) - 
     one will be implemented here.
     """
-    def __init__(self):
+    def __init__(self, ewriter: EventWriter):
+        self.ewriter = ewriter
+
         self.components_to_entity: dict[type, set[int]] = {}
         "A component to entity map used when querying entities based on their components"
 
@@ -47,12 +49,18 @@ class WorldECS:
             # Then add it to the component to entity map for faster queries
             self.__add_components_to_entity_entry(component_ty, entity_id)
 
+        # Notify everyone
+        self.ewriter.push_event(ComponentsAddedEvent(entity_id, tuple(components)))
+
         return entity_id
 
     def remove_entity(self, entity: int):
         # We will first clear all references to our entity from component_to_entity map
         for component in self.entities[entity].keys():
             self.components_to_entity[component].remove(entity)
+
+        # Notify everyone
+        self.ewriter.push_event(ComponentsRemovedEvent(entity, tuple(self.entities[entity].values())))
 
         # Now we can safely remove the entity
         del self.entities[entity]
@@ -113,12 +121,37 @@ class WorldECS:
 
             entity[component_ty] = component
             self.__add_components_to_entity_entry(component_ty, entity)
+        
+        self.ewriter.push_event(ComponentsAddedEvent(entity, tuple(self.entities[entity].values())))
 
     def remove_components(self, entity: int, *components: Type[Any]):
         "Remove an unlimited amount of components from the entity based on their type"
+
+        # We will use this list to preserve components for our event
+        removed_components = []
+
         for component_ty in components:
-            del self.entities[entity][component_ty]
-            self.components_to_entity[component_ty].remove(entity)
+            if component_ty in self.entities[entity]:
+                removed_components.append(self.entities[entity][component_ty])
+
+                del self.entities[entity][component_ty]
+                self.components_to_entity[component_ty].remove(entity)
+
+        self.ewriter.push_event(ComponentsRemovedEvent(entity, tuple(removed_components)))
+
+@event
+class ComponentsAddedEvent:
+    "Fired when components are added to an entity, or when a new entity is created"
+    def __init__(self, entity: int, components: tuple[Any, ...]):
+        self.entity = entity
+        self.components = set(components)
+
+@event
+class ComponentsRemovedEvent:
+    "Fired when components were removed from an entity (either through remove_components or entity removal)"
+    def __init__(self, entity: int, components: tuple[Any, ...]):
+        self.entity = entity
+        self.components = set(components)
     
 class ECSPlugin(Plugin):
     def build(self, app):
