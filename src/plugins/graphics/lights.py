@@ -7,8 +7,9 @@ from core.graphics import Pipeline
 LIGHTS_LIMIT = 64
 
 class Light:
-    def __init__(self, pos: tuple[float, float, float], color: tuple[float, float, float], radius: float):
+    def __init__(self, pos: tuple[float, float], y: float, color: tuple[float, float, float], radius: float):
         self.pos = pos
+        self.y = y
         self.color = color
         self.radius = radius
 
@@ -27,11 +28,17 @@ class LightManager:
     def push_light(self, light: Light):
         assert len(self.lights) < self.max_lights
         self.lights.append(light)
+    
+    def remove_light(self, light: Light):
+        try:
+            self.lights.remove(light)
+        except ValueError:
+            pass
 
-    def update_array(self):
+    def build_uniform_arrays(self):
         "This is updated internally"
         for ind, light in enumerate(self.lights):
-            self.light_positions[ind] = light.pos
+            self.light_positions[ind] = (light.pos[0], light.y, -light.pos[1])
             self.light_colors[ind] = light.color
             self.light_radiuses[ind] = light.radius
     
@@ -52,17 +59,10 @@ class LightManager:
         pipeline["lights_amount"] = len(self.lights)
         pipeline["ambient_color"] = self.ambient_color
 
-    def clear(self):
-        self.lights.clear()
-
 def update_lights(resources: Resources):
-    resources[LightManager].update_array()
-
-def clear_lights(resources: Resources):
-    resources[LightManager].clear()
+    resources[LightManager].build_uniform_arrays()
 
 class LightPlugin(Plugin):
     def build(self, app):
         app.insert_resource(LightManager((0.05, 0.05, 0.1), LIGHTS_LIMIT))
         app.add_systems(Schedule.PostDraw, update_lights, priority=-1)
-        app.add_systems(Schedule.PostDraw, clear_lights, priority=1)

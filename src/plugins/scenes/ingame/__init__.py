@@ -5,7 +5,7 @@ from core.collisions import CollisionManager
 from modules.scene import SceneBundle
 from modules.tilemap import WorldMap, Tilemap
 
-from plugins.graphics import SpriteRenderer
+from plugins.graphics import SpriteRenderer, LightManager
 
 from plugins.entities.door import Door
 
@@ -48,8 +48,9 @@ def spawn_entities(resources: Resources):
     collisions = resources[CollisionManager]
     assets = resources[AssetManager]
     sprites = resources[SpriteRenderer]
+    lights = resources[LightManager]
 
-    player = Player((0, 0), collisions)
+    player = Player((0, 0), collisions, lights)
     entities.push_entity(player)
 
     door_entity = Door((2*48, 3*48), assets, collisions)

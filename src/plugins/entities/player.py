@@ -26,8 +26,9 @@ class Player(Entity):
     SPEED = 250
     ROTATION_SPEED = 3
 
-    def __init__(self, pos: tuple[float, float], collisions: CollisionManager):
+    def __init__(self, pos: tuple[float, float], collisions: CollisionManager, lights: LightManager):
         self.collider = DynCollider(Player.HITBOX_SIZE, pos, 10)
+        self.light = Light(pos, 24, (1, 1, 1), 500)
 
         self.angle_vel = 0
         self.forward_vel = 0
@@ -41,6 +42,7 @@ class Player(Entity):
         self.interpolated_angle = self.angles.get_value()
 
         collisions.add_collider(self.collider)
+        lights.push_light(self.light)
         
     def update_fixed(self, dt: float):
         forward = self.forward_vel
@@ -69,6 +71,7 @@ class Player(Entity):
 
     def update(self, dt, alpha):
         self.interpolated_angle = self.angles.get_interpolated(alpha)
+        self.light.pos = self.get_pos()
 
     def get_angle(self) -> float:
         "Get the direction this player is looking at"
@@ -86,24 +89,21 @@ def move_players(resources: Resources):
         player.horizontal_vel = input[InputAction.Right]-input[InputAction.Left]
 
 def move_camera(resources: Resources):
-    lighting = resources[LightManager]
     cam = resources[Camera3D]
     players = resources[EntityWorld].get_group(Player)
     if players:
         player = players[0]
-
-        player_pos = player.get_pos()
-        cam.set_pos(player_pos)
+        cam.set_pos(player.get_pos())
         cam.set_angle(player.get_angle())
-        lighting.push_light(Light((player_pos.x, 24, -player_pos.y), (1, 1, 1), 500))
 
 def make_test_lights(resources: Resources):
     lighting = resources[LightManager]
 
     for (x, y) in ((3*48, 5*48),):
-        lighting.push_light(Light((x, 24, y), (0.3, 0.5, 1), 1000))
+        lighting.push_light(Light((x, y), 24, (0.3, 0.5, 1), 1000))
 
 class PlayerPlugin(Plugin):
     def build(self, app):
+        app.add_systems(Schedule.Startup, make_test_lights)
         app.add_systems(Schedule.Update, move_players)
-        app.add_systems(Schedule.PreDraw, move_camera, make_test_lights)
+        app.add_systems(Schedule.PreDraw, move_camera)
