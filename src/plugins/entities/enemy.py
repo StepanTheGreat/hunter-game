@@ -5,8 +5,8 @@ from plugin import Plugin, Resources, Schedule
 
 from .player import Player
 
-from core.entity import Entity
-from core.collisions import DynCollider, CollisionManager
+from core.ecs import Entity
+from plugins.collisions import DynCollider, CollisionManager
 from core.assets import AssetManager
 
 from plugins.graphics import SpriteRenderer, Sprite

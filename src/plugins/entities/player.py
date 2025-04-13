@@ -4,9 +4,9 @@ import numpy as np
 from plugin import Plugin, Resources, Schedule
 
 from core.graphics import Camera3D
-from core.entity import EntityWorld, Entity
+from core.ecs import EntityWorld, Entity
 from core.input import InputManager
-from core.collisions import CollisionManager, DynCollider
+from plugins.collisions import CollisionManager, DynCollider
 
 from plugins.graphics import LightManager, Light
 
