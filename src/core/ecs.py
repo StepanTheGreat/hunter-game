@@ -1,3 +1,5 @@
+from plugin import Plugin, Resources, Schedule
+
 "A really minimal ECS module mostly inspired by [esper](https://github.com/benmoran56/esper)"
 
 from typing import TypeVar, Type, Any, overload, Iterable
@@ -117,3 +119,7 @@ class WorldECS:
         for component_ty in components:
             del self.entities[entity][component_ty]
             self.components_to_entity[component_ty].remove(entity)
+    
+class ECSPlugin(Plugin):
+    def build(self, app):
+        app.insert_resource(WorldECS())

@@ -10,7 +10,7 @@ from .graphics import GraphicsPlugin
 from .pg import PygamePlugin
 from .input import InputPlugin
 from .assets import AssetsPlugin
-from .entity import EntityPlugin
+from .ecs import ECSPlugin
 from .collisions import CollisionsPlugin
 from .telemetry import *
 
@@ -22,7 +22,7 @@ class CoreModulesPlugin(Plugin):
             PygamePlugin(),
             InputPlugin(),
             GraphicsPlugin(),
-            EntityPlugin(),
+            ECSPlugin(),
             CollisionsPlugin(),
             TelemetryPlugin()
         )
