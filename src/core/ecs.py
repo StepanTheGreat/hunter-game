@@ -10,6 +10,7 @@ C = TypeVar("C")
 C2 = TypeVar("C2")
 C3 = TypeVar("C3")
 C4 = TypeVar("C4")
+C5 = TypeVar("C5")
 
 class WorldECS:
     """
@@ -66,7 +67,7 @@ class WorldECS:
         del self.entities[entity]
 
     @overload
-    def query_components(self, c: Type[C], c2: Type[C2], c3: Type[C3], c4: Type[C4]) -> Iterable[tuple[int, tuple[C, C2, C3, C4]]]:
+    def query_components(self, c: Type[C], c2: Type[C2]) -> Iterable[tuple[int, tuple[C, C2]]]:
         ...
 
     @overload
@@ -74,7 +75,11 @@ class WorldECS:
         ...
 
     @overload
-    def query_components(self, c: Type[C], c2: Type[C2]) -> Iterable[tuple[int, tuple[C, C2]]]:
+    def query_components(self, c: Type[C], c2: Type[C2], c3: Type[C3], c4: Type[C4]) -> Iterable[tuple[int, tuple[C, C2, C3, C4]]]:
+        ...
+
+    @overload
+    def query_components(self, c: Type[C], c2: Type[C2], c3: Type[C3], c4: Type[C4], c5: Type[C5]) -> Iterable[tuple[int, tuple[C, C2, C3, C4, C5]]]:
         ...
 
     def query_components(self, *components: Type[Any]) -> Iterable[tuple[int, tuple[Any, ...]]]:
@@ -88,13 +93,19 @@ class WorldECS:
             for entity in set.intersection(*(self.components_to_entity[component_ty] for component_ty in components)):
 
                 # Since this is an iterator - we will yield both the entity ID and its components
-                yield entity, self.get_components(entity, *components)     
+                yield entity, self.get_components(entity, *components)  
+
+    def query_component(self, component_ty: Type[C]) -> Iterable[tuple[int, C]]:
+        "Query all entities with the provided component. The same as `query_components`, but for a single component"
+        
+        for entity in self.components_to_entity[component_ty]:
+            yield entity, self.get_component(entity, component_ty)
 
     def contains_entity(self, entity: int) -> bool:
         return entity in self.entities
-    
+
     @overload
-    def get_components(self, entity: int, c: Type[C], c2: Type[C2], c3: Type[C3], c4: Type[C4]) -> tuple[C, C2, C3, C4]:
+    def get_components(self, entity: int, c: Type[C], c2: Type[C2]) -> tuple[C, C2]:
         ...
 
     @overload
@@ -102,7 +113,11 @@ class WorldECS:
         ...
 
     @overload
-    def get_components(self, entity: int, c: Type[C], c2: Type[C2]) -> tuple[C, C2]:
+    def get_components(self, entity: int, c: Type[C], c2: Type[C2], c3: Type[C3], c4: Type[C4]) -> tuple[C, C2, C3, C4]:
+        ...
+
+    @overload
+    def get_components(self, entity: int, c: Type[C], c2: Type[C2], c3: Type[C3], c4: Type[C4], c5: Type[C5]) -> tuple[C, C2, C3, C4, C5]:
         ...
     
     def get_components(self, entity: int, *components: Type[Any]) -> tuple[Any, ...]:
