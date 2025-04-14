@@ -46,7 +46,7 @@ class Camera3D:
         "The same as with the `Camera2D`, this is supposed to get called every time the window's resolution has changed"
         self.projection = perspective_matrix(new_height/new_width, Camera3D.FOV, Camera3D.ZFAR, Camera3D.ZNEAR)
 
-    def set_pos(self, new_pos: pg.Vector3):
+    def set_pos(self, new_pos: pg.Vector2):
         self.pos = new_pos
 
     def set_y(self, new_coordinate: float):
