@@ -115,10 +115,12 @@ class WorldECS:
         return component in self.entities[entity]
     
     def add_components(self, entity: int, *components: Any):
-        "Add an unlimited amount of components to an entity. If a component is already present - it will overwrite it with the new value"
+        "Add an unlimited amount of components to an entity. If a component is already present - this will panic (to avoid undefined behaviour)"
+
         for component in components:
             component_ty = type(component)
 
+            assert component_ty not in entity, "Overwriting components produces some undefined behaviour with events, so we'll just avoid it"
             entity[component_ty] = component
             self.__add_components_to_entity_entry(component_ty, entity)
         
