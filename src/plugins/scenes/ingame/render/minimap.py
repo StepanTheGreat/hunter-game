@@ -1,10 +1,9 @@
 from plugin import Resources, Schedule, Plugin, run_if, resource_exists
 
-from core.entity import EntityWorld
+from core.ecs import WorldECS
 
 from plugins.graphics import Renderer2D
 from plugins.entities.player import Player
-from plugins.entities.enemy import Enemy
 
 from modules.tilemap import WorldMap
 
@@ -14,6 +13,7 @@ MINIMAP_SCALE = 0.5
 
 @run_if(resource_exists, WorldMap)
 def draw_minimap(resources: Resources):
+    return
     wmap = resources[WorldMap]
     renderer = resources[Renderer2D]
 

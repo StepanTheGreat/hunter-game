@@ -1,13 +1,16 @@
 from plugin import Plugin, Resources
 
-from core.collisions import CollisionManager
+from core.ecs import WorldECS
 
 from modules.scene import SceneBundle
 from modules.tilemap import WorldMap, Tilemap
 
+from plugins.collisions import CollisionManager
 from plugins.graphics import SpriteRenderer, LightManager
 
-from plugins.entities.door import Door
+# from plugins.entities.door import Door
+from plugins.entities.player import make_player
+from plugins.entities.enemy import make_enemy
 
 from .render.map import *
 from .render.minimap import *
@@ -44,21 +47,24 @@ def make_world_map(resources: Resources, offset: tuple[float, float] = (0, 0)) -
     return world_map, map_model
 
 def spawn_entities(resources: Resources):
-    entities = resources[EntityWorld]
-    collisions = resources[CollisionManager]
+    world = resources[WorldECS]
+    # collisions = resources[CollisionManager]
     assets = resources[AssetManager]
-    sprites = resources[SpriteRenderer]
-    lights = resources[LightManager]
+    # sprites = resources[SpriteRenderer]
+    # lights = resources[LightManager]
 
-    player = Player((0, 0), collisions, lights)
-    entities.push_entity(player)
+    world.create_entity(*make_player((0, 0)))
 
-    door_entity = Door((2*48, 3*48), assets, collisions)
-    entities.push_entity(door_entity)
+    # player = Player((0, 0), collisions, lights)
+    # entities.push_entity(player)
+
+    # # door_entity = Door((2*48, 3*48), assets, collisions)
+    # entities.push_entity(door_entity)
 
     for i in range(2):
-        enemy = Enemy((50*i, 0), assets, collisions, sprites, player)
-        entities.push_entity(enemy)
+        world.create_entity(*make_enemy((50*i, 0), assets))
+        # enemy = Enemy((50*i, 0), assets, collisions, sprites, player)
+        # entities.push_entity(enemy)
 
 class IngameScene(SceneBundle):
     def __init__(self, resources: Resources):
@@ -69,7 +75,8 @@ class IngameScene(SceneBundle):
 
     def destroy(self, resources):
         # We need to remove all our entities before leaving
-        resources[EntityWorld].clear()
+        # resources[EntityWorld].clear()
+        pass
 
 class IngamePlugin(Plugin):
     def build(self, app):

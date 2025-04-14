@@ -4,13 +4,14 @@ import numpy as np
 from plugin import Plugin, Resources, Schedule
 
 from core.graphics import Camera3D
-from core.ecs import EntityWorld, Entity
+from core.pg import Clock
+from core.ecs import WorldECS
 from core.input import InputManager
-from plugins.collisions import CollisionManager, DynCollider
+from plugins.collisions import DynCollider
 
-from plugins.graphics import LightManager, Light
+from plugins.graphics.lights import LightManager, Light
 
-from modules.inteprolation import InterpolatedAngle
+from plugins.components import *
 
 class InputAction:
     Forward = "move_forward"
@@ -21,80 +22,68 @@ class InputAction:
     TurnLeft = "turn_left"
     TurnRight = "turn_right"
 
-class Player(Entity):
-    HITBOX_SIZE = 14
-    SPEED = 250
-    ROTATION_SPEED = 3
+class Player:
+    "A tag component that allows filtering out players"
 
-    def __init__(self, pos: tuple[float, float], collisions: CollisionManager, lights: LightManager):
-        self.collider = DynCollider(Player.HITBOX_SIZE, pos, 10)
-        self.light = Light(pos, 24, (1, 1, 1), 500)
+class PlayerPositionController:
+    def __init__(self):
+        self.forward_dir = 0
+        self.horizontal_dir = 0
+    
+def make_player(pos: tuple[float, float]):
+    return (
+        Position(*pos),
+        RenderPosition(*pos, 44),
+        Velocity(0, 0, 150),
+        AngleVelocity(0, 4),
+        Angle(0),
+        RenderAngle(0),
+        DynCollider(30.0, 30),
+        PlayerPositionController(),
+        Player()
+    )
 
-        self.angle_vel = 0
-        self.forward_vel = 0
-        self.horizontal_vel = 0
+def control_player(resources: Resources):
+    input = resources[InputManager]
+    world = resources[WorldECS]
 
-        self.rect = pg.Rect(0, 0, Player.HITBOX_SIZE, Player.HITBOX_SIZE)
-        self.vel = pg.Vector2(0, 0)
-        self.angle = 0
+    for ent, (_t, controller, angle_vel) in world.query_components(Player, PlayerPositionController, AngleVelocity):
+        angle_vel.set_velocity(input[InputAction.TurnRight]-input[InputAction.TurnLeft])
+        controller.forward_dir = input[InputAction.Forward]-input[InputAction.Backwards]
+        controller.horizontal_dir = input[InputAction.Right]-input[InputAction.Left]
 
-        self.angles = InterpolatedAngle(self.angle)
-        self.interpolated_angle = self.angles.get_value()
+def orient_player(resources: Resources):
+    world = resources[WorldECS]
 
-        collisions.add_collider(self.collider)
-        lights.push_light(self.light)
+    dt = resources[Clock].get_fixed_delta()
+
+    for ent, (_t, controller, vel, angle_vel, angle) in world.query_components(Player, PlayerPositionController, Velocity, AngleVelocity, Angle):
+        forward = controller.forward_dir
+        horizontal = controller.horizontal_dir
         
-    def update_fixed(self, dt: float):
-        forward = self.forward_vel
-        horizontal = self.horizontal_vel
+        current_angle = angle.get_angle()
 
         forward_vel = pg.Vector2(0, 0)
         horizontal_vel = pg.Vector2(0, 0)
         if forward != 0:
-            forward_vel = pg.Vector2(np.cos(self.angle), np.sin(self.angle)) * forward
+            forward_vel = pg.Vector2(np.cos(current_angle), np.sin(current_angle)) * forward
         if horizontal != 0:
-            horizontal_angle = self.angle+np.pi/2*horizontal
+            horizontal_angle = current_angle+np.pi/2*horizontal
             horizontal_vel = pg.Vector2(np.cos(horizontal_angle), np.sin(horizontal_angle))
-        vel = horizontal_vel+forward_vel
-        if vel.length_squared() != 0.0:
-            vel.normalize_ip()
-        
-        self.collider.set_velocity(vel * Player.SPEED)
-        
-        self.angle += self.angle_vel * Player.ROTATION_SPEED * dt
-        if self.angle > np.pi:
-            self.angle = -np.pi
-        elif self.angle < -np.pi:
-            self.angle = np.pi
 
-        self.angles.push_value(self.angle)
+        new_vel = horizontal_vel+forward_vel
+        if new_vel.length_squared() != 0.0:
+            new_vel.normalize_ip()
 
-    def update(self, dt, alpha):
-        self.interpolated_angle = self.angles.get_interpolated(alpha)
-        self.light.pos = self.get_pos()
-
-    def get_angle(self) -> float:
-        "Get the direction this player is looking at"
-        return self.interpolated_angle
-    
-    def get_pos(self) -> pg.Vector2:
-        return self.collider.get_interpolated_position()
-
-def move_players(resources: Resources):
-    input = resources[InputManager]
-
-    for player in resources[EntityWorld].get_group(Player):
-        player.angle_vel = input[InputAction.TurnRight]-input[InputAction.TurnLeft]
-        player.forward_vel = input[InputAction.Forward]-input[InputAction.Backwards]
-        player.horizontal_vel = input[InputAction.Right]-input[InputAction.Left]
+        vel.set_velocity(new_vel.x, new_vel.y)
 
 def move_camera(resources: Resources):
-    cam = resources[Camera3D]
-    players = resources[EntityWorld].get_group(Player)
-    if players:
-        player = players[0]
-        cam.set_pos(player.get_pos())
-        cam.set_angle(player.get_angle())
+    camera = resources[Camera3D]
+
+    for _, (_t, position, angle) in resources[WorldECS].query_components(Player, RenderPosition, RenderAngle):
+        camera.set_pos(position.get_position())
+        camera.set_angle(angle.get_angle())
+        break
 
 def make_test_lights(resources: Resources):
     lighting = resources[LightManager]
@@ -105,5 +94,6 @@ def make_test_lights(resources: Resources):
 class PlayerPlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.Startup, make_test_lights)
-        app.add_systems(Schedule.Update, move_players)
+        app.add_systems(Schedule.Update, control_player)
+        app.add_systems(Schedule.FixedUpdate, orient_player, priority=-1)
         app.add_systems(Schedule.PreDraw, move_camera)

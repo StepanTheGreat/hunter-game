@@ -9,8 +9,11 @@ from plugin import Plugin, Schedule, Resources
 from core.graphics import *
 from core.telemetry import Telemetry
 from core.assets import AssetManager
+from core.ecs import WorldECS
 
 from .lights import LightManager
+
+from plugins.components import RenderPosition
 
 SPRITE_LIMIT = 256
 
@@ -57,10 +60,9 @@ def sprite_model(ctx: gl.Context, assets: AssetManager) -> tuple[Model, Pipeline
     return model, pipeline
 
 class Sprite:
-    def __init__(self, texture: gl.Texture, pos: pg.Vector2, size: pg.Vector2, uv_rect: tuple, y: float = 0):
+    "A sprite component that allows an entity to be rendered as 2D billboards"
+    def __init__(self, texture: gl.Texture, size: pg.Vector2, uv_rect: tuple):
         self.texture: gl.Texture = texture
-        self.position: pg.Vector2 = pos
-        self.y = y
         self.size: pg.Vector2 = size
         self.uv_rect: tuple[float, ...] = uv_rect
 
@@ -73,19 +75,12 @@ class SpriteRenderer:
             self.sprite_sizes = np.zeros((size, 2), dtype=np.float32)
             self.sprite_uv_rects = np.zeros((size, 4), dtype=np.float32)
 
-        def add(self, sprite: Sprite):
-            "uv_rect is a tuple of 4 absolute texture coordinates"
-
-            pos = sprite.position
+        def add(self, sprite: Sprite, pos: tuple[float, float], y: float):
             size = sprite.size
             uv_rect = sprite.uv_rect
+            #uv_rect is a tuple of 4 absolute texture coordinates
 
-            pos = sprite.position
-            y = sprite.y
-            size = sprite.size
-            uv_rect = sprite.uv_rect
-
-            self.sprite_positions[self.amount] = np.array([pos.x, y, -pos.y])
+            self.sprite_positions[self.amount] = np.array([pos[0], y, -pos[1]])
             self.sprite_sizes[self.amount] = np.array([size.x, size.y])
             self.sprite_uv_rects[self.amount] = np.array(uv_rect)
             self.amount += 1
@@ -116,40 +111,24 @@ class SpriteRenderer:
         self.model: Model = model
         self.pipeline: Pipeline = pipeline
         
-        self.sprites: list[Sprite] = []
+    def push_sprite(self, sprite: Sprite, pos: tuple[float, float], y: float):  
+        texture = sprite.texture
 
-    def push_sprite(self, sprite: Sprite):        
-        self.sprites.append(sprite)
+        if texture not in self.groups:
+            self.groups[texture] = SpriteRenderer.SpriteGroup(self.sprite_limit)
 
-    def remove_sprite(self, sprite: Sprite):
-        "Try remove the sprite if it's present"
-        try:
-            self.sprites.remove(sprite)
-        except ValueError:
-            pass
+        self.groups[texture].add(sprite, pos, y)
 
     def get_sprite_uniform_arrays(self) -> list[tuple[int, gl.Texture, np.ndarray, np.ndarray, np.ndarray]]:
         """Transform this sprite map into a list of tuples of:
         `(amount, texture, sprite_positions, sprite_sizes, sprite_uv_rects)`
         """
         return [(sprite_group.get_amount(), texture, *sprite_group.get_uniforms()) for texture, sprite_group in self.groups.items()]
-    
-    def build_sprite_groups(self):
-        for sprite in self.sprites:
-            texture = sprite.texture
-
-            if texture not in self.groups:
-                self.groups[texture] = SpriteRenderer.SpriteGroup(self.sprite_limit)
-
-            group = self.groups[texture]
-            group.add(sprite)
 
     def clear_sprite_groups(self):
         self.groups.clear()
 
-    def draw(self, lights: LightManager, camera: Camera3D) -> int:
-        self.build_sprite_groups()
-        
+    def draw(self, lights: LightManager, camera: Camera3D) -> int:        
         self.pipeline["projection"] = camera.get_projection_matrix()
         self.pipeline["camera_pos"] = camera.get_camera_position()
         self.pipeline["camera_rot"] = camera.get_camera_rotation().flatten()
@@ -172,8 +151,16 @@ class SpriteRenderer:
         return draw_calls
 
 def draw_sprites(resources: Resources):
+    """
+    Collect all entities with Position and Sprite components, add them for rendering and then... render?
+    """
     lights = resources[LightManager]
-    draw_calls = resources[SpriteRenderer].draw(lights, resources[Camera3D])
+    renderer = resources[SpriteRenderer]
+
+    for ent, (position, sprite) in resources[WorldECS].query_components(RenderPosition, Sprite):
+        renderer.push_sprite(sprite, position.get_position(), position.height)
+
+    draw_calls = renderer.draw(lights, resources[Camera3D])
 
     resources[Telemetry].sprite_dcs = draw_calls
 
@@ -185,4 +172,3 @@ class SpriteRendererPlugin(Plugin):
             app.get_resource(AssetManager)
         ))
         app.add_systems(Schedule.PostDraw, draw_sprites)
-

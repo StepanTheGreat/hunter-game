@@ -1,7 +1,7 @@
 from typing import Optional, Union
 import numpy as np
 
-from core.collisions import CollisionManager, StaticCollider
+from plugins.collisions import CollisionManager, StaticCollider
 
 class Tilemap:
     "A tilemap container"
@@ -84,6 +84,7 @@ class WorldMap:
         self.create_map_colliders(collisions)
 
     def create_map_colliders(self, collisions: CollisionManager):
+        return
         tile_size = self.tile_size
         tiles = self.map.get_tiles()
 

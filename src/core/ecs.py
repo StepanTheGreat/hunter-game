@@ -37,6 +37,7 @@ class WorldECS:
             self.components_to_entity[component] = {entity}
 
     def create_entity(self, *components: Any) -> int:
+        "Create an entity with the provided unlimited set of components. Make sure to not pass tuples!"
         entity_id = next(self.__entity_counter)
         
         self.entities[entity_id] = {}
@@ -98,8 +99,9 @@ class WorldECS:
     def query_component(self, component_ty: Type[C]) -> Iterable[tuple[int, C]]:
         "Query all entities with the provided component. The same as `query_components`, but for a single component"
         
-        for entity in self.components_to_entity[component_ty]:
-            yield entity, self.get_component(entity, component_ty)
+        if component_ty in self.components_to_entity:
+            for entity in self.components_to_entity[component_ty]:
+                yield entity, self.get_component(entity, component_ty)
 
     def contains_entity(self, entity: int) -> bool:
         return entity in self.entities
@@ -172,4 +174,4 @@ class ComponentsRemovedEvent:
     
 class ECSPlugin(Plugin):
     def build(self, app):
-        app.insert_resource(WorldECS())
+        app.insert_resource(WorldECS(app.get_resource(EventWriter)))
