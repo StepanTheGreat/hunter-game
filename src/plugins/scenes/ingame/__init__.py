@@ -59,7 +59,7 @@ def spawn_entities(resources: Resources):
     # # door_entity = Door((2*48, 3*48), assets, collisions)
     # entities.push_entity(door_entity)
 
-    for i in range(2):
+    for i in range(5):
         world.create_entity(*make_enemy((50*i, 0), assets))
         # enemy = Enemy((50*i, 0), assets, collisions, sprites, player)
         # entities.push_entity(enemy)
