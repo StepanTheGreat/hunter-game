@@ -100,6 +100,27 @@ class AngleVelocity:
         return self.vel * self.speed 
 
 @component
+class Team:
+    "This component describes from which team an entity comes from. Useful for say, dealing damage"
+    def __init__(self, is_enemy: bool):
+        self.enemy = is_enemy
+
+    def friend() -> "Team":
+        return Team(False)
+    
+    def enemy() -> "Team":
+        return Team(True)
+
+    def is_friendly(self) -> bool:
+        return not self.enemy
+    
+    def is_enemy(self) -> bool:
+        return self.enemy
+    
+    def same_team(self, other: "Team") -> bool:
+        return self.enemy == other.enemy
+
+@component
 class Health:
     def __init__(self, max_health: float):
         self.health = max_health
@@ -125,6 +146,10 @@ class Health:
     def is_dead(self) -> bool:
         "Returns whether the health is zero"
         return self.health <= 0
+
+@component
+class Hittable:
+    "A tag component which simply means that an entity can be damaged"
     
 @component
 class Timer:
@@ -144,6 +169,18 @@ class Timer:
         "Reset this timer back to its duration"
         self.current_duration = self.duration
 
+@component
+class Temporary:
+    "A component that describes an entity that doesn't live infinitely. Be it "
+    def __init__(self, dies_in: float):
+        self.dies_in = dies_in
+
+    def update_and_check(self, dt: float) -> bool:
+        "Update and check whether the time's up"
+
+        self.dies_in -= dt
+        return self.dies_in <= 0
+
 def move_entities(resources: Resources):
     world = resources[WorldECS]
     dt = resources[Clock].get_fixed_delta()
@@ -153,6 +190,21 @@ def move_entities(resources: Resources):
 
     for ent, (angle, angle_vel) in world.query_components(Angle, AngleVelocity):
         angle.set_angle(angle.get_angle() + angle_vel.get_velocity() * dt)
+
+def remove_dead_entities(resources: Resources):
+    world = resources[WorldECS]
+
+    for ent, health in world.query_component(Health):
+        if health.is_dead():
+            world.remove_entity(ent)
+
+def remove_temp_entities(resources: Resources):
+    world = resources[WorldECS]
+    dt = resources[Clock].get_fixed_delta()
+
+    for ent, temporary in world.query_component(Temporary):
+        if temporary.update_and_check(dt):
+            world.remove_entity(ent)
 
 def update_render_components(resources: Resources):
     world = resources[WorldECS]
@@ -181,6 +233,11 @@ def interpolate_render_components(resources: Resources):
 
 class CommonComponentsPlugin(Plugin):
     def build(self, app):
-        app.add_systems(Schedule.FixedUpdate, move_entities)
+        app.add_systems(
+            Schedule.FixedUpdate, 
+            remove_dead_entities, 
+            remove_temp_entities,
+            move_entities
+        )
         app.add_systems(Schedule.FixedUpdate, update_render_components, priority=10)
         app.add_systems(Schedule.PostUpdate, interpolate_render_components)

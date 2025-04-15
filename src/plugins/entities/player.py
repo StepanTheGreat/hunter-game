@@ -13,6 +13,8 @@ from plugins.graphics.lights import Light
 
 from plugins.components import *
 
+from .projectile import make_projectile
+
 class InputAction:
     Forward = "move_forward"
     Backwards = "move_backwards"
@@ -22,17 +24,21 @@ class InputAction:
     TurnLeft = "turn_left"
     TurnRight = "turn_right"
 
+    Shoot = "shoot"
+
 @component
 class Player:
     "A tag component that allows filtering out players"
 
 @component
-class PlayerPositionController:
+class PlayerController:
     def __init__(self):
         self.forward_dir = 0
         self.horizontal_dir = 0
+
+        self.is_shooting: bool = False
     
-def make_player(pos: tuple[float, float]):
+def make_player(pos: tuple[float, float]) -> tuple:
     return (
         Position(*pos),
         RenderPosition(*pos, 44),
@@ -42,7 +48,10 @@ def make_player(pos: tuple[float, float]):
         Angle(0),
         RenderAngle(0),
         DynCollider(12, 30),
-        PlayerPositionController(),
+        PlayerController(),
+        Team.friend(),
+        Hittable(),
+        Health(200),
         Player()
     )
 
@@ -50,17 +59,19 @@ def control_player(resources: Resources):
     input = resources[InputManager]
     world = resources[WorldECS]
 
-    for ent, (_t, controller, angle_vel) in world.query_components(Player, PlayerPositionController, AngleVelocity):
+    for ent, (_t, controller, angle_vel) in world.query_components(Player, PlayerController, AngleVelocity):
         angle_vel.set_velocity(input[InputAction.TurnRight]-input[InputAction.TurnLeft])
         controller.forward_dir = input[InputAction.Forward]-input[InputAction.Backwards]
         controller.horizontal_dir = input[InputAction.Right]-input[InputAction.Left]
+
+        controller.is_shooting = input[InputAction.Shoot]
 
 def orient_player(resources: Resources):
     world = resources[WorldECS]
 
     dt = resources[Clock].get_fixed_delta()
 
-    for ent, (_t, controller, vel, angle_vel, angle) in world.query_components(Player, PlayerPositionController, Velocity, AngleVelocity, Angle):
+    for ent, (_t, controller, vel, angle_vel, angle) in world.query_components(Player, PlayerController, Velocity, AngleVelocity, Angle):
         forward = controller.forward_dir
         horizontal = controller.horizontal_dir
         
@@ -79,6 +90,17 @@ def orient_player(resources: Resources):
             new_vel.normalize_ip()
 
         vel.set_velocity(new_vel.x, new_vel.y)
+
+        if controller.is_shooting:
+            pos = world.get_component(ent, Position)
+            world.create_entity(
+                *make_projectile(
+                    False, 
+                    pos.get_position(), 
+                    (np.cos(current_angle), np.sin(current_angle)),
+                    5
+                )
+            )
 
 def move_camera(resources: Resources):
     camera = resources[Camera3D]

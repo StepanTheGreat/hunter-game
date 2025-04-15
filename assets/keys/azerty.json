@@ -5,5 +5,7 @@
     "s": "move_backwards",
 
     "left": "turn_left",
-    "right": "turn_right"
+    "right": "turn_right",
+
+    "space": "shoot"
 }
