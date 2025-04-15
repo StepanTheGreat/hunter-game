@@ -9,7 +9,7 @@ from core.ecs import WorldECS, component
 from core.input import InputManager
 from plugins.collisions import DynCollider
 
-from plugins.graphics.lights import LightManager, Light
+from plugins.graphics.lights import Light
 
 from plugins.components import *
 
@@ -37,6 +37,7 @@ def make_player(pos: tuple[float, float]):
         Position(*pos),
         RenderPosition(*pos, 44),
         Velocity(0, 0, 150),
+        Light((1, 1, 1), 300),
         AngleVelocity(0, 4),
         Angle(0),
         RenderAngle(0),
@@ -88,10 +89,14 @@ def move_camera(resources: Resources):
         break
 
 def make_test_lights(resources: Resources):
-    lighting = resources[LightManager]
+    world = resources[WorldECS]
 
     for (x, y) in ((3*48, 5*48),):
-        lighting.push_light(Light((x, y), 24, (0.3, 0.5, 1), 1000))
+        world.create_entity(
+            Position(x, y),
+            RenderPosition(x, y, 24),
+            Light((0.3, 0.5, 1), 1000)
+        )
 
 class PlayerPlugin(Plugin):
     def build(self, app):
