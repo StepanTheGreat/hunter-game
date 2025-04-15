@@ -70,12 +70,12 @@ class DynCollider:
         # Imagine it like a sliding point across our rectangle. If a circle is in the corners - only rectangle's
         # corners can touch with it. Buf if the circle's point is inside the box axis - we can "slide" this
         # point to the closest point to the circle
-        point = pg.Vector2(
+        point = (
             max(rect.x, min(pos.x, rect.x+rect.w)),
             max(rect.y, min(pos.y, rect.y+rect.h))
         )
 
-        return True if rect.collidepoint(point) else pos.distance_squared_to(point) <= radius**2
+        return rect.collidepoint(pos) or pos.distance_to(point) <= radius
 
     def resolve_collision_static(self, other: StaticCollider):
         if self.sensor:
@@ -109,20 +109,18 @@ def resolve_collisions(resources: Resources):
             if collider1 == collider2:
                 continue
             
-            if (collider1.is_sensor() or collider2.is_sensor()):
-                if collider1.is_colliding_dynamic(collider2):
-                    ewriter.push_event(CollisionEvent(ent1, ent2, DynCollider))
+            if (collider1.is_sensor() or collider2.is_sensor()) and collider1.is_colliding_dynamic(collider2):
+                ewriter.push_event(CollisionEvent(ent1, ent2, DynCollider))
             else:
                 collider1.resolve_collision_dynamic(collider2)
 
     # Now we resolve all static colliders. Again, this is an extremely banal and slow approach
     for ent1, (_, dyn_collider) in dyn_colliders:
-        for ent2, stat_collider in static_colliders:
-            if dyn_collider.is_sensor():
-                if dyn_collider.is_colliding_static(stat_collider):
-                    ewriter.push_event(CollisionEvent(ent1, ent2, StaticCollider))
+        for ent2, static_collider in static_colliders:
+            if dyn_collider.is_sensor() and dyn_collider.is_colliding_static(static_collider):
+                ewriter.push_event(CollisionEvent(ent1, ent2, StaticCollider))
             else:
-                dyn_collider.resolve_collision_static(stat_collider)
+                dyn_collider.resolve_collision_static(static_collider)
 
     for _, (pos, collider) in dyn_colliders:
         pos.set_position(*collider.get_position())
