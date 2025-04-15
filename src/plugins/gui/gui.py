@@ -545,7 +545,7 @@ def update_gui(resources: Resources, event: object):
 class GUIManagerPlugin(Plugin):
     def build(self, app):
         app.insert_resource(GUIManager())
-        app.add_systems(Schedule.Draw, draw_gui)
+        app.add_systems(Schedule.Draw, draw_gui, priority=1)
 
         for event_ty in INPUT_EVENTS:
             app.add_event_listener(event_ty, update_gui)
