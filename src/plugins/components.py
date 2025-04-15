@@ -4,10 +4,11 @@ import numpy as np
 from plugin import Plugin, Schedule, Resources
 
 from core.pg import Clock
-from core.ecs import WorldECS
+from core.ecs import WorldECS, component
 
 from modules.inteprolation import Interpolated, InterpolatedAngle
 
+@component
 class Position:
     "An entity position. If added with Collider component - it will also get automatically overwritten by Collider's interpolated position"
     def __init__(self, x: float, y: float):
@@ -23,6 +24,7 @@ class Position:
     def get_position(self) -> pg.Vector2:
         return self.position.copy()
         
+@component
 class RenderPosition:
     def __init__(self, x: float, y: float, height: float):
         self.height = height
@@ -39,6 +41,7 @@ class RenderPosition:
     def get_position(self) -> pg.Vector2:
         return self.interpolated
 
+@component
 class Angle:
     "The direction the entity is facing"
     def __init__(self, angle: float):
@@ -54,7 +57,8 @@ class Angle:
 
     def get_angle(self) -> float:
         return self.angle
-    
+
+@component
 class RenderAngle:
     def __init__(self, initial: float):
         self.angles = InterpolatedAngle(initial)
@@ -68,7 +72,8 @@ class RenderAngle:
 
     def get_angle(self) -> float:
         return self.interpolated    
-
+    
+@component
 class Velocity:
     "Entity's directional velocity. Used with dynamic colliders to update said entity's velocity"
     def __init__(self, x: float, y: float, speed: float):
@@ -82,6 +87,7 @@ class Velocity:
         "Returns the velocity vector multiplied by the internal speed scalar"
         return self.vel * self.speed
 
+@component
 class AngleVelocity:
     def __init__(self, vel: float, speed: float):
         self.vel = vel
@@ -93,6 +99,7 @@ class AngleVelocity:
     def get_velocity(self) -> float:
         return self.vel * self.speed 
 
+@component
 class Health:
     def __init__(self, max_health: float):
         self.health = max_health
@@ -119,6 +126,7 @@ class Health:
         "Returns whether the health is zero"
         return self.health <= 0
     
+@component
 class Timer:
     "A general purpose timer, be it for cooldowns or any other stuff"
     def __init__(self, duration: float, current_duration: float = 0):

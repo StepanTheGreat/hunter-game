@@ -9,7 +9,7 @@ from plugin import Plugin, Schedule, Resources
 from core.graphics import *
 from core.telemetry import Telemetry
 from core.assets import AssetManager
-from core.ecs import WorldECS
+from core.ecs import WorldECS, component
 
 from .lights import LightManager
 
@@ -59,6 +59,7 @@ def sprite_model(ctx: gl.Context, assets: AssetManager) -> tuple[Model, Pipeline
     )
     return model, pipeline
 
+@component
 class Sprite:
     "A sprite component that allows an entity to be rendered as 2D billboards"
     def __init__(self, texture: gl.Texture, size: pg.Vector2, uv_rect: tuple):

@@ -5,7 +5,7 @@ from plugin import Plugin, Resources, Schedule
 
 from core.graphics import Camera3D
 from core.pg import Clock
-from core.ecs import WorldECS
+from core.ecs import WorldECS, component
 from core.input import InputManager
 from plugins.collisions import DynCollider
 
@@ -22,9 +22,11 @@ class InputAction:
     TurnLeft = "turn_left"
     TurnRight = "turn_right"
 
+@component
 class Player:
     "A tag component that allows filtering out players"
 
+@component
 class PlayerPositionController:
     def __init__(self):
         self.forward_dir = 0
@@ -38,7 +40,7 @@ def make_player(pos: tuple[float, float]):
         AngleVelocity(0, 4),
         Angle(0),
         RenderAngle(0),
-        DynCollider(30.0, 30),
+        DynCollider(12, 30),
         PlayerPositionController(),
         Player()
     )

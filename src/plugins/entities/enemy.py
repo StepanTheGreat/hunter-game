@@ -7,11 +7,12 @@ from .player import Player
 
 from plugins.collisions import DynCollider
 from core.assets import AssetManager
-from core.ecs import WorldECS
+from core.ecs import WorldECS, component
 
 from plugins.components import *
-from plugins.graphics.sprite import SpriteRenderer, Sprite
+from plugins.graphics.sprite import Sprite
 
+@component
 class Enemy:
     "An enemy tag"
 
@@ -65,7 +66,7 @@ def make_enemy(pos: tuple[float, float], assets: AssetManager) -> tuple:
         RenderPosition(*pos, 0),
         Velocity(0, 0, 75),
         Sprite(texture, pg.Vector2(48, 48), (0, 0, 1, 1)),
-        DynCollider(24, 3)
+        DynCollider(40, 3)
     )
 
 def orient_enemy(resources: Resources):

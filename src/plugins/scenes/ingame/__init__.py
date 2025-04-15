@@ -3,12 +3,10 @@ from plugin import Plugin, Resources
 from core.ecs import WorldECS
 
 from modules.scene import SceneBundle
-from modules.tilemap import WorldMap, Tilemap
+from modules.tilemap import Tilemap
 
-from plugins.collisions import CollisionManager
-from plugins.graphics import SpriteRenderer, LightManager
+from plugins.map import WorldMap
 
-# from plugins.entities.door import Door
 from plugins.entities.player import make_player
 from plugins.entities.enemy import make_enemy
 
@@ -38,7 +36,7 @@ def make_world_map(resources: Resources, offset: tuple[float, float] = (0, 0)) -
         transparent_tiles = set([
             1
         ]),
-        collisions = resources[CollisionManager],
+        world = resources[WorldECS],
         tile_size=TILE_SIZE,
         offset=offset
     )

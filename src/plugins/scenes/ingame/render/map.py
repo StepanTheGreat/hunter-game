@@ -5,11 +5,12 @@ import moderngl as gl
 
 from plugin import Resources, Plugin, Schedule, run_if, resource_exists
 
-from modules.tilemap import WorldMap
 from typing import Optional
-from core.graphics import *
+
+from plugins.map import WorldMap
 from plugins.graphics import ModelRenderer
 
+from core.graphics import *
 from core.assets import AssetManager
 
 TILE_SIZE = 48
