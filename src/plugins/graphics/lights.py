@@ -29,7 +29,7 @@ class LightManager:
         self.light_index = 0
 
     def push_light(self, light: Light, pos: RenderPosition):
-        assert self.light_index < self.max_lights
+        assert not self.is_on_light_limit()
 
         x, y = pos.get_position()
         height = pos.height
@@ -39,6 +39,9 @@ class LightManager:
         self.light_radiuses[self.light_index] = light.radius
 
         self.light_index += 1
+
+    def is_on_light_limit(self) -> bool:
+        return self.light_index >= self.max_lights
     
     def get_light_positions(self) -> np.ndarray:
         return self.light_positions
@@ -68,6 +71,8 @@ def push_lights(resources: Resources):
     lights = resources[LightManager]
 
     for ent, (light, pos) in resources[WorldECS].query_components(Light, RenderPosition):
+        if lights.is_on_light_limit():
+            break
         lights.push_light(light, pos)
 
 class LightPlugin(Plugin):
