@@ -210,6 +210,8 @@ class WorldECS:
         "Will return if the entity ID exists"
         return (entity in self.entities) and (entity not in self.dead_entities)
     
+    def contains_entities(self, *entities: int) -> bool:
+        return all((entity in self.entities) and (entity not in self.dead_entities) for entity in entities)
 
     @overload
     def get_components(self, entity: int, c: Type[C], c2: Type[C2]) -> tuple[C, C2]:
