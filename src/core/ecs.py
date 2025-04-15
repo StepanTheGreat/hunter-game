@@ -2,7 +2,7 @@ from plugin import Plugin, Resources, Schedule, event, EventWriter
 
 "A really minimal ECS module mostly inspired by [esper](https://github.com/benmoran56/esper)"
 
-from typing import TypeVar, Type, Any, overload, Iterable
+from typing import TypeVar, Type, Any, overload, Iterable, Optional
 from itertools import count
 
 MAX_COMPONENTS = 256
@@ -209,6 +209,7 @@ class WorldECS:
     def contains_entity(self, entity: int) -> bool:
         "Will return if the entity ID exists"
         return (entity in self.entities) and (entity not in self.dead_entities)
+    
 
     @overload
     def get_components(self, entity: int, c: Type[C], c2: Type[C2]) -> tuple[C, C2]:
@@ -232,8 +233,16 @@ class WorldECS:
     def get_component(self, entity: int, component_ty: Type[C]) -> C:
         return self.entities[entity][component_ty]
     
+    def try_component(self, entity: int, component_ty: Type[C]) -> Optional[C]:
+        "Similar to `get_component`, but returns `None` if a component isn't present"
+        return self.entities[entity].get(component_ty)
+
     def has_component(self, entity: int, component: Type) -> bool:
         return component in self.entities[entity]
+    
+    def has_components(self, entity: int, *components: Type) -> bool:
+        "Like `has_component`, but checks if multiple components are present at the same time"
+        return all(component in self.entities[entity] for component in components)
     
     def add_components(self, entity: int, *components: Any):
         """

@@ -43,10 +43,10 @@ def _():
 
     # Our entity's archetype should now change
     w.remove_components(entity, Health)
+    assert w.try_component(entity, Health) == None
 
     # Repeating the query should give us zero results
     assert len(list(w.query_component(Health))) == 0
-
 
     ## Now we'll try a different thing
 
@@ -55,6 +55,7 @@ def _():
 
     # Now, add back our Health component
     w.add_components(entity, Health(10))
+    assert w.try_component(entity, Health).value == 10
 
     # Assert that we still get the same results, even though our archetype has changed again!
     assert len(list(w.query_components(Name, IsCool))) == 1
