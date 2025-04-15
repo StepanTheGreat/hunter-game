@@ -61,6 +61,7 @@ def deal_damage_on_collision(resources: Resources, event: CollisionEvent):
             # If they are on the same team however - we won't do anything
             if not projectile_team.same_team(target_team):
                 target_health.hurt(projectile_damage.damage)
+                world.remove_entity(projectile_entity)
 
 class ProjectilePlugin(Plugin):
     def build(self, app):
