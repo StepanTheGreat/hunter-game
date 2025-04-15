@@ -1,6 +1,6 @@
 import pygame as pg
 
-from plugin import Plugin, Schedule, Resources
+from plugin import Plugin, Schedule, Resources, event, EventWriter
 
 from core.ecs import WorldECS, component
 
@@ -34,6 +34,9 @@ class DynCollider:
         "This method is only used for calculations, colliders usually use positions from components"
         self.pos = pos
         return self
+    
+    def is_sensor(self) -> bool:
+        return self.sensor
     
     def get_position(self) -> pg.Vector2:
         "Use this to retrieve resolved position vectors"
@@ -95,23 +98,49 @@ class DynCollider:
 
 def resolve_collisions(resources: Resources):
     world = resources[WorldECS]
+    ewriter = resources[EventWriter]
 
     # Collect our colliders
-    static_colliders = [collider.as_moved(pos.get_position()) for _, (pos, collider) in world.query_components(Position, StaticCollider)]
-    dyn_colliders = [(pos, collider.as_moved(pos.get_position())) for _, (pos, collider) in world.query_components(Position, DynCollider)]
+    static_colliders = [(ent, collider.as_moved(pos.get_position())) for ent, (pos, collider) in world.query_components(Position, StaticCollider)]
+    dyn_colliders = [(ent, (pos, collider.as_moved(pos.get_position()))) for ent, (pos, collider) in world.query_components(Position, DynCollider)]
 
-    for _, collider1 in dyn_colliders:
-        for _, collider2 in dyn_colliders:
-            if collider1 != collider2:
+    for ent1, (_, collider1) in dyn_colliders:
+        for ent2, (_, collider2) in dyn_colliders:
+            if collider1 == collider2:
+                continue
+            
+            if (collider1.is_sensor() or collider2.is_sensor()):
+                if collider1.is_colliding_dynamic(collider2):
+                    ewriter.push_event(CollisionEvent(ent1, ent2, DynCollider))
+            else:
                 collider1.resolve_collision_dynamic(collider2)
 
     # Now we resolve all static colliders. Again, this is an extremely banal and slow approach
-    for _, dyn_collider in dyn_colliders:
-        for stat_collider in static_colliders:
-            dyn_collider.resolve_collision_static(stat_collider)
+    for ent1, (_, dyn_collider) in dyn_colliders:
+        for ent2, stat_collider in static_colliders:
+            if dyn_collider.is_sensor():
+                if dyn_collider.is_colliding_static(stat_collider):
+                    ewriter.push_event(CollisionEvent(ent1, ent2, StaticCollider))
+            else:
+                dyn_collider.resolve_collision_static(stat_collider)
 
-    for pos, collider in dyn_colliders:
+    for _, (pos, collider) in dyn_colliders:
         pos.set_position(*collider.get_position())
+
+@event
+class CollisionEvent:
+    """
+    Fired whenever a collision between a sensor and an another collider has happened. 
+    
+    Sensor entity is the entity that listens to said collisions.
+    Hit entity is the entity that touched our entity. It's important to note than 2 sensors can absolutely
+    collide, so this event will also affect sensor/sensor collisions
+    """
+    def __init__(self, sensor_entity: int, hit_entity: int, hit_collider_ty: type):
+        self.sensor_entity = sensor_entity
+
+        self.hit_entity = hit_entity
+        self.hit_collider_ty = hit_collider_ty
 
 class CollisionsPlugin(Plugin):
     def build(self, app):
