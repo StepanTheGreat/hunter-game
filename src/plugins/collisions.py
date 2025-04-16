@@ -4,6 +4,8 @@ from plugin import Plugin, Schedule, Resources, event, EventWriter
 
 from core.ecs import WorldECS, component
 
+from collections import deque
+
 from .components import Position
 
 @component
@@ -104,13 +106,16 @@ def resolve_collisions(resources: Resources):
     static_colliders = [(ent, collider.as_moved(pos.get_position())) for ent, (pos, collider) in world.query_components(Position, StaticCollider)]
     dyn_colliders = [(ent, (pos, collider.as_moved(pos.get_position()))) for ent, (pos, collider) in world.query_components(Position, DynCollider)]
 
+    events = deque()
+
     for ent1, (_, collider1) in dyn_colliders:
         for ent2, (_, collider2) in dyn_colliders:
             if collider1 == collider2:
                 continue
             
             if (collider1.is_sensor() or collider2.is_sensor()) and collider1.is_colliding_dynamic(collider2):
-                ewriter.push_event(CollisionEvent(ent1, ent2, DynCollider))
+                events.append(CollisionEvent(ent1, ent2, DynCollider))
+                # ewriter.push_event(CollisionEvent(ent1, ent2, DynCollider))
             else:
                 collider1.resolve_collision_dynamic(collider2)
 
@@ -118,12 +123,16 @@ def resolve_collisions(resources: Resources):
     for ent1, (_, dyn_collider) in dyn_colliders:
         for ent2, static_collider in static_colliders:
             if dyn_collider.is_sensor() and dyn_collider.is_colliding_static(static_collider):
-                ewriter.push_event(CollisionEvent(ent1, ent2, StaticCollider))
+                events.appendleft(CollisionEvent(ent1, ent2, StaticCollider))
+                # ewriter.push_event(CollisionEvent(ent1, ent2, StaticCollider))
             else:
                 dyn_collider.resolve_collision_static(static_collider)
 
     for _, (pos, collider) in dyn_colliders:
         pos.set_position(*collider.get_position())
+
+    for event in events:
+        ewriter.push_event(event)
 
 @event
 class CollisionEvent:
