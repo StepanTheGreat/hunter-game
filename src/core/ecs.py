@@ -331,4 +331,4 @@ def clear_dead_entities(resources: Resources):
 class ECSPlugin(Plugin):
     def build(self, app):
         app.insert_resource(WorldECS(app.get_resource(EventWriter)))
-        app.add_systems(Schedule.First, clear_dead_entities)
+        app.add_systems(Schedule.FixedUpdate, clear_dead_entities, priority=-10)
