@@ -3,6 +3,7 @@ from plugin import Plugin
 from .player import PlayerPlugin
 from .enemy import EnemyPlugin
 from .projectile import ProjectilePlugin
+from .weapon import WeaponPlugin
 
 class EntitiesPlugin(Plugin):
     "Not to be confused with the core EntityPlugin, this is just a collection of ingame entities"
@@ -10,5 +11,6 @@ class EntitiesPlugin(Plugin):
         app.add_plugins(
             PlayerPlugin(),
             EnemyPlugin(),
-            ProjectilePlugin()
+            ProjectilePlugin(),
+            WeaponPlugin()
         )
