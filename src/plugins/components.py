@@ -58,6 +58,10 @@ class Angle:
     def get_angle(self) -> float:
         return self.angle
 
+    def get_vector(self) -> pg.Vector2:
+        "Return this angle as a directional unit vector"
+        return pg.Vector2(np.cos(self.angle), np.sin(self.angle))
+
 @component
 class RenderAngle:
     def __init__(self, initial: float):
