@@ -39,7 +39,7 @@ class MainMenu:
         def start_game():
             self.resources[SceneManager].insert_scene(IngameScene(self.resources))
 
-        play_btn = (TextButton(font, "Play", (0, 0), MainMenu.BUTTON_SIZE, text_scale=2)
+        play_btn = (TextButton(font, "Play", (0.5, 0.5), MainMenu.BUTTON_SIZE, text_scale=2)
             .with_callback(start_game))
 
         def go_to_settings():
@@ -50,7 +50,8 @@ class MainMenu:
             .with_callback(go_to_settings)
             .attached_to(play_btn))
         
-        play_btn.set_tree_position(screen_w/2, screen_h/2, (0.5, 0.5))
+        *_, tree_w, tree_h =  play_btn.measure_tree()
+        play_btn.set_margin(-tree_w/2, -tree_h/2)
         
         self.insert_subscene_gui([
             background, play_btn, 
@@ -68,11 +69,12 @@ class MainMenu:
         back_btn = (TextButton(font, "<<", (0, 0), (64, 64))
             .with_callback(go_back))
 
-        resolution_label = Label(font, "Resolution: ", (0, 0), text_scale=0.5)
+        resolution_label = Label(font, "Resolution: ", (0.5, 0.5), text_scale=0.5)
         keys_label = Label(font, "Keys: ", (0, 1), text_scale=0.5).attached_to(resolution_label)
         vsync = Label(font, "Vsync: ", (0, 1), text_scale=0.5).attached_to(keys_label)
 
-        resolution_label.set_tree_position(screen_w/2, screen_h/2, (0.5, 0.5))
+        *_, tree_w, tree_h =  resolution_label.measure_tree()
+        resolution_label.set_margin(-tree_w/2, -tree_h/2)
         
         self.insert_subscene_gui([
             background, back_btn, resolution_label, 
@@ -86,13 +88,13 @@ class MainMenu:
     
     def insert_subscene_gui(self, new_elements: list[GUIElement]):
         if self.gui_elements is not None:
-            self.gui.remove_elements(*self.gui_elements)
+            self.gui.detach_elements(*self.gui_elements)
 
-        self.gui.add_elements(*new_elements)
+        self.gui.attach_elements(*new_elements)
         self.gui_elements = new_elements
 
     def cleanup(self):
-        self.gui.remove_elements(*self.gui_elements)
+        self.gui.detach_elements(*self.gui_elements)
 
 class MainMenuScene(SceneBundle):
     def __init__(self, resources: Resources):

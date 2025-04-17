@@ -58,10 +58,11 @@ import moderngl as gl
 
 from typing import Optional, Callable
 from collections import deque
+from app_config import CONFIG
 
 from plugins.graphics.render2d import Renderer2D
-from core.graphics import FontGPU
 
+from core.graphics import FontGPU
 from core.pg.events import *
 
 from plugin import Plugin, Schedule, Resources
@@ -284,6 +285,12 @@ class GUIElement:
             element.on_event(event)
 
         self.call_root(pass_event)
+
+class Box(GUIElement):
+    "An empty box element that can be used either for your own custom panels or for the screen itself"
+    def __init__(self, edge, pivot, size: tuple[float, float]):
+        super().__init__(edge, pivot)        
+        self.set_size(*size)
 
 class ColorRect(GUIElement):
     "A rectangle that is filled with color"
@@ -510,31 +517,32 @@ class Slider(GUIElement):
         renderer.draw_circle((rect.x+value*rect.w, rect.centery), self.size[1], (1, 0, 0), 10)
 
 class GUIManager:
-    def __init__(self):
-        self.elements: list[GUIElement] = []
+    def __init__(self, width: int, height: int):
+        self.document = Box((0, 0), (0, 0), (width, height))
 
-    def add_elements(self, *elements: GUIElement):
+    def attach_elements(self, *elements: GUIElement):
         for element in elements:
-            self.elements.append(element)
+            element.attach_to(self.document)
 
     def clear_elements(self):
-        "Remove all elements from the GUI manager"
-        self.elements.clear()
+        "Remove all elements from the GUI document"
+        for child in self.document.get_children():
+            child.attach_to(None)
 
-    def remove_elements(self, *elements: GUIElement):
+    def detach_elements(self, *elements: GUIElement):
+        "Detach all elements from the document."
         for element in elements:
-            try:
-                self.elements.remove(element)
-            except ValueError:
-                pass
+            element.attach_to(None)
+
+    def resize(self, new_width: int, new_height: int):
+        "Should be called every time the screen changes its size"
+        self.document.set_size(new_width, new_height)
 
     def draw(self, renderer: Renderer2D):
-        for root_element in self.elements:
-            root_element.draw_root(renderer)
+        self.document.draw_root(renderer)
     
     def pass_event(self, event: object):
-        for root_element in self.elements:
-            root_element.on_event_root(event)
+        self.document.on_event_root(event)
 
 def draw_gui(resources: Resources):
     resources[GUIManager].draw(resources[Renderer2D])
@@ -542,10 +550,14 @@ def draw_gui(resources: Resources):
 def update_gui(resources: Resources, event: object):
     resources[GUIManager].pass_event(event)
 
+def on_screen_resize(resources: Resources, event: WindowResizeEvent):
+    resources[GUIManager].resize(event.new_width, event.new_height)
+
 class GUIManagerPlugin(Plugin):
     def build(self, app):
-        app.insert_resource(GUIManager())
+        app.insert_resource(GUIManager(CONFIG.width, CONFIG.height))
         app.add_systems(Schedule.Draw, draw_gui, priority=1)
+        app.add_event_listener(WindowResizeEvent, on_screen_resize)
 
         for event_ty in INPUT_EVENTS:
             app.add_event_listener(event_ty, update_gui)
