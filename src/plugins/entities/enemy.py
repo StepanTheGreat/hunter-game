@@ -33,11 +33,11 @@ def make_enemy(pos: tuple[float, float], assets: AssetManager) -> tuple:
 def orient_enemy(resources: Resources):
     world = resources[WorldECS]
 
-    players = list(world.query_components(Player, Position))
+    players = list(world.query_component(Position, including=(Player,)))
     if len(players) > 0:
-        player_ent, (_t, player_pos) = players[0]
+        player_ent, player_pos = players[0]
         
-        for ent, (_t, position, velocity) in world.query_components(Enemy, Position, Velocity):
+        for ent, (position, velocity) in world.query_components(Position, Velocity, including=(Enemy,)):
             new_vel = (player_pos.get_position()-position.get_position())
             if new_vel.length_squared() != 0:
                 new_vel.normalize_ip()

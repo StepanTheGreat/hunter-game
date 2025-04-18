@@ -16,6 +16,18 @@ from plugins.components import *
 from .projectile import ProjectileFactory
 from .weapon import Weapon
 
+class PlayerStats:
+    "Stores global player related information. Useful for GUI and visualisations, since its a shared resource"
+    def __init__(self, health: Health):
+        self.health: float = health.get_percentage()
+        "Stores the player's health in percentages"
+
+    def update_health(self, health: Health):
+        self.health = health.get_percentage()
+
+    def get_health(self) -> float:
+        return self.health
+
 class InputAction:
     Forward = "move_forward"
     Backwards = "move_backwards"
@@ -68,7 +80,7 @@ def control_player(resources: Resources):
     input = resources[InputManager]
     world = resources[WorldECS]
 
-    for ent, (_t, controller, angle_vel, weapon) in world.query_components(Player, PlayerController, AngleVelocity, Weapon):
+    for ent, (controller, angle_vel, weapon) in world.query_components(PlayerController, AngleVelocity, Weapon):
         angle_vel.set_velocity(input[InputAction.TurnRight]-input[InputAction.TurnLeft])
         controller.forward_dir = input[InputAction.Forward]-input[InputAction.Backwards]
         controller.horizontal_dir = input[InputAction.Right]-input[InputAction.Left]
@@ -81,7 +93,7 @@ def control_player(resources: Resources):
 def orient_player(resources: Resources):
     world = resources[WorldECS]
 
-    for ent, (_t, controller, vel, angle) in world.query_components(Player, PlayerController, Velocity, Angle):
+    for ent, (controller, vel, angle) in world.query_components(PlayerController, Velocity, Angle):
         forward = controller.forward_dir
         horizontal = controller.horizontal_dir
         
@@ -104,7 +116,7 @@ def orient_player(resources: Resources):
 def move_camera(resources: Resources):
     camera = resources[Camera3D]
 
-    for _, (_t, position, angle) in resources[WorldECS].query_components(Player, RenderPosition, RenderAngle):
+    for _, (position, angle) in resources[WorldECS].query_components(RenderPosition, RenderAngle, including=(Player,)):
         camera.set_pos(position.get_position())
         camera.set_angle(angle.get_angle())
         break

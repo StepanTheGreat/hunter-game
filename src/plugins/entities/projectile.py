@@ -82,6 +82,7 @@ def deal_damage_on_collision(resources: Resources, event: CollisionEvent):
         return
 
     # First we make sure that the sensor entity is a projectile
+
     if world.has_component(projectile_entity, Projectile):
         if event.hit_collider_ty is StaticCollider:
             # The projectile has hit a wall - kill him!
