@@ -148,3 +148,27 @@ def _():
 
     assert w.has_component(1, InWater)    
     assert not skipped_entities
+
+@test("Test ECS `include` filter")
+def _():
+    w = make_test_world()
+
+    skipped_entities = [0, 3]
+
+    # We would like to find everyone with a name, who's also in water
+    for ent, name in w.query_component(Name, including=(InWater,)):
+        skipped_entities.remove(ent)
+
+    assert not skipped_entities
+
+@test("Test ECS `exclude` filter")
+def _():
+    w = make_test_world()
+
+    skipped_entities = [1, 2]
+
+    # We would like to find someone who is Cool, but not in water...
+    for ent, name in w.query_component(Name, including=(IsCool,), excluding=(InWater,)):
+        skipped_entities.remove(ent)
+
+    assert not skipped_entities

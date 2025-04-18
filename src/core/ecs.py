@@ -42,8 +42,8 @@ def compute_signature(components: tuple[Type, ...]) -> int:
     if signature is None:
         assert all([hasattr(comp, "__component_mask") for comp in components]), "Can't use components that are registered without @component decorator"
 
-        signature = components[0].__component_mask
-        for component in components[1:]:
+        signature = 0
+        for component in components:
             signature |= component.__component_mask
 
         __signature_cache[components] = signature
@@ -61,8 +61,17 @@ class Archetype:
         self.signature = compute_signature(components)
         self.entities: set[int] = set()
 
-    def contains_signature(self, component_mask: int) -> bool:
-        return (self.signature & component_mask) == component_mask
+    def matches_signatures(self, components_sig: int, without_sig: int) -> bool:
+        """
+        Check whether this archetype matches the 2 provided signatures. To clear out any confusion - there are
+        actually 3 masks, but we're using 2, since a `requested_components` and `with_components` mask can 
+        essentially get combined using a bit OR operation into one, reducing the numbers of comparisons neccessary.
+        This isn't the case however for `without_components` mask, as it needs to be treated separately.
+        """
+        return (
+            ((self.signature & components_sig) == components_sig) and
+            ((self.signature & without_sig) == 0)
+        )
     
     def get_entities(self) -> set[int]:
         return self.entities
@@ -188,9 +197,14 @@ class WorldECS:
         
         return self.archetypes[signature]
     
-    def __query_archetypes(self, signature: int) -> tuple[Archetype]:
+    def __query_archetypes(self, components_sig: int, with_sig: int, without_sig: int) -> tuple[Archetype]:
         "Query archetypes that contain the provided signature. This method returns a tuple"
-        return tuple(archetype for archetype in self.archetypes.values() if archetype.contains_signature(signature))
+
+        components_sig = components_sig | with_sig
+        # The reason we're combining these 2 masks into one is that they essentially work the same way.
+        # The `without` filter however, needs to be treated separately
+
+        return tuple(archetype for archetype in self.archetypes.values() if archetype.matches_signatures(components_sig, without_sig))
     
     def __assign_entity_archetype(self, entity: int):
         """
@@ -278,40 +292,81 @@ class WorldECS:
         self.dead_entities.add(entity)
 
     @overload
-    def query_components(self, c: Type[C], c2: Type[C2]) -> Iterable[tuple[int, tuple[C, C2]]]:
+    def query_components(
+        self, 
+        c: Type[C], c2: Type[C2],
+        including: tuple[Type, ...] = (), 
+        excluding: tuple[Type, ...] = ()
+    ) -> Iterable[tuple[int, tuple[C, C2]]]:
         ...
 
     @overload
-    def query_components(self, c: Type[C], c2: Type[C2], c3: Type[C3]) -> Iterable[tuple[int, tuple[C, C2, C3]]]:
+    def query_components(
+        self, 
+        c: Type[C], c2: Type[C2], c3: Type[C3],
+        including: tuple[Type, ...] = (), 
+        excluding: tuple[Type, ...] = ()
+    ) -> Iterable[tuple[int, tuple[C, C2, C3]]]:
         ...
 
     @overload
-    def query_components(self, c: Type[C], c2: Type[C2], c3: Type[C3], c4: Type[C4]) -> Iterable[tuple[int, tuple[C, C2, C3, C4]]]:
+    def query_components(
+        self, 
+        c: Type[C], c2: Type[C2], c3: Type[C3], c4: Type[C4], 
+        including: tuple[Type, ...] = (), 
+        excluding: tuple[Type, ...] = ()
+    ) -> Iterable[tuple[int, tuple[C, C2, C3, C4]]]:
         ...
 
     @overload
-    def query_components(self, c: Type[C], c2: Type[C2], c3: Type[C3], c4: Type[C4], c5: Type[C5]) -> Iterable[tuple[int, tuple[C, C2, C3, C4, C5]]]:
+    def query_components(
+        self, 
+        c: Type[C], c2: Type[C2], c3: Type[C3], c4: Type[C4], c5: Type[C5], 
+        including: tuple[Type, ...] = (), 
+        excluding: tuple[Type, ...] = ()
+    ) -> Iterable[tuple[int, tuple[C, C2, C3, C4, C5]]]:
         ...
 
-    def query_components(self, *components: Type[Any]) -> Iterable[tuple[int, tuple[Any, ...]]]:
+    def query_components(
+        self, 
+        *components: Type[Any], 
+        including: tuple[Type, ...] = (), 
+        excluding: tuple[Type, ...] = ()
+    ) -> Iterable[tuple[int, tuple[Any, ...]]]:
         """
         Query all entities with the provided set of components. 
-        For each entity found, it will return a pair of its entity ID and a tuple of its components.        
+        For each entity found, it will return a pair of its entity ID and a tuple of its components.
+
+        This method also includes 2 filters: `including` and `excluding`. Both of these take tuples of types
+        and they allow you to filter your query. 
+        The query will ignore entities with components that are in the `excluding` filter, or entities
+        that don't have components specified in the `including` filter.        
         """
         
-        component_signature = compute_signature(components)
-        for archetype in self.__query_archetypes(component_signature):
+        component_sig = compute_signature(components)
+        with_sig = compute_signature(including)
+        without_sig = compute_signature(excluding)
+
+        for archetype in self.__query_archetypes(component_sig, with_sig, without_sig):
             for entity in archetype.get_entities():
                 yield entity, self.get_components(entity, *components)
 
-    def query_component(self, component_ty: Type[C]) -> Iterable[tuple[int, C]]:
+    def query_component(
+        self, 
+        component_ty: Type[C], 
+        including: tuple[Type, ...] = (), 
+        excluding: tuple[Type, ...] = ()
+    ) -> Iterable[tuple[int, C]]:
         """
         Query all entities with the provided component. 
         The same as `query_components`, but for a single component.        
         """
         
-        component_signature = compute_signature((component_ty, ))
-        for archetype in self.__query_archetypes(component_signature):
+        component_sig = compute_signature((component_ty, ))
+        with_sig = compute_signature(including)
+        without_sig = compute_signature(excluding)
+
+        for archetype in self.__query_archetypes(component_sig, with_sig, without_sig):
             for entity in archetype.get_entities():
                 yield entity, self.get_component(entity, component_ty)
 
