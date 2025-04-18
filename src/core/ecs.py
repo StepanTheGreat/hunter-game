@@ -33,12 +33,21 @@ def component(cls):
 
     return cls
 
-def compute_signature(components: tuple[Type, ...]) -> int:
-    assert all([hasattr(comp, "__component_mask") for comp in components]), "Can't use components that are registered without @component decorator"
+__signature_cache = {}
 
-    signature = 0
-    for component in components:
-        signature |= component.__component_mask
+def compute_signature(components: tuple[Type, ...]) -> int:
+    "Compute a bitmask signature for the provided tuple of components. This internally uses caching for all results"
+
+    signature = __signature_cache.get(components)
+    if signature is None:
+        assert all([hasattr(comp, "__component_mask") for comp in components]), "Can't use components that are registered without @component decorator"
+
+        signature = components[0].__component_mask
+        for component in components[1:]:
+            signature |= component.__component_mask
+
+        __signature_cache[components] = signature
+    
     return signature
 
 class Archetype:
@@ -67,6 +76,84 @@ class Archetype:
     def remove_entity(self, entity: int):
         self.entities.remove(entity)
 
+class CommandBuffer:
+    """
+    The purpose of a command buffer is to simplify entity command dispatching in iterated queries.
+
+    Operations like entity removal, component addition/removal are inherently unstable, as queries aren't
+    evaluated immediately, thus it can directly cause instability. Entities can get iterated multiple times
+    or not get iterated at all.
+
+    For this sole reason, a command buffer exists to simply queue all commands using Python's nice
+    context manager syntax. This way, you don't need to manage your own lists and state, to simply add/remove
+    a component from an entity.
+    """
+    def __init__(self, world: "WorldECS"):
+        self.world = world
+        self.created_entities: list[tuple[int, tuple[Any, ...]]] = []
+        self.added_components: list[tuple[int, tuple[Any, ...]]] = []
+        self.removed_components: list[tuple[int, tuple[Any, ...]]] = []
+
+    def create_entity(self, *components: Any) -> int:
+        """
+        Create a new entity with the provided components and return its ID. 
+        
+        While the ID is returned immediately - it doesn't mean the entity is already in the world.
+        It will be added at the end of the `with` scope only.
+        """
+
+        entity_id = self.world.consume_new_entity_id()
+        self.created_entities.append((entity_id, components))
+        return entity_id
+
+    def add_components(self, ent: int, *components: Any):
+        "Add an undefined amount of components to an entity. This command will be dispatched AT THE END of the `with` scope"
+        self.added_components.append((ent, components))
+
+    def remove_components(self, ent: int, *components: Any):
+        "Remove an undefined amount of components from an entity. This command will be dispatched AT THE END of the `with` scope"
+        self.removed_components.append((ent, components))
+
+    def remove_entity(self, ent: int):
+        """
+        Remove the specified entity from the world. 
+        
+        While entities are still internally marked dead by the world - you might still find 
+        this method and the command buffer overall useful for immediate dead entity cleanup, 
+        since you don't need to explicitly call the `clear_dead_entities` method on the world each time. 
+        """
+
+        # Since the world already has an internal marker over dead entities - there's no reason for us to
+        # queue it separately. This method exists purely to unify API
+        self.world.remove_entity(ent)
+
+    def flush(self):
+        "Flush all the commands to the world."
+
+        # First create all entities
+        for entity_id, components in self.created_entities:
+            self.world.create_entity(*components, entity_id=entity_id)
+
+        # Add components to entities
+        for ent, components in self.added_components:
+            self.world.add_components(ent, *components)
+
+        # Remove commponents from entities
+        for ent, components in self.removed_components:
+            self.world.remove_components(ent, *components)
+
+        # Delete requested entities from the world
+        self.world.clear_dead_entities()
+
+    def __exit__(self, exception_ty: type, exception_val: Any, traceback):
+        self.flush()
+
+        # If there are any errors - they should be propagated
+        return False
+
+    def __enter__(self):
+        return self
+
 class WorldECS:
     """
     An entity container for all your ECS operations. You can learn about ECS [here](https://github.com/SanderMertens/ecs-faq?tab=readme-ov-file#what-is-ecs)
@@ -94,14 +181,14 @@ class WorldECS:
 
         self.__entity_counter = count(start=0)
 
-    def get_or_make_archetype(self, components: tuple[Type, ...]):
+    def __get_or_make_archetype(self, components: tuple[Type, ...]):
         signature = compute_signature(components)
         if signature not in self.archetypes:
             self.archetypes[signature] = Archetype(components)
         
         return self.archetypes[signature]
     
-    def query_archetypes(self, signature: int) -> tuple[Archetype]:
+    def __query_archetypes(self, signature: int) -> tuple[Archetype]:
         "Query archetypes that contain the provided signature. This method returns a tuple"
         return tuple(archetype for archetype in self.archetypes.values() if archetype.contains_signature(signature))
     
@@ -116,7 +203,7 @@ class WorldECS:
 
         self.__discard_entity_archetype(entity, False)
 
-        archetype = self.get_or_make_archetype(tuple(self.entities[entity].keys()))
+        archetype = self.__get_or_make_archetype(tuple(self.entities[entity].keys()))
         archetype.add_entity(entity)
         self.entity_to_archetype[entity] = archetype
 
@@ -135,17 +222,39 @@ class WorldECS:
             if clear_archetype_entry:
                 del self.entity_to_archetype[entity]
 
-    def create_entity(self, *components: Any) -> int:
+    def consume_new_entity_id(self) -> int:
+        "An internal method for generating a new unique entity ID. Don't call this unless you know what you're doing."
+        return next(self.__entity_counter)
+    
+    def command_buffer(self) -> CommandBuffer:
+        """
+        Create a command buffer for queing entity commands like remove/create/add components/remove components.
+
+        Because applying said commands while iterating a query can pose undefined behaviour - it's recommended
+        to use a command buffer with the python's `with` syntax to avoid most of the troubles.
+
+        If you're not modifying/creating/deleting entities in queries - there's no reason for you to buffer
+        your commands.
+        """
+        return CommandBuffer(self)
+
+    def create_entity(self, *components: Any, entity_id: int = None) -> int:
         """
         Create an entity with the provided unlimited set of components. Make sure to not pass tuples!
+
+        This method takes a named parameter `entity_id`, which you absolutely shouldn't touch as it will
+        directly overwrite an existing entity if misused! (This is used internally in combination with `CommandBuffer`) 
         
         ## Undefined behaviour
         Don't create entities mid iteration, since there's a chance you will either miss your newly-created entities
         or iterate them in the same query.
         """
 
-        # First we get an entity ID
-        entity_id = next(self.__entity_counter)
+        # First we get an entity ID (either provided or automatic)
+        if entity_id is not None:
+            assert type(entity_id) is int
+        else:
+            entity_id = self.consume_new_entity_id()
         
         # Create a new entry in our entity dictionary with our entity components
         self.entities[entity_id] = {type(component): component for component in components}
@@ -191,7 +300,7 @@ class WorldECS:
         """
         
         component_signature = compute_signature(components)
-        for archetype in self.query_archetypes(component_signature):
+        for archetype in self.__query_archetypes(component_signature):
             for entity in archetype.get_entities():
                 yield entity, self.get_components(entity, *components)
 
@@ -202,15 +311,16 @@ class WorldECS:
         """
         
         component_signature = compute_signature((component_ty, ))
-        for archetype in self.query_archetypes(component_signature):
+        for archetype in self.__query_archetypes(component_signature):
             for entity in archetype.get_entities():
                 yield entity, self.get_component(entity, component_ty)
 
     def contains_entity(self, entity: int) -> bool:
-        "Will return if the entity ID exists"
+        "Check if the entity ID is present or alive"
         return (entity in self.entities) and (entity not in self.dead_entities)
     
     def contains_entities(self, *entities: int) -> bool:
+        "Check if multiple entity IDs is present or alive"
         return all((entity in self.entities) and (entity not in self.dead_entities) for entity in entities)
 
     @overload

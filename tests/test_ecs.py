@@ -116,43 +116,35 @@ def _():
     
     assert not skipped_entities, f"Some entities were skipped: {skipped_entities}"
 
-
-# These tests purely exist so that the problem of undefined behaviour can be tackled later
-# I don't want them to be red, so let's just say "it's expected behaviour"
-
-@test("Test ECS queries will skip entities when changing their archetypes mid iteration")
+@test("Test ECS stable query iteration while removing components from entities with CommandBuffer")
 def _():
     w = make_test_world()
 
-    # Here we're going to skip entity 3, even though it certainly does exist
+
     skipped_entities = [0, 1, 2, 3]
 
-    # So, our entity 3 has a unique archetype (Name, Health, IsCool, InWater)
-    # Archetype 2 is basically the same, but without the InWater component.
-    # If we're going to remove InWater component AFTER iterating entity 1, we're going to skip entity 3
+    with w.command_buffer() as cmd:
+        for ent, name in w.query_component(Name):
+            if ent == 2:
+                cmd.remove_components(3, InWater)
 
-    for ent, name in w.query_component(Name):
-        if ent == 2:
-            w.remove_components(3, InWater)
-
-        skipped_entities.remove(ent)
+            skipped_entities.remove(ent)
     
-    assert skipped_entities == [3]
+    assert not w.has_component(2, InWater)
+    assert not skipped_entities
 
-@test("Test ECS queries will iterate multiple times entities when changing their archetypes mid iteration")
+@test("Test ECS stable iteration when adding components to entities with CommandBuffer")
 def _():
     w = make_test_world()
 
-    # Here, entity 1 will be iterated 2 times
-    skipped_entities = [0, 1, 2, 3, 1]
+    skipped_entities = [0, 1, 2, 3]
 
-    # When we iterate over 1, we'll give it InWater component, which will move it to an archetype of entity
-    # 3. Thus, it wil lead to a dublicate iteration
+    with w.command_buffer() as cmd:
+        for ent, name in w.query_component(Name):
+            if ent == 2:
+                cmd.add_components(1, InWater())
 
-    for ent, name in w.query_component(Name):
-        if ent == 2:
-            w.add_components(1, InWater())
+            skipped_entities.remove(ent)
 
-        skipped_entities.remove(ent)
-    
+    assert w.has_component(1, InWater)    
     assert not skipped_entities
