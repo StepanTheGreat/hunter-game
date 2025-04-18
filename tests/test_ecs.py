@@ -156,7 +156,7 @@ def _():
     skipped_entities = [0, 3]
 
     # We would like to find everyone with a name, who's also in water
-    for ent, name in w.query_component(Name, including=(InWater,)):
+    for ent, name in w.query_component(Name, including=InWater):
         skipped_entities.remove(ent)
 
     assert not skipped_entities
@@ -168,7 +168,7 @@ def _():
     skipped_entities = [1, 2]
 
     # We would like to find someone who is Cool, but not in water...
-    for ent, name in w.query_component(Name, including=(IsCool,), excluding=(InWater,)):
+    for ent, name in w.query_component(Name, including=(IsCool,), excluding=InWater):
         skipped_entities.remove(ent)
 
     assert not skipped_entities

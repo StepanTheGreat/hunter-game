@@ -116,7 +116,7 @@ def orient_player(resources: Resources):
 def move_camera(resources: Resources):
     camera = resources[Camera3D]
 
-    for _, (position, angle) in resources[WorldECS].query_components(RenderPosition, RenderAngle, including=(Player,)):
+    for _, (position, angle) in resources[WorldECS].query_components(RenderPosition, RenderAngle, including=Player):
         camera.set_pos(position.get_position())
         camera.set_angle(angle.get_angle())
         break

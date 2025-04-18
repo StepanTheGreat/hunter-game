@@ -2,7 +2,7 @@ from plugin import Plugin, Resources, Schedule, event, EventWriter
 
 "A really minimal ECS module mostly inspired by [esper](https://github.com/benmoran56/esper)"
 
-from typing import TypeVar, Type, Any, overload, Iterable, Optional
+from typing import TypeVar, Type, Any, overload, Iterable, Optional, Union
 from itertools import count
 
 MAX_COMPONENTS = 256
@@ -35,19 +35,23 @@ def component(cls):
 
 __signature_cache = {}
 
-def compute_signature(components: tuple[Type, ...]) -> int:
+def compute_signature(components: Union[tuple[Type, ...], Type]) -> int:
     "Compute a bitmask signature for the provided tuple of components. This internally uses caching for all results"
 
     signature = __signature_cache.get(components)
     if signature is None:
-        assert all([hasattr(comp, "__component_mask") for comp in components]), "Can't use components that are registered without @component decorator"
 
-        signature = 0
-        for component in components:
-            signature |= component.__component_mask
+        if type(components) is tuple:
+            assert all([hasattr(comp, "__component_mask") for comp in components]), "Can't use components that are registered without @component decorator"
 
-        __signature_cache[components] = signature
-    
+            signature = 0 # It's zero, since passing an empty tuple should be valid
+            for component in components:
+                signature |= component.__component_mask
+        else:
+            assert hasattr(components, "__component_mask"), "Can't use a component that is not registered with @component decorator"
+            signature = components.__component_mask
+
+        __signature_cache[components] = signature    
     return signature
 
 class Archetype:
@@ -188,6 +192,13 @@ class WorldECS:
         self.dead_entities: set[int] = set()
         "Entities that are marked as removed. Dead entities aren't immediately removed for stability reasons"
 
+        self.__query_cache = {}
+        """
+        We will store here components as keys, and lists of query results as values. If nothing changes - there's
+        no reason for us to re-query entities. This is especially important for rendering logic, as it doesn't
+        modify entities much, but still queries them more often than the game's logic itself.
+        """
+
         self.__entity_counter = count(start=0)
 
     def __get_or_make_archetype(self, components: tuple[Type, ...]):
@@ -221,6 +232,8 @@ class WorldECS:
         archetype.add_entity(entity)
         self.entity_to_archetype[entity] = archetype
 
+        self.__clear_cache()
+
     def __discard_entity_archetype(self, entity: int, clear_archetype_entry: bool = True):
         """
         If the entity ID has an archetype bound - it will remove said entity from the archetype, and optionally
@@ -232,9 +245,14 @@ class WorldECS:
 
         if entity in self.entity_to_archetype:
             self.entity_to_archetype[entity].remove_entity(entity)
+            self.__clear_cache()
 
             if clear_archetype_entry:
                 del self.entity_to_archetype[entity]
+
+    def __clear_cache(self):
+        "Should be called every time a change to either an archetype or an entity is done"
+        self.__query_cache.clear()
 
     def consume_new_entity_id(self) -> int:
         "An internal method for generating a new unique entity ID. Don't call this unless you know what you're doing."
@@ -338,11 +356,20 @@ class WorldECS:
         For each entity found, it will return a pair of its entity ID and a tuple of its components.
 
         This method also includes 2 filters: `including` and `excluding`. Both of these take tuples of types
-        and they allow you to filter your query. 
+        or types directly allowing you to filter your query. 
         The query will ignore entities with components that are in the `excluding` filter, or entities
         that don't have components specified in the `including` filter.        
         """
         
+        result = self.__query_cache.get((components, including, excluding))
+        if result is None:
+            result = self.__query_cache.setdefault(
+                (components, including, excluding), 
+                list(self.__query_components(components, including, excluding))
+            )
+        return result
+
+    def __query_components(self, components: tuple[Type[Any]], including: tuple[Type, ...], excluding: tuple[Type, ...]):
         component_sig = compute_signature(components)
         with_sig = compute_signature(including)
         without_sig = compute_signature(excluding)
@@ -354,14 +381,22 @@ class WorldECS:
     def query_component(
         self, 
         component_ty: Type[C], 
-        including: tuple[Type, ...] = (), 
-        excluding: tuple[Type, ...] = ()
+        including: Union[Type, tuple[Type, ...]] = (), 
+        excluding: Union[Type, tuple[Type, ...]] = ()
     ) -> Iterable[tuple[int, C]]:
         """
         Query all entities with the provided component. 
         The same as `query_components`, but for a single component.        
         """
-        
+        result = self.__query_cache.get((component_ty, including, excluding))
+        if result is None:
+            result = self.__query_cache.setdefault(
+                (component_ty, including, excluding), 
+                list(self.__query_component(component_ty, including, excluding))
+            )
+        return result
+
+    def __query_component(self, component_ty: Type[C], including: tuple[Type, ...], excluding: tuple[Type, ...]):
         component_sig = compute_signature((component_ty, ))
         with_sig = compute_signature(including)
         without_sig = compute_signature(excluding)
