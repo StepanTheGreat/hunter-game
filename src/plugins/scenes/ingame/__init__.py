@@ -12,6 +12,7 @@ from plugins.entities.enemy import make_enemy
 
 from .render.map import *
 from .render.minimap import *
+from .gui import IngameGUI
 
 TILE_SIZE = 48
 
@@ -46,34 +47,23 @@ def make_world_map(resources: Resources, offset: tuple[float, float] = (0, 0)) -
 
 def spawn_entities(resources: Resources):
     world = resources[WorldECS]
-    # collisions = resources[CollisionManager]
     assets = resources[AssetManager]
-    # sprites = resources[SpriteRenderer]
-    # lights = resources[LightManager]
 
     world.create_entity(*make_player((0, 0)))
 
-    # player = Player((0, 0), collisions, lights)
-    # entities.push_entity(player)
-
-    # # door_entity = Door((2*48, 3*48), assets, collisions)
-    # entities.push_entity(door_entity)
-
     for i in range(5):
         world.create_entity(*make_enemy((50*i, 0), assets))
-        # enemy = Enemy((50*i, 0), assets, collisions, sprites, player)
-        # entities.push_entity(enemy)
 
 class IngameScene(SceneBundle):
     def __init__(self, resources: Resources):
         super().__init__(
             *make_world_map(resources, (0, 0)),
+            IngameGUI(resources)
         )
         spawn_entities(resources)
 
     def destroy(self, resources):
         # We need to remove all our entities before leaving
-        # resources[EntityWorld].clear()
         pass
 
 class IngamePlugin(Plugin):

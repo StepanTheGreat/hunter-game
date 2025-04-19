@@ -18,12 +18,13 @@ from .weapon import Weapon
 
 class PlayerStats:
     "Stores global player related information. Useful for GUI and visualisations, since its a shared resource"
-    def __init__(self, health: Health):
-        self.health: float = health.get_percentage()
+    def __init__(self):
+        self.health: float = 0
         "Stores the player's health in percentages"
 
-    def update_health(self, health: Health):
-        self.health = health.get_percentage()
+    def update_health(self, new_health: float):
+        assert 0 <= new_health <= 1
+        self.health = new_health
 
     def get_health(self) -> float:
         return self.health
@@ -50,10 +51,10 @@ class PlayerController:
         self.horizontal_dir = 0
 
 PLAYER_PROJECTILE = ProjectileFactory(
-    False,
+    True,
     speed=0,
     radius=20,
-    damage=150,
+    damage=15,
     lifetime=0.1,
     spawn_offset=30,
 )
@@ -114,12 +115,19 @@ def orient_player(resources: Resources):
         vel.set_velocity(new_vel.x, new_vel.y)
 
 def move_camera(resources: Resources):
+    world = resources[WorldECS]
     camera = resources[Camera3D]
 
-    for _, (position, angle) in resources[WorldECS].query_components(RenderPosition, RenderAngle, including=Player):
-        camera.set_pos(position.get_position())
-        camera.set_angle(angle.get_angle())
-        break
+    players = world.query_component(Player)
+    if not players:
+        return
+    
+    player_ent = players[0][0]
+    position, angle, health = world.get_components(player_ent, RenderPosition, RenderAngle, Health)
+
+    camera.set_pos(position.get_position())
+    camera.set_angle(angle.get_angle())
+    resources[PlayerStats].update_health(health.get_percentage())
 
 def make_test_lights(resources: Resources):
     world = resources[WorldECS]
@@ -133,6 +141,8 @@ def make_test_lights(resources: Resources):
 
 class PlayerPlugin(Plugin):
     def build(self, app):
+        app.insert_resource(PlayerStats())
+
         app.add_systems(Schedule.Startup, make_test_lights)
         app.add_systems(Schedule.Update, control_player)
         app.add_systems(Schedule.FixedUpdate, orient_player, priority=-1)
