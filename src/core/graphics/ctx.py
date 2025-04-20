@@ -55,6 +55,9 @@ class GraphicsContext:
     def __init__(self, ctx: gl.Context):
         self.ctx: gl.Context = ctx
         self.white_texture: gl.Texture = make_white_texture(self.ctx)
+
+    def update_viewport(self, new_width: int, new_height: int):
+        self.ctx.viewport = (0, 0, new_width, new_height)
         
     def get_context(self) -> gl.Context:
         return self.ctx
@@ -68,10 +71,15 @@ class GraphicsContext:
 def clear_screen(resources: Resources):
     resources[GraphicsContext].clear(CLEAR_COLOR)
 
+def update_viewport(resources: Resources, event: WindowResizeEvent):
+    resources[GraphicsContext].update_viewport(event.new_width, event.new_height)
+
 class GraphicsContextPlugin(Plugin):
     def build(self, app):
         app.insert_resource(GraphicsContext(gl.get_context()))
         app.add_systems(Schedule.PreDraw, clear_screen)
+
+        app.add_event_listener(WindowResizeEvent, update_viewport)
 
         # Add asset loaders for textures and shaders
         add_loaders(
