@@ -51,10 +51,10 @@ class PlayerController:
         self.horizontal_dir = 0
 
 PLAYER_PROJECTILE = ProjectileFactory(
-    True,
+    False,
     speed=0,
     radius=20,
-    damage=15,
+    damage=75,
     lifetime=0.1,
     spawn_offset=30,
 )
@@ -69,7 +69,7 @@ def make_player(pos: tuple[float, float]) -> tuple:
         Angle(0),
         RenderAngle(0),
         DynCollider(12, 30),
-        Weapon(PLAYER_PROJECTILE, 0.5, 0, True),
+        Weapon(PLAYER_PROJECTILE, 0.1, 0, True),
         PlayerController(),
         Team.friend(),
         Hittable(),
