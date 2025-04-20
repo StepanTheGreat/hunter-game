@@ -7,6 +7,7 @@ from .render2d import *
 from .render3d import *
 from .sprite import *
 from .lights import *
+from .postprocessing import *
 
 class GraphicsPlugin(Plugin):
     def build(self, app):
@@ -16,4 +17,5 @@ class GraphicsPlugin(Plugin):
             SpriteRendererPlugin(),
             Renderer2DPlugin(),
             TelemetryMenuPlugin(),
+            PostProcessingPlugin()
         )
