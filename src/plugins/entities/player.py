@@ -4,8 +4,7 @@ import numpy as np
 from plugin import Plugin, Resources, Schedule
 
 from core.graphics import Camera3D
-from core.pg import Clock
-from core.ecs import WorldECS, component
+from core.ecs import WorldECS, component, ComponentsRemovedEvent
 from core.input import InputManager
 from plugins.collisions import DynCollider
 
@@ -63,7 +62,7 @@ def make_player(pos: tuple[float, float]) -> tuple:
     return (
         Position(*pos),
         RenderPosition(*pos, 44),
-        Velocity(0, 0, 150),
+        Velocity(0, 0, 200),
         Light((1, 1, 1), 300),
         AngleVelocity(0, 4),
         Angle(0),
@@ -119,15 +118,16 @@ def move_camera(resources: Resources):
     camera = resources[Camera3D]
 
     players = world.query_component(Player)
-    if not players:
-        return
-    
-    player_ent = players[0][0]
-    position, angle, health = world.get_components(player_ent, RenderPosition, RenderAngle, Health)
+    if players:    
+        player_ent = players[0][0]
+        position, angle, health = world.get_components(player_ent, RenderPosition, RenderAngle, Health)
 
-    camera.set_pos(position.get_position())
-    camera.set_angle(angle.get_angle())
-    resources[PlayerStats].update_health(health.get_percentage())
+        camera.set_pos(position.get_position())
+        camera.set_angle(angle.get_angle())
+
+        resources[PlayerStats].update_health(health.get_percentage())
+    else:
+        resources[PlayerStats].update_health(0)
 
 def make_test_lights(resources: Resources):
     world = resources[WorldECS]
