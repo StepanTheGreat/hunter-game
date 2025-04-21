@@ -26,7 +26,7 @@ def make_enemy(pos: tuple[float, float], assets: AssetManager) -> tuple:
         Sprite(texture, pg.Vector2(48, 48), (0, 0, 1, 1)),
         Team.enemy(),
         Hittable(),
-        Health(300),
+        Health(300, 0.1),
         DynCollider(40, 3)
     )
 
