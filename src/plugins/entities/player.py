@@ -69,7 +69,7 @@ def make_player(pos: tuple[float, float]) -> tuple:
         Angle(0),
         RenderAngle(0),
         DynCollider(12, 30),
-        Weapon(PLAYER_PROJECTILE, 0.1, 0, True),
+        Weapon(PLAYER_PROJECTILE, 0.1, True),
         PlayerController(),
         Team.friend(),
         Hittable(),
