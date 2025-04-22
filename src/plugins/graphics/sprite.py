@@ -158,7 +158,7 @@ def draw_sprites(resources: Resources):
     lights = resources[LightManager]
     renderer = resources[SpriteRenderer]
 
-    for ent, (position, sprite) in resources[WorldECS].query_components(RenderPosition, Sprite):
+    for ent, (position, sprite) in resources[WorldECS].query_components(RenderPosition, Sprite)[:renderer.sprite_limit]:
         renderer.push_sprite(sprite, position.get_position(), position.height)
 
     draw_calls = renderer.draw(lights, resources[Camera3D])
