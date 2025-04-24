@@ -79,6 +79,39 @@ def make_circle(pos: tuple[float, float], radius: float, color: tuple[float, ...
 
     return DynamicMeshCPU(verticies.flatten(), indices.flatten())
 
+def make_circles(
+    circles: tuple[tuple[tuple[float, float], float, tuple[int, ...]]],
+    points: int = 20
+) -> DynamicMeshCPU:
+    "A more efficient version of `make_circle`, but for batching A LOT of circles"
+
+    assert points > 2, "Can't build a circle mesh with less than 3 points" 
+    
+    circles_len = len(circles)
+
+    verticies = np.empty((circles_len*points, 7), dtype=np.float32)
+    indices = np.empty((circles_len*(points-2), 3), dtype=np.uint32)
+
+    for cind, ((x, y), rd, color) in enumerate(circles):
+        assert rd > 0, "Why?"
+
+        arr_cind = cind*points
+        r, g, b = color
+
+        angle = 0
+        dt_angle = (np.pi*2)/points
+        for point in range(points):
+            verticies[arr_cind+point] = [
+                x+np.cos(angle)*rd, y+np.sin(angle)*rd, 0, 0, r, g, b
+            ]
+            angle += dt_angle
+
+        indx_cind = cind*(points-2)
+        for ind in range(1, points-1):
+            indices[indx_cind+ind-1] = [arr_cind, arr_cind+ind, arr_cind+ind+1]
+
+    return DynamicMeshCPU(verticies.flatten(), indices.flatten())
+
 class DrawCall:
     """
     A single draw call is a combination of geometry and texture. 
@@ -263,6 +296,10 @@ class Renderer2D:
     def draw_circle(self, pos: tuple[float, float], radius: float, color: tuple[float, ...], points: int = 20):
         circle_mesh = make_circle(pos, radius, color, points)
         self.push_draw_call(DrawCall(circle_mesh, self.white_texture))
+
+    def draw_circles(self, circles: tuple[tuple[tuple[int, int], int, tuple[float, float, float]]], points: int = 20):
+        circles_mesh = make_circles(circles, points)
+        self.push_draw_call(DrawCall(circles_mesh, self.white_texture))
 
     def draw_text(self, font: FontGPU, text: str, pos: tuple[int], color: tuple[float], size: float):
         x, y = pos
