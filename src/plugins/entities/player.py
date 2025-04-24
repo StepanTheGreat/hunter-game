@@ -72,7 +72,7 @@ def make_player(pos: tuple[float, float]) -> tuple:
         PlayerController(),
         Team.friend(),
         Hittable(),
-        Health(200, 0.25),
+        Health(200_000, 0.25),
         Player()
     )
 
