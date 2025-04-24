@@ -3,14 +3,15 @@
 import numpy as np
 import moderngl as gl
 
+from typing import Iterable, Sequence, TypeVar
 from plugin import Resources, Plugin, Schedule
 
 from core.telemetry import Telemetry
 from core.assets import AssetManager
 from core.graphics import *
 
-VERTEX_ELEMENTS = 10000
-INDEX_ELEMENTS = 2000
+MAX_VERTICIES = 10000
+MAX_INDICES = 15000
 MAX_DRAW_CALLS = 32
 
 RENDERER_PIPELINE_PARAMS = PipelineParams(
@@ -20,17 +21,24 @@ RENDERER_PIPELINE_PARAMS = PipelineParams(
 )
 
 RENDERER_VERTEX_ATTRIBUTES = ("position", "uv", "color")
+VERTEX_DTYPE = np.dtype([
+    ("position", "f4", 2),
+    ("uv", "f4", 2),
+    ("color", "u1", 3)
+])
+VERTEX_GL_FORMAT = "2f 2f 3f1"
 
 def make_quad(*points: tuple[tuple[float], tuple[float], tuple[float]]) -> DynamicMeshCPU:
     p1, p2, p3, p4 = points
     return DynamicMeshCPU(
         np.array([
-            *p1[0],   *p1[1],  *p1[2],
-            *p2[0],   *p2[1],  *p2[2],
-            *p3[0],   *p3[1],  *p3[2],
-            *p4[0],   *p4[1],  *p4[2],
-        ], dtype=np.float32),
-        np.array([0, 1, 2, 1, 2, 3], dtype=np.uint32)
+            (p1[0], p1[1],  p1[2]),
+            (p2[0], p2[1],  p2[2]),
+            (p3[0], p3[1],  p3[2]),
+            (p4[0], p4[1],  p4[2]),
+        ], dtype=VERTEX_DTYPE),
+        np.array([0, 1, 2, 1, 2, 3], dtype=np.uint32),
+        VERTEX_DTYPE
     )
 
 def make_quads(quads: list[tuple[tuple[float], tuple[float], tuple[float]]]) -> DynamicMeshCPU:
@@ -38,7 +46,7 @@ def make_quads(quads: list[tuple[tuple[float], tuple[float], tuple[float]]]) -> 
 
     quads_len = len(quads)
 
-    verticies = np.zeros((quads_len, 7*4), dtype=np.float32)
+    verticies = np.zeros((quads_len, 4), dtype=VERTEX_DTYPE)
     indices = np.zeros((quads_len, 6), dtype=np.uint32)
 
     lind = 0
@@ -46,15 +54,15 @@ def make_quads(quads: list[tuple[tuple[float], tuple[float], tuple[float]]]) -> 
         p1, p2, p3, p4 = quad
 
         verticies[ind] = [
-            *p1[0],   *p1[1],  *p1[2],
-            *p2[0],   *p2[1],  *p2[2],
-            *p3[0],   *p3[1],  *p3[2],
-            *p4[0],   *p4[1],  *p4[2],
+            (p1[0],   p1[1],  p1[2]),
+            (p2[0],   p2[1],  p2[2]),
+            (p3[0],   p3[1],  p3[2]),
+            (p4[0],   p4[1],  p4[2]),
         ]
         indices[ind] = [lind, lind+1, lind+2, lind+1, lind+2, lind+3]
         lind += 4
     
-    return DynamicMeshCPU(verticies.ravel(), indices.ravel())
+    return DynamicMeshCPU(verticies.ravel(), indices.ravel(), VERTEX_DTYPE)
 
 def make_circle(pos: tuple[float, float], radius: float, color: tuple[float, ...], points: int = 20) -> DynamicMeshCPU:
     assert points > 2, "Can't build a circle mesh with less than 3 points" 
@@ -63,21 +71,21 @@ def make_circle(pos: tuple[float, float], radius: float, color: tuple[float, ...
     x, y = pos
     r = radius
 
-    verticies = np.empty((points, 7), dtype=np.float32)
+    verticies = np.empty(points, dtype=VERTEX_DTYPE)
     indices = np.empty((points-2, 3), dtype=np.uint32)
     
     angle = 0
     dt_angle = (np.pi*2)/points
     for point in range(points):
-        verticies[point] = [
-            x+np.cos(angle)*r, y+np.sin(angle)*r, 0, 0, *color
-        ]
+        verticies[point] = (
+            (x+np.cos(angle)*r, y+np.sin(angle)*r), (0, 0), color
+        )
         angle += dt_angle
 
     for ind in range(1, points-1):
         indices[ind-1] = [0, ind, ind+1]
 
-    return DynamicMeshCPU(verticies.flatten(), indices.flatten())
+    return DynamicMeshCPU(verticies.flatten(), indices.flatten(), VERTEX_DTYPE)
 
 def make_circles(
     circles: tuple[tuple[tuple[float, float], float, tuple[int, ...]]],
@@ -89,7 +97,7 @@ def make_circles(
     
     circles_len = len(circles)
 
-    verticies = np.empty((circles_len*points, 7), dtype=np.float32)
+    verticies = np.empty(circles_len*points, dtype=VERTEX_DTYPE)
     indices = np.empty((circles_len*(points-2), 3), dtype=np.uint32)
 
     for cind, ((x, y), rd, color) in enumerate(circles):
@@ -101,16 +109,16 @@ def make_circles(
         angle = 0
         dt_angle = (np.pi*2)/points
         for point in range(points):
-            verticies[arr_cind+point] = [
-                x+np.cos(angle)*rd, y+np.sin(angle)*rd, 0, 0, r, g, b
-            ]
+            verticies[arr_cind+point] = (
+                (x+np.cos(angle)*rd, y+np.sin(angle)*rd), (0, 0), (r, g, b)
+            )
             angle += dt_angle
 
         indx_cind = cind*(points-2)
         for ind in range(1, points-1):
             indices[indx_cind+ind-1] = [arr_cind, arr_cind+ind, arr_cind+ind+1]
 
-    return DynamicMeshCPU(verticies.flatten(), indices.flatten())
+    return DynamicMeshCPU(verticies.flatten(), indices.flatten(), VERTEX_DTYPE)
 
 class DrawCall:
     """
@@ -124,7 +132,7 @@ class DrawCall:
 class DrawCallBatch:
     "Draw call container and merger"
     def __init__(self, verticies: int, indicies: int):
-        self.reserved_mesh = ReservedMeshCPU(verticies, indicies)
+        self.reserved_mesh = ReservedMeshCPU(verticies, indicies, VERTEX_DTYPE)
         self.texture = None
 
     def can_merge(self, draw_call: DrawCall):
@@ -136,7 +144,7 @@ class DrawCallBatch:
         )
     
     def merge_draw_call(self, draw_call: DrawCall):
-        assert self.can_merge(draw_call)
+        assert self.can_merge(draw_call), "The draw call exceeds the draw call batch limits"
 
         self.reserved_mesh.push_mesh(draw_call.mesh)
         if self.texture is None:
@@ -174,12 +182,13 @@ class Renderer2D:
             RENDERER_VERTEX_ATTRIBUTES
         )
 
-        self.vbo = self.ctx.buffer(reserve=vertex_elements*4, dynamic=True)
+        self.vbo = self.ctx.buffer(reserve=vertex_elements*VERTEX_DTYPE.itemsize, dynamic=True)
         self.ibo = self.ctx.buffer(reserve=index_elements*4, dynamic=True)
         self.vao = self.ctx.vertex_array(
             self.pipeline.program, 
-            self.vbo, 
-            *self.pipeline.vertex_attributes,
+            [
+                (self.vbo, VERTEX_GL_FORMAT, *self.pipeline.vertex_attributes)
+            ],
             index_buffer=self.ibo
         )
 
@@ -220,14 +229,12 @@ class Renderer2D:
 
     def draw_rects(self, entries: list[tuple[int, ...], tuple[float, ...]]):
         "The same as `draw_rect`, but for A LOT of rectangles. Highly efficient"
-        quads = make_quads([
-            (
-                ((x, y),     (0, 1), color),
-                ((x+w, y),   (1, 1), color),
-                ((x, y+h),   (0, 0), color),
-                ((x+w, y+h), (1, 0), color),
-            ) for (x, y, w, h), color in entries
-        ])
+        quads = make_quads([(
+            ((x, y), (0, 1), color), 
+            ((x+w, y), (1, 1), color),
+            ((x, y+h), (0, 0), color),
+            ((x+w, y+h), (1, 0), color),
+        ) for (x, y, w, h), color in entries])
         self.push_draw_call(DrawCall(quads, self.white_texture))
 
     def draw_rect_lines(self, rect: tuple[int, ...], color: tuple[float, ...], thickness: float = 1):
@@ -360,8 +367,8 @@ class Renderer2DPlugin(Plugin):
         app.insert_resource(Renderer2D(
             app.get_resource(GraphicsContext),
             app.get_resource(AssetManager),
-            VERTEX_ELEMENTS,
-            INDEX_ELEMENTS,
+            MAX_VERTICIES,
+            MAX_INDICES,
             MAX_DRAW_CALLS
         ))
         app.add_systems(Schedule.PostDraw, issue_draw_calls)

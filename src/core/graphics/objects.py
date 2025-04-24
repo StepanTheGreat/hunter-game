@@ -73,11 +73,11 @@ class Pipeline:
 
 class ReservedMeshCPU:
     "A mesh with preallocated geometry arrays. Highly useful for highly dynamic data"
-    def __init__(self, vertex_size: int, index_size: int):
+    def __init__(self, vertex_size: int, index_size: int, vertex_dtype: np.dtype = np.float32):
         self.vertex_size = vertex_size
         self.index_size = index_size
 
-        self.verticies = NumpyList(reserve=vertex_size, dtype=np.float32)
+        self.verticies = NumpyList(reserve=vertex_size, dtype=vertex_dtype)
         self.indices = NumpyList(reserve=index_size, dtype=np.uint32)
 
         self.free_index = 0
@@ -153,11 +153,11 @@ class DynamicMeshCPU:
 
     Okay for static data, but not for dynamic.
     """
-    def __init__(self, verticies: np.ndarray, indices: np.ndarray):
+    def __init__(self, verticies: np.ndarray, indices: np.ndarray, vertex_dtype: np.dtype = np.float32):
         
-        assert verticies.dtype == np.float32 and indices.dtype == np.uint32
+        assert verticies.dtype == vertex_dtype and indices.dtype == np.uint32
 
-        self.verticies = NumpyList(verticies, dtype=np.float32)
+        self.verticies = NumpyList(verticies, dtype=vertex_dtype)
         self.indices = NumpyList(indices, dtype=np.uint32)
 
         self.free_index = indices.max()+1 if indices.size > 0 else 0
