@@ -2,6 +2,7 @@ __pycache__
 
 # game profiling
 profile.txt 
+program.prof
 
 TODO.md
 
