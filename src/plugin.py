@@ -20,7 +20,7 @@ class EventWriter:
         self.queue: list = []
 
     def push_event(self, event):
-        "Push an event onto the queue"
+        "Push an event onto the queue. This event will be executed at the end of every step"
 
         assert getattr(event, "__app_event", False), "Only event objects can be pushed. Did you decorate it with the @event decorator?"
         
@@ -31,8 +31,12 @@ class EventWriter:
         return self.queue
 
     def clear_events(self):
-        "Clear the internal queue. This should be called at the start of every frame internally by the app"
+        "Clear the internal event queue. This shouldn't be called by the end-user"
         self.queue.clear()
+
+    def contains_events(self) -> bool:
+        "Check if this writer has any events"
+        return len(self.queue) > 0
 
 # This is a generic argument that stands for Resource.
 # It's highly useful because it allows the intellisense to understand arguments and return types, which
@@ -237,11 +241,27 @@ class App:
         for event_listener in self.event_listeners.get(type(event), []):
             event_listener(self.resources, event)
 
+    def __dispatch_events(self, ewriter: EventWriter):
+        "Dispatch all event handlers on the existing events."
+
+        # For curious, the only reason I'm passing the EventWriter object is to reduce
+        # the amount of dictionary lookups. That's it.
+
+        if ewriter.contains_events():
+            for event in ewriter.read_events():
+                self.__push_event(event)
+
+            ewriter.clear_events()
+
     def __execute_schedules(self, *schedules: Schedule):
-        "Execute all systems in a schedule"
+        "Execute all systems in a schedule and run dispatch collected events in the end"
+        ewriter = self.resources[EventWriter]
+
         for schedule in schedules:
             for system in self.systems.get(schedule, []):
                 system(self.resources)
+
+            self.__dispatch_events(ewriter)
 
     def startup(self):
         "Execute all startup systems"
@@ -252,13 +272,6 @@ class App:
 
         # Execute the first schedule
         self.__execute_schedules(Schedule.First)
-
-        # Read all the events received
-        ewriter = self.resources[EventWriter]
-        for event in ewriter.read_events():
-            self.__push_event(event)
-
-        ewriter.clear_events()
         
         self.__execute_schedules(Schedule.PreUpdate)
         
