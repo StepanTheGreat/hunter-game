@@ -23,12 +23,12 @@ def draw_minimap(resources: Resources):
 
         rects.append((
             (pos.x, pos.y, collider.rect.w*scale, collider.rect.h*scale), 
-            (0.2, 0.2, 0.2)
+            (40, 40, 40)
         ))
 
     for ent, (pos, collider) in world.query_components(RenderPosition, DynCollider):
         pos = pos.get_position()*scale
-        color = (0, 1, 0) if world.has_component(ent, Player) else (1, 0, 0)
+        color = (0, 255, 0) if world.has_component(ent, Player) else (255, 0, 0)
         circles.append((
             (pos.x, pos.y), collider.radius*MINIMAP_SCALE, color
         ))

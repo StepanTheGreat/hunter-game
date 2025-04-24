@@ -6,8 +6,8 @@ from plugins.gui import GUIBundleManager, GUIElement
 from plugins.entities.player import PlayerStats
 
 class PlayerHealthbar(GUIElement):
-    BG_COLOR = (0.2, 0.2, 0.2)
-    HEALTH_COLOR = (0.2, 1, 0.3)
+    BG_COLOR = (40, 40, 40)
+    HEALTH_COLOR = (40, 255, 70)
     def __init__(
         self, 
         edge: tuple[int, int], 

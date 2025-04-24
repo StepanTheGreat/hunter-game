@@ -250,7 +250,7 @@ class FillBox(GUIElement):
 
 class ColorRect(FillBox):
     "A rectangle that is filled with color"
-    def __init__(self, color: tuple[float, ...]):
+    def __init__(self, color: tuple[int, ...]):
         super().__init__()
         self.color = color
         
@@ -264,7 +264,7 @@ class TextureRect(FillBox):
         super().__init__()
 
         self.texture = texture
-        self.color = (1, 1, 1)
+        self.color = (255, 255, 255)
         self.uv_rect = (0, 0, 1, 1)
 
     def draw(self, renderer):
@@ -278,12 +278,14 @@ class Label(GUIElement):
             text: str, 
             edge: tuple[float, float], 
             pivot: tuple[float, float] = (0, 0),
+            color: tuple[int, int, int] = (255, 255, 255),
             text_scale: float = 1
         ):
         super().__init__(edge, pivot)
         self.font = font
         self.text = None
         self.text_scale = text_scale
+        self.color = color
 
         self.set_text(text)
 
@@ -298,7 +300,7 @@ class Label(GUIElement):
         self.set_size(textw*self.text_scale, texth*self.text_scale)
 
     def draw(self, renderer):
-        renderer.draw_text(self.font, self.text, self.get_position(), (1, 1, 1), self.text_scale)
+        renderer.draw_text(self.font, self.text, self.get_position(), self.color, self.text_scale)
 
 class BaseButton(GUIElement):
     "Not a user class, instead a super class for other button implementations"
@@ -396,7 +398,7 @@ class TextButton(BaseButton):
     def draw(self, renderer):
         rect = self.get_rect()
         
-        bg_color = (0.2, 0.2, 0.2) if self.clicked else (0.4, 0.4, 0.4)
+        bg_color = (40, 40, 40) if self.clicked else (100, 100, 100)
 
         renderer.draw_rect((rect.x, rect.y, rect.w, rect.h), bg_color)
 
@@ -407,7 +409,7 @@ class TextButton(BaseButton):
             self.font, 
             self.text, 
             (rect.x+size_w/2-text_w/2, rect.y+size_h/2-text_h/2), 
-            (1, 1, 1), 
+            (255, 255, 255), 
             self.text_scale
         )
 
@@ -424,7 +426,7 @@ class TextureButton(BaseButton):
         self.size = size
         self.texture = texture
         self.uv_rect = (0, 0, 1, 1)
-        self.color = (1, 1, 1)
+        self.color = (255, 255, 255)
 
         self.set_size(*self.size)
 
@@ -464,5 +466,5 @@ class Slider(GUIElement):
         value = self.value
         slider_h = self.slider_height
         vertical_offset = (rect.h-slider_h)/2
-        renderer.draw_rect((rect.x, rect.y+vertical_offset, rect.w, slider_h), (0.2, 0.2, 0.2))
-        renderer.draw_circle((rect.x+value*rect.w, rect.centery), self.size[1], (1, 0, 0), 10)
+        renderer.draw_rect((rect.x, rect.y+vertical_offset, rect.w, slider_h), (40, 40, 40))
+        renderer.draw_circle((rect.x+value*rect.w, rect.centery), self.size[1], (255, 0, 0), 10)
