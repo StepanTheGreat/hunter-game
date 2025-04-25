@@ -3,7 +3,6 @@
 import numpy as np
 import moderngl as gl
 
-from typing import Iterable, Sequence, TypeVar
 from plugin import Resources, Plugin, Schedule
 
 from core.telemetry import Telemetry
@@ -22,20 +21,27 @@ RENDERER_PIPELINE_PARAMS = PipelineParams(
 
 RENDERER_VERTEX_ATTRIBUTES = ("position", "uv", "color")
 VERTEX_DTYPE = np.dtype([
-    ("position", "f4", 2),
+    ("position", "i2", 2),
     ("uv", "f4", 2),
-    ("color", "u1", 3)
+    ("color", "u1", 3),
+    ("_padding", "u1")
 ])
-VERTEX_GL_FORMAT = "2f 2f 3f1"
+VERTEX_GL_FORMAT = "2i2 2f 3f1 x"
+
+PADDING = 0
+"""
+Because hardware accelerated graphics like power-of-2 aligned data - we're required to align it.
+I'm only making this constant so that it will be clear why I'm putting 0s all over 2D vertex data
+"""
 
 def make_quad(*points: tuple[tuple[float], tuple[float], tuple[float]]) -> DynamicMeshCPU:
     p1, p2, p3, p4 = points
     return DynamicMeshCPU(
         np.array([
-            (p1[0], p1[1],  p1[2]),
-            (p2[0], p2[1],  p2[2]),
-            (p3[0], p3[1],  p3[2]),
-            (p4[0], p4[1],  p4[2]),
+            (p1[0], p1[1],  p1[2], PADDING),
+            (p2[0], p2[1],  p2[2], PADDING),
+            (p3[0], p3[1],  p3[2], PADDING),
+            (p4[0], p4[1],  p4[2], PADDING),
         ], dtype=VERTEX_DTYPE),
         np.array([0, 1, 2, 1, 2, 3], dtype=np.uint32),
         VERTEX_DTYPE
@@ -54,10 +60,10 @@ def make_quads(quads: list[tuple[tuple[float], tuple[float], tuple[float]]]) -> 
         p1, p2, p3, p4 = quad
 
         verticies[ind] = [
-            (p1[0],   p1[1],  p1[2]),
-            (p2[0],   p2[1],  p2[2]),
-            (p3[0],   p3[1],  p3[2]),
-            (p4[0],   p4[1],  p4[2]),
+            (p1[0],   p1[1],  p1[2], PADDING),
+            (p2[0],   p2[1],  p2[2], PADDING),
+            (p3[0],   p3[1],  p3[2], PADDING),
+            (p4[0],   p4[1],  p4[2], PADDING),
         ]
         indices[ind] = [lind, lind+1, lind+2, lind+1, lind+2, lind+3]
         lind += 4
@@ -78,7 +84,7 @@ def make_circle(pos: tuple[float, float], radius: float, color: tuple[float, ...
     dt_angle = (np.pi*2)/points
     for point in range(points):
         verticies[point] = (
-            (x+np.cos(angle)*r, y+np.sin(angle)*r), (0, 0), color
+            (x+np.cos(angle)*r, y+np.sin(angle)*r), (0, 0), color, PADDING
         )
         angle += dt_angle
 
@@ -110,7 +116,7 @@ def make_circles(
         dt_angle = (np.pi*2)/points
         for point in range(points):
             verticies[arr_cind+point] = (
-                (x+np.cos(angle)*rd, y+np.sin(angle)*rd), (0, 0), (r, g, b)
+                (x+np.cos(angle)*rd, y+np.sin(angle)*rd), (0, 0), (r, g, b), PADDING
             )
             angle += dt_angle
 
