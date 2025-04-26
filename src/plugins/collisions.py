@@ -1,12 +1,16 @@
 import pygame as pg
 
-from plugin import Plugin, Schedule, Resources, event, EventWriter
+from typing import Union
+from plugin import Plugin, Schedule, Resources, EventWriter, event
 
-from core.ecs import WorldECS, component
+from core.ecs import WorldECS, component, ComponentsAddedEvent, ComponentsRemovedEvent
 
 from collections import deque
 
 from .components import Position
+
+# The less - better, but also more unstable. If a collider's total rectangle is larger than GRID_SIZE*2 - this will get unstable quick
+GRID_SIZE = 48
 
 @component
 class StaticCollider:
@@ -18,6 +22,9 @@ class StaticCollider:
         "This method is only used for calculations, colliders usually use positions from components"
         self.rect.topleft = (pos.x, pos.y)
         return self
+    
+    def get_rect(self) -> pg.Rect:
+        return self.rect
 
 @component
 class DynCollider:
@@ -27,15 +34,22 @@ class DynCollider:
         assert mass > 0, "A dynamic collider's mass can't be negative or 0"
         
         self.pos = pg.Vector2(0, 0)
+        self.__rect = pg.Rect(0, 0, radius*2, radius*2)
 
         self.radius = radius
         self.mass = mass
+
         self.sensor = sensor
+        "A public attribute. A sensor object doesn't get resolved - it only checks for collisions"
 
     def as_moved(self, pos: pg.Vector2) -> "DynCollider":
         "This method is only used for calculations, colliders usually use positions from components"
         self.pos = pos
+        self.__rect.center = (pos.x, pos.y)
         return self
+    
+    def get_rect(self) -> pg.Rect:
+        return self.__rect
     
     def is_sensor(self) -> bool:
         return self.sensor
@@ -98,41 +112,153 @@ class DynCollider:
             if 0 < distance <= radius:
                 pos += (pos-point).normalize() * (radius-distance)
 
+__grid_dynamic: dict[tuple[int, int], list[tuple[int, DynCollider]]] = {}
+__grid_static: dict[tuple[int, int], list[tuple[int, StaticCollider]]] = {}
+__resolved: set = set()
+
+def fill_grid_with_colliders(
+    grid: dict[tuple[int, int], list[tuple[int, DynCollider]]], 
+    colliders: tuple[tuple[int, tuple[Position, Union[DynCollider, StaticCollider]]]]
+):
+    """
+    Fill a grid with provided colliders. This procedure doesn't clear anything, so it's your responsibility
+    to do so.
+    """
+
+    # Iterate every collider
+    for ent, (pos, collider) in colliders:
+        pos = pos.get_position()
+        pos = (int(pos.x/GRID_SIZE), int(pos.y/GRID_SIZE))
+
+        # Now here's where confusing stuff happens - what's a `hurricane_cell_map`?
+        # Well, because it would be highly inefficient to simply dump our entity's collider into
+        # all neighbouring 9 cells, we're going to perform bounding rect collision checks first.
+        #
+        # But, performing rectangle checks on our collider would mean complexity of 8N.
+        # If we imagine a grid (NO, THIS IS NOT WHAT YOU THINK IT IS):
+        #  o    x -> o
+        #  |
+        #  x    #    x
+        #            |
+        #  o <- x    o
+        #
+        # The center being the position of our collider - it's highly unlikely that it's going to collide
+        # in every single cell. Well, what can we do then?
+        # Well, we could instead of checking every single outside chunk, check these key 4 regions:
+        # left, top, right, bottom
+        #
+        # The idea behind this is that it would be impossible for a bounding box to reach say,
+        # top-left cell, without colliding first with the left and top cell.
+        # If we don't - there's no way we're ever going to collide with it, so we simply ignore it.
+        #
+        # Now, next step would be to not make a collision check at all for the corners, so our algorithm is
+        # 100% 4N complexity, but for now it will be like this. 
+        hurricane_cell_map = (
+            ((pos[0]-1, pos[1]), (pos[0]-1, pos[1]-1)), # Left -> Top-Left 
+            ((pos[0]+1, pos[1]), (pos[0]+1, pos[1]+1)), # Right -> Bottom-Right
+            ((pos[0], pos[1]-1), (pos[0]+1, pos[1]-1)), # Up -> Top-right
+            ((pos[0], pos[1]+1), (pos[0]-1, pos[1]+1)), # Down -> Bottom-Left
+        )       
+
+        # Get our collider's bounding rect
+        collider_rect = collider.get_rect()
+
+        # Of course add its rectangle to the center 
+        grid.setdefault(pos, []).append((ent, collider))
+
+        for hurricane_cell in hurricane_cell_map:
+            for cell in hurricane_cell:
+                if collider_rect.colliderect(cell[0]*GRID_SIZE, cell[1]*GRID_SIZE, GRID_SIZE, GRID_SIZE):
+                    grid.setdefault(cell, []).append((ent, collider))
+
 def resolve_collisions(resources: Resources):
     world = resources[WorldECS]
     ewriter = resources[EventWriter]
 
     # Collect our colliders
-    static_colliders = [(ent, collider.as_moved(pos.get_position())) for ent, (pos, collider) in world.query_components(Position, StaticCollider)]
     dyn_colliders = [(ent, (pos, collider.as_moved(pos.get_position()))) for ent, (pos, collider) in world.query_components(Position, DynCollider)]
+    fill_grid_with_colliders(__grid_dynamic, dyn_colliders)
 
     events = deque()
 
-    for ent1, (_, collider1) in dyn_colliders:
-        for ent2, (_, collider2) in dyn_colliders:
-            if collider1 == collider2:
-                continue
+    # Now, the most ugly part - the collision detection and resolution
+    checks = 0
+    for cell, d_colliders in __grid_dynamic.items():
+        # We're going to iterate all cells and its colliders in our dynamic grid
+
+        s_colliders = __grid_static.get(cell, ())
+        # As well, we're going to grab static colliders from the same cell if they exist. If not - return an empty tuple
+
+        # Iterate every dynamic collider
+        for ent1, collider1 in d_colliders:
+            # Iterate again over all colliders
+            for ent2, collider2 in d_colliders:
+                checks += 1
+                if collider1 is collider2:
+                    # If this is the same collider - just continue iterating
+                    continue
+                elif ((ent1, ent2) in __resolved) or ((ent2, ent1) in __resolved):
+                    # The most important part! Don't resolve or check collisions if pairs are already resolved!
+                    continue
+                
+                # Now, we have different treatment for colliders, depending on if they're sensor or not
+
+                if (collider1.sensor or collider2.sensor) and collider1.is_colliding_dynamic(collider2):
+                    # If they are - we only care if they collide
+
+                    # We need to check which of them is sensor and properly reorder for the collision event
+                    sensor_ent, hit_ent = (ent1, ent2) if collider1.sensor else (ent2, ent1)
+
+                    # Fire the collision event
+                    events.append(CollisionEvent(sensor_ent, hit_ent, DynCollider))
+                else:
+                    # In any other case - resolve it as a collision between 2 dynamic bodies
+                    collider1.resolve_collision_dynamic(collider2)
+
+                # Don't forget to add it to the resolved set of course
+                __resolved.add((ent1, ent2))
+
+
+            # Now, we resolve static collisions!
+
+            for ent2, collider2 in s_colliders:
+                checks += 1
+                if ((ent1, ent2) in __resolved) or ((ent2, ent1) in __resolved):
+                    # Of course ignore colliders that we already resolved
+                    continue
             
-            if (collider1.is_sensor() or collider2.is_sensor()) and collider1.is_colliding_dynamic(collider2):
-                events.append(CollisionEvent(ent1, ent2, DynCollider))
-                # ewriter.push_event(CollisionEvent(ent1, ent2, DynCollider))
-            else:
-                collider1.resolve_collision_dynamic(collider2)
+                # The same check applies for sensor and static colliders 
 
-    # Now we resolve all static colliders. Again, this is an extremely banal and slow approach
-    for ent1, (_, dyn_collider) in dyn_colliders:
-        for ent2, static_collider in static_colliders:
-            if dyn_collider.is_sensor() and dyn_collider.is_colliding_static(static_collider):
-                events.appendleft(CollisionEvent(ent1, ent2, StaticCollider))
-                # ewriter.push_event(CollisionEvent(ent1, ent2, StaticCollider))
-            else:
-                dyn_collider.resolve_collision_static(static_collider)
+                if collider1.sensor and collider1.is_colliding_static(collider2):
+                    events.appendleft(CollisionEvent(ent1, ent2, StaticCollider))
+                else:
+                    collider1.resolve_collision_static(collider2)
 
+                __resolved.add((ent1, ent2))
+
+    # print(f"Performing {checks} collision checks on {len(dyn_colliders)} dyn objects")
+
+    # Now, for simplicity reasons, colliders temporary store their positions for simpler collision resolution
+    # We need to move said colliders to their new, resolved positions
     for _, (pos, collider) in dyn_colliders:
         pos.set_position(*collider.get_position())
 
+    # Push all our collected events
     for event in events:
         ewriter.push_event(event)
+
+    # And clear out our grids and sets (well, not really, because we would like to preserve lists and their allocated capacity for performance reasons)
+    [cell.clear() for cell in __grid_dynamic.values()]
+    __resolved.clear()
+
+def on_new_static_collider(resources: Resources, event: Union[ComponentsRemovedEvent, ComponentsAddedEvent]):
+    if StaticCollider not in event.components:
+        return    
+    
+    world = resources[WorldECS]
+    static_colliders = [(ent, (pos, collider.as_moved(pos.get_position()))) for ent, (pos, collider) in world.query_components(Position, StaticCollider)]
+    [cell.clear() for cell in __grid_static.values()]
+    fill_grid_with_colliders(__grid_static, static_colliders)
 
 @event
 class CollisionEvent:
@@ -152,3 +278,6 @@ class CollisionEvent:
 class CollisionsPlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.FixedUpdate, resolve_collisions, priority=1)
+
+        app.add_event_listener(ComponentsAddedEvent, on_new_static_collider)
+        app.add_event_listener(ComponentsRemovedEvent, on_new_static_collider)

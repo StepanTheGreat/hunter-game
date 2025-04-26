@@ -295,7 +295,7 @@ class WorldECS:
         self.__assign_entity_archetype(entity_id)
 
         # Notify everyone
-        self.ewriter.push_event(ComponentsAddedEvent(entity_id, tuple(components)))
+        self.ewriter.push_event(ComponentsAddedEvent(entity_id, tuple(self.entities[entity_id].keys())))
 
         return entity_id
 
@@ -467,7 +467,7 @@ class WorldECS:
         # Since our entity has changed components - we need to move it to a different archetype
         self.__assign_entity_archetype(entity)
         
-        self.ewriter.push_event(ComponentsAddedEvent(entity, tuple(self.entities[entity].values())))
+        self.ewriter.push_event(ComponentsAddedEvent(entity, tuple(self.entities[entity].keys())))
 
     def remove_components(self, entity: int, *components: Type[Any]):
         """
@@ -483,7 +483,7 @@ class WorldECS:
 
         for component_ty in components:
             if component_ty in self.entities[entity]:
-                removed_components.append(self.entities[entity][component_ty])
+                removed_components.append(component_ty)
 
                 del self.entities[entity][component_ty]
             
@@ -504,7 +504,7 @@ class WorldECS:
             self.__discard_entity_archetype(entity)
 
             # Notify everyone
-            self.ewriter.push_event(ComponentsRemovedEvent(entity, tuple(self.entities[entity].values())))
+            self.ewriter.push_event(ComponentsRemovedEvent(entity, tuple(self.entities[entity].keys())))
 
             # Now we can actually remove the entity
             del self.entities[entity]

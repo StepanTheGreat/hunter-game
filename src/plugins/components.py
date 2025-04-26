@@ -126,14 +126,20 @@ class Team:
 
 @component
 class Health:
-    def __init__(self, max_health: float):
+    def __init__(self, max_health: float, invincibility: float):
         self.health = max_health
         self.max_health = max_health
+
+        self.invincibility = invincibility
+        "The amount of time an entity is immune to damage after taking damage"
+        self.on_invincibility = invincibility
 
     def hurt(self, by: int):
         assert by >= 0, "Can't deal negative damage"
 
-        self.health = max(self.health-by, 0)
+        if self.on_invincibility <= 0:
+            self.health = max(self.health-by, 0)
+            self.on_invincibility = self.invincibility
 
     def heal(self, by: int):
         assert by >= 0, "Can't heal by a negative amount"
@@ -150,6 +156,14 @@ class Health:
     def is_dead(self) -> bool:
         "Returns whether the health is zero"
         return self.health <= 0
+    
+    def is_invincible(self) -> bool:
+        "Check whether this health component can be damaged"
+        return self.on_invincibility > 0
+    
+    def update_invincibility(self, dt: float):
+        if self.on_invincibility > 0:
+            self.on_invincibility -= dt
 
 @component
 class Hittable:
@@ -195,20 +209,29 @@ def move_entities(resources: Resources):
     for ent, (angle, angle_vel) in world.query_components(Angle, AngleVelocity):
         angle.set_angle(angle.get_angle() + angle_vel.get_velocity() * dt)
 
-def remove_dead_entities(resources: Resources):
+def update_invincibilities(resources: Resources):
     world = resources[WorldECS]
+    dt = resources[Clock].get_fixed_delta()
 
     for ent, health in world.query_component(Health):
-        if health.is_dead():
-            world.remove_entity(ent)
+        health.update_invincibility(dt)
+
+def remove_dead_entities(resources: Resources):
+    world = resources[WorldECS]
+    
+    with world.command_buffer() as cmd:
+        for ent, health in world.query_component(Health):
+            if health.is_dead():
+                cmd.remove_entity(ent)
 
 def remove_temp_entities(resources: Resources):
     world = resources[WorldECS]
     dt = resources[Clock].get_fixed_delta()
 
-    for ent, temporary in world.query_component(Temporary):
-        if temporary.update_and_check(dt):
-            world.remove_entity(ent)
+    with world.command_buffer() as cmd:
+        for ent, temporary in world.query_component(Temporary):
+            if temporary.update_and_check(dt):
+                cmd.remove_entity(ent)
 
 def update_render_components(resources: Resources):
     world = resources[WorldECS]
@@ -241,7 +264,8 @@ class CommonComponentsPlugin(Plugin):
             Schedule.FixedUpdate, 
             remove_dead_entities, 
             remove_temp_entities,
-            move_entities
+            update_invincibilities,
+            move_entities,
         )
         app.add_systems(Schedule.FixedUpdate, update_render_components, priority=10)
         app.add_systems(Schedule.PostUpdate, interpolate_render_components)

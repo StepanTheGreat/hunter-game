@@ -23,7 +23,7 @@ class MainMenuGUI:
     def enter_mainmenu_subscene(self):
         font = self.assets.load(FontGPU, "fonts/font.ttf")
 
-        background = ColorRect((0, 0, 1))
+        background = ColorRect((0, 0, 255))
 
         def start_game():
             self.resources[SceneManager].insert_scene(IngameScene(self.resources))
@@ -49,7 +49,7 @@ class MainMenuGUI:
     def enter_settings_subscene(self):
         font = self.assets.load(FontGPU, "fonts/font.ttf")
 
-        background = ColorRect((0.4, 0.4, 0.4))
+        background = ColorRect((100, 100, 100))
 
         def go_back():
             self.enter_mainmenu_subscene()

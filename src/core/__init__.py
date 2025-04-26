@@ -8,6 +8,7 @@ from app_config import CONFIG
 
 from .graphics import GraphicsPlugin
 from .pg import PygamePlugin
+from .sound import SoundPlugin
 from .input import InputPlugin
 from .assets import AssetsPlugin
 from .ecs import ECSPlugin
@@ -19,6 +20,7 @@ class CoreModulesPlugin(Plugin):
         app.add_plugins(
             AssetsPlugin(CONFIG.assets_dir),
             PygamePlugin(),
+            SoundPlugin(),
             InputPlugin(),
             GraphicsPlugin(),
             ECSPlugin(),

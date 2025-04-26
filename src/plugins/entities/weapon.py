@@ -18,12 +18,10 @@ class Weapon:
         self, 
         projectile_factory: ProjectileFactory, 
         cooldown: float = 1,
-        takes_ammo: int = 0,
         automatic: bool = False
     ):
         self.projectile_factory = projectile_factory
         self.cooldown = cooldown
-        self.takes_ammo = takes_ammo
 
         self.on_cooldown = self.cooldown
 

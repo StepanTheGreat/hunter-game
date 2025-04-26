@@ -17,22 +17,26 @@ def draw_minimap(resources: Resources):
 
     scale = MINIMAP_SCALE
 
-    rects = []
+    rects, circles = [], []
     for ent, (pos, collider) in world.query_components(Position, StaticCollider):
         pos = pos.get_position()*scale
 
         rects.append((
             (pos.x, pos.y, collider.rect.w*scale, collider.rect.h*scale), 
-            (0.2, 0.2, 0.2)
+            (40, 40, 40)
         ))
-
-    if rects:
-        renderer.draw_rects(rects)
 
     for ent, (pos, collider) in world.query_components(RenderPosition, DynCollider):
         pos = pos.get_position()*scale
-        color = (0, 1, 0) if world.has_component(ent, Player) else (1, 0, 0)
-        renderer.draw_circle((pos.x, pos.y), collider.radius*MINIMAP_SCALE, color)
+        color = (0, 255, 0) if world.has_component(ent, Player) else (255, 0, 0)
+        circles.append((
+            (pos.x, pos.y), collider.radius*MINIMAP_SCALE, color
+        ))
+    
+    if rects:
+        renderer.draw_rects(rects)
+    if circles:
+        renderer.draw_circles(circles)
 
 class MinimapPlugin(Plugin):
     def build(self, app):
