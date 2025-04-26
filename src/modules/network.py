@@ -153,14 +153,32 @@ def fnv1_hash(data: bytes) -> int:
 
     return ret_hash 
 
-def make_async_socket(addr: tuple[str, int]) -> socket.socket:
-    "This function simply creates a new non-blocking UDP socket"
+def make_async_socket(
+    addr: tuple[str, int], 
+    broadcaster: bool = False,
+    shared: bool = False
+) -> socket.socket:
+    """
+    This function simply creates a new non-blocking UDP socket:
+    - `addr`: the address on which create and bind this socket
+    - `broadcaster`: can this socket send broadcasts? `True` if yes
+    - `shared`: can this socket's address be reused? `True` if yes
+    """
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, shared)
+
     sock.bind(addr)
     sock.setblocking(False)
+
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, broadcaster)
+
     return sock
 
 class PacketType(Enum):
+    Broadcast = auto()
+    "This variant only exists to make it possible to use the same packet format for broadcasters as well"
+
     Acknowledgment = auto()
     "A packet has been acknowledged"
     
@@ -223,6 +241,9 @@ def make_connection_request_packet() -> bytes:
 
 def make_connection_response_packet(accept: bool) -> bytes:
     return make_unreliable_packet(PacketType.ConnectionResponse, bytes([accept]))
+
+def make_broadcast_packet(data: bytes) -> bytes:
+    return make_unreliable_packet(PacketType.Broadcast, data)
 
 def receive_packets(sock: socket.socket, message_size: int) -> Iterable[tuple[tuple[int, int, bytes], tuple[str, int]]]:
     """
@@ -444,7 +465,7 @@ class HighUDPServer:
 
         self.connections: dict[tuple[str, int], HighUDPConnection] = {}
 
-        self.sock = make_async_socket(addr)
+        self.sock = make_async_socket(addr, True)
         self.addr = self.sock.getsockname()
 
         self.recv_queue: deque[bytes, tuple[tuple[str, int]]] = deque()
@@ -499,6 +520,21 @@ class HighUDPServer:
         assert addr in self.connections, "Can't send data to an address to which I'm not connected"
 
         self.connections[addr].queue_message(data, reliable)
+
+    def broadcast(self, port: int, data: bytes):
+        """
+        Broadcast provided `data` to all broadcast listeners on the provided `port`.
+        Don't confuse this method with sending data to all connected clients - this will actually
+        send a broadcast packet to non-clients as well.
+
+        An additional note is that this method doesn't use a direct connection, so when broadcasting - 
+        all your packets are going to be sent immediately, since the concept of congestion control
+        doesn't get applied here (there's no connection).
+        """
+        self.sock.sendto(
+            make_broadcast_packet(data),
+            ("255.255.255.255", port),
+        )
 
     def get_connection_addresses(self) -> tuple[tuple[str, int], ...]:
         return tuple(self.connections.keys())
@@ -608,11 +644,11 @@ class HighUDPClient:
                     
 
     def has_packets(self) -> bool:
-        "Check if the server has any available packets"
+        "Check if the client has any available packets"
         return len(self.recv_queue) > 0
     
     def recv(self) -> bytes:
-        "Receive a single packet (its address and data). Will panic if the server doesn't have any packets"
+        "Receive a single packet (its data). Will panic if the client doesn't have any packets"
 
         assert self.has_packets(), "Nothing to receive"
 
@@ -644,4 +680,38 @@ class HighUDPClient:
 
     def close(self):
         self.sock.close()
-            
+        
+class BroadcastListener:
+    """
+    Broadcast listener is an abstraction that allows you to listen for broadcasted messages. 
+    Why not just use the Client to receive broadcasts? Well, I think the problem with this API is that
+    a client is always expected to have the same port. Something that isn't possible 
+    """
+    def __init__(self, addr: tuple[str, int]):
+        # We're using a shared socket here, because it makes it possible to use the same port for
+        # multiple broadcast listeners accross multiple Python sessions. This is highly useful for
+        # testing.
+        self.sock = make_async_socket(addr, shared=True)
+        self.recv_queue: deque[tuple[bytes, tuple[str, int]]] = deque()
+    
+    def fetch(self):
+        "Fetch for any new packets on this listener. Fetching will allow you to later get your packets using the `recv` method"
+        for (_, ty, data), addr in receive_packets(self.sock, BYTES_PER_MESSAGE):
+            if ty == PacketType.Broadcast:
+                self.recv_queue.append((data, addr))
+
+    def has_packets(self) -> bool:
+        "Check if the listener has any available packets"
+        return len(self.recv_queue) > 0
+    
+    def recv(self) -> tuple[bytes, tuple[str, int]]:
+        "Receive a single packet (its data and address). Will panic if the listener doesn't have any packets"
+
+        assert self.has_packets(), "Nothing to receive"
+
+        return self.recv_queue.popleft()
+
+    def close(self):
+        "Close this broadcast listener"
+        self.sock.close()
+        

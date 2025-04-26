@@ -10,6 +10,9 @@ ADDR_CLIENT = (IP, 501)
 ADDR_CLIENT2 = (IP, 502)
 ADDR_CLIENT3 = (IP, 503)
 
+PORT_BROADCAST = 567
+ADDR_BROADCAST = (IP, PORT_BROADCAST)
+
 def make_test_pair() -> tuple[HighUDPServer, HighUDPClient]:
     "-1% of boilerplate!"
     return HighUDPServer(ADDR_SERVER, 4), HighUDPClient(ADDR_CLIENT)
@@ -23,6 +26,10 @@ def tick_actors(dt: float, *actors, times: int = 1):
     for _ in range(times):
         for actor in actors:
             actor.tick(dt)
+
+def fetch_listeners(*listeners: BroadcastListener):
+    for listener in listeners:
+        listener.fetch()
 
 def close_actors(*actors):
     "Close sockets of the provided actors (client or server)"
@@ -400,3 +407,30 @@ def _():
     assert server.get_addr() != auto_addr
     assert client.get_addr() != server.get_addr()
 
+@test("Test broadcasters")
+def _():
+    server, client = make_test_pair()
+
+    # We're going to create 2 listeners, and they should be able to perfectly coexist
+    listener1 = BroadcastListener(ADDR_BROADCAST)
+    listener2 = BroadcastListener(ADDR_BROADCAST)
+
+    message = b"hello"
+
+    # A broadcast is a special method, because it sends packets immediately, without us
+    # needing to tick the server
+    server.broadcast(PORT_BROADCAST, message)
+
+    # We always need to manually fetch all packets on listeners
+    fetch_listeners(listener1, listener2)
+
+    # Now, we only should receive a single packet
+    for listener in (listener1, listener2):
+        assert listener.recv() == (message, ADDR_SERVER)
+        assert not listener.has_packets()
+
+    # Our client on the other hand, not being connected to anything - shouldn't receive anything
+    client.tick(DT)
+    assert not client.has_packets()
+
+    close_actors(server, client, listener1, listener2)
