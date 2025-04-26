@@ -96,6 +96,9 @@ class SpriteRenderer:
         def get_amount(self) -> int:
             return self.amount
         
+        def reset(self):
+            self.amount = 0
+        
     """
     A batching primitive for sprite rendering. 
     
@@ -111,6 +114,7 @@ class SpriteRenderer:
         model, pipeline = sprite_model(self.ctx, assets)
         self.model: Model = model
         self.pipeline: Pipeline = pipeline
+        self.can_draw: bool = True
         
     def push_sprite(self, sprite: Sprite, pos: tuple[float, float], y: float):  
         texture = sprite.texture
@@ -127,7 +131,8 @@ class SpriteRenderer:
         return [(sprite_group.get_amount(), texture, *sprite_group.get_uniforms()) for texture, sprite_group in self.groups.items()]
 
     def clear_sprite_groups(self):
-        self.groups.clear()
+        for group in self.groups.values():
+            group.reset()
 
     def draw(self, lights: LightManager, camera: Camera3D) -> int:     
         # self.clear_sprite_groups(); return 0

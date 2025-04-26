@@ -70,7 +70,7 @@ def init_projectile_sprite(resources: Resources):
 
     ENEMY_PROJECTILE.user_components = (
         Sprite(
-            assets.load(gl.Texture, "images/meteorite.png"),
+            assets.load(gl.Texture, "images/character.png"),
             pg.Vector2(16, 16),
             (0, 0, 1, 1)
         ),
