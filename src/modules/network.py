@@ -108,39 +108,39 @@ Because fragmentation can occur on large amounts of data - we're limiting here t
 RECV_BYTES = BYTES_PER_MESSAGE+64 
 # Sorry for the magic number, we're just compensating for headers and other possible garbage
 
-__global_loss_rate = 0
-__global_dublicates_rate = 0
-__global_corruption_rate = 0
+_global_loss_rate = 0
+_global_dublicates_rate = 0
+_global_corruption_rate = 0
 
 def should_corrupt() -> bool:
-    return rnd.random() < __global_loss_rate
+    return rnd.random() < _global_loss_rate
 
 def should_dublicate() -> bool:
-    return rnd.random() < __global_dublicates_rate
+    return rnd.random() < _global_dublicates_rate
 
 def should_lose_packet() -> bool:
-    return  rnd.random() < __global_loss_rate
+    return  rnd.random() < _global_loss_rate
 
 def set_loss_rate(to: float):
     assert 0 <= to <= 1
-    global __global_loss_rate
-    __global_loss_rate = to
+    global _global_loss_rate
+    _global_loss_rate = to
 
 def set_corruption_rate(to: int):
     assert 0 <= to <= 1
-    global __global_corruption_rate
-    __global_corruption_rate = to
+    global _global_corruption_rate
+    _global_corruption_rate = to
 
 def set_dublicates_rate(to: int):
     assert 0 <= to <= 1
-    global __global_dublicates_rate
-    __global_dublicates_rate = to
+    global _global_dublicates_rate
+    _global_dublicates_rate = to
 
 def reset_unreliability():
-    global __global_corruption_rate, __global_dublicates_rate, __global_loss_rate
-    __global_corruption_rate = 0
-    __global_dublicates_rate = 0
-    __global_loss_rate = 0
+    global _global_corruption_rate, _global_dublicates_rate, _global_loss_rate
+    _global_corruption_rate = 0
+    _global_dublicates_rate = 0
+    _global_loss_rate = 0
 
 def fnv1_hash(data: bytes) -> int: 
     "This is a Fowler-Noll-Vo hash function. For curious: python's `hash` uses a different salt every session, so it's unstable"
@@ -328,7 +328,7 @@ class HighUDPConnection:
         "In a connection between address A and B (where A is our socket), this method returns the address of B"
         return self.connected_to
     
-    def __queue_message(self, seq_id: int, packet: bytes):
+    def _queue_message(self, seq_id: int, packet: bytes):
         "Add this message to the queue. An internal method, as it requires ID assignment"
         self.packet_queue.append((seq_id, packet))
 
@@ -343,12 +343,12 @@ class HighUDPConnection:
             new_id = 0
             packet = make_unreliable_packet(PacketType.Message, data)
 
-        self.__queue_message(new_id, packet)
+        self._queue_message(new_id, packet)
 
-    def __queue_heartbeat(self):
-        self.__queue_message(0, make_heartbeat_packet())
+    def _queue_heartbeat(self):
+        self._queue_message(0, make_heartbeat_packet())
 
-    def __get_limits(self, dt: float) -> tuple[int, int]:
+    def _get_limits(self, dt: float) -> tuple[int, int]:
         "Computes BPS and PPS limits for the provided delta. If higher than 1 - clamps the results"
         bps, pps = HighUDPConnection.BYTES_PER_SECOND, HighUDPConnection.PACKETS_PER_SECOND
         return (
@@ -356,7 +356,7 @@ class HighUDPConnection:
             min(pps, int(pps * dt)),
         )
 
-    def __send_queued_messages(self, dt: float):
+    def _send_queued_messages(self, dt: float):
         """
         The key idea is that we would like to resend our messages as often as possible. This is why we're
         maintaining here a queue. 
@@ -368,7 +368,7 @@ class HighUDPConnection:
         Delta time is really important in this calculations, as it allows to 
         """
 
-        allowed_bytes, allowed_packet_amount = self.__get_limits(dt)
+        allowed_bytes, allowed_packet_amount = self._get_limits(dt)
 
         # Some packets are large, so we need to ensure to send at least ONE per tick
         at_least_one = True
@@ -400,7 +400,7 @@ class HighUDPConnection:
 
                 if seq_id != 0:
                     # If sequence ID isn't zero - we're going to queue it again
-                    self.__queue_message(seq_id, packet)
+                    self._queue_message(seq_id, packet)
             else:
                 # We don't have much more bandwidth, so we're putting it back for later
                 packet_queue.appendleft((seq_id, packet))
@@ -418,7 +418,7 @@ class HighUDPConnection:
         if seq_id != 0:
             print(f"{self.label}: Acknowledged {seq_id}, sending this acknowledgement back!")
             self.received_packets.add(seq_id)
-            self.__queue_message(0, make_acknowledgement_packet(seq_id))
+            self._queue_message(0, make_acknowledgement_packet(seq_id))
     
     def has_packet_been_received(self, seq_id: int) -> bool:
         "A packet is received if it's ID is not 0 (unreliable), and it its ID is registered in the received database"
@@ -451,9 +451,9 @@ class HighUDPConnection:
         self.next_self_heartbeat.tick(dt)
 
         if self.next_self_heartbeat.has_finished():
-            self.__queue_heartbeat()
+            self._queue_heartbeat()
 
-        self.__send_queued_messages(dt)
+        self._send_queued_messages(dt)
 
 class HighUDPServer:
     "A server is responsible for accepting connections from clients and maintaining their connections"
@@ -481,7 +481,7 @@ class HighUDPServer:
         "Make this server be able to accept incoming connections. Doesn't affect the existing ones"
         self.accept_connections = to
 
-    def __connection_response(self, addr: tuple[str, int], response: bool):
+    def _connection_response(self, addr: tuple[str, int], response: bool):
         assert addr not in self.connections, "Can't overwrite an existing connection"
 
         if response:
@@ -493,7 +493,7 @@ class HighUDPServer:
         
         self.sock.sendto(make_connection_response_packet(response), addr)
 
-    def __process_packet(self, addr: tuple[str, int], seq_id: int, ty: PacketType, data: bytes):
+    def _process_packet(self, addr: tuple[str, int], seq_id: int, ty: PacketType, data: bytes):
         if addr in self.connections:
             data = self.connections[addr].process_packet(seq_id, ty, data)
             if data is not None:
@@ -503,7 +503,7 @@ class HighUDPServer:
         else:
             if ty == PacketType.ConnectionRequest:
                 response = self.accept_connections and len(self.connections) < self.max_connections
-                self.__connection_response(addr, response)
+                self._connection_response(addr, response)
 
     def has_packets(self) -> bool:
         "Check if the server has any available packets"
@@ -547,7 +547,7 @@ class HighUDPServer:
         "Receive as many packets as possible and send your own packets"
 
         for packet, addr in receive_packets(self.sock, RECV_BYTES):
-            self.__process_packet(addr, *packet)
+            self._process_packet(addr, *packet)
         
         removed_connections = []
         for addr, connection in self.connections.items():
@@ -617,7 +617,7 @@ class HighUDPClient:
         assert not self.is_connected(), "Already is connected"
         self.active_connector = HighUDPClient.ServerConnector(to, attempts, attempt_delay)
 
-    def __continue_connection_establishing(self, dt: float):
+    def _continue_connection_establishing(self, dt: float):
         connector = self.active_connector
 
         retry = connector.tick(dt)
@@ -630,7 +630,7 @@ class HighUDPClient:
         if connector.is_exhausted():
             self.active_connector = None
 
-    def __process_packet(self, seq_id: int, ty: PacketType, data: bytes):
+    def _process_packet(self, seq_id: int, ty: PacketType, data: bytes):
         if self.connection is not None:
             data = self.connection.process_packet(seq_id, ty, data)
             if data is not None:
@@ -675,10 +675,10 @@ class HighUDPClient:
         for packet, addr in receive_packets(self.sock, RECV_BYTES):
             # It should be either the server or a connector address
             if addr == self.connection_addr or (self.active_connector and self.active_connector.addr == addr):
-                self.__process_packet(*packet)
+                self._process_packet(*packet)
         
         if self.is_trying_to_connect():
-            self.__continue_connection_establishing(dt)
+            self._continue_connection_establishing(dt)
         elif self.is_connected():
             self.connection.tick(dt)
 

@@ -81,9 +81,9 @@ class SpriteAtlas:
         self.is_syncronized = False 
         self.taken_corners = set()
 
-        self.__cached_texture: gl.Texture = None
+        self._cached_texture: gl.Texture = None
 
-    def __resize(self):
+    def _resize(self):
         "Resize rectangularly. First in x axis, then in y - on repeat"
         if self.texture_width == self.texture_height:
             self.texture_width *= 2
@@ -98,7 +98,7 @@ class SpriteAtlas:
             (self.texture_width < self.texture_limit or self.texture_height < self.texture_limit)
         )
 
-    def __fit_char(self, key: Any, new_sprite: SpriteRect) -> bool:
+    def _fit_char(self, key: Any, new_sprite: SpriteRect) -> bool:
         """
         The algorithm here is extremely simple: for every rectangle we already have in the map - we will iterate
         its corners, and check if our rectangle collides with any other rectangles. It isn't the best algorithm
@@ -141,7 +141,7 @@ class SpriteAtlas:
                 
                 if self.can_resize():
                     # TODO: Fix the bug mentioned in the doc string
-                    self.__resize()
+                    self._resize()
                 else:
                     "Maximum size"
                     return False
@@ -159,7 +159,7 @@ class SpriteAtlas:
 
         if key not in self.sprite_map:
             sprite_rect = SpriteRect(surf)
-            return self.__fit_char(key, sprite_rect) 
+            return self._fit_char(key, sprite_rect) 
         
         return True
         
@@ -195,26 +195,26 @@ class SpriteAtlas:
 
         return surf
 
-    def __sync_texture(self, new_surf: pg.Surface):
+    def _sync_texture(self, new_surf: pg.Surface):
         "Syncronize the internal GPU texture with our CPU surface"
 
-        if self.__cached_texture is None:
+        if self._cached_texture is None:
             # If a texture is not initialized - just make a new one with our data! 
 
-            self.__cached_texture = make_texture(self.ctx, new_surf, self.filter)
+            self._cached_texture = make_texture(self.ctx, new_surf, self.filter)
         else:
             # Else we would need to update an existing one
 
-            if self.__cached_texture.width != self.texture_width or self.__cached_texture.height != self.texture_height:
+            if self._cached_texture.width != self.texture_width or self._cached_texture.height != self.texture_height:
                 # Now, if its dimensions are different from our surface - we obviously will have to delete the last one
                 # and create a new one
 
-                self.__cached_texture.release()
-                self.__cached_texture = make_texture(self.ctx, new_surf, self.filter)
+                self._cached_texture.release()
+                self._cached_texture = make_texture(self.ctx, new_surf, self.filter)
             else:
                 # In any other case, just write our surface data to our texture
                 
-                self.__cached_texture.write(new_surf.get_view("1"))
+                self._cached_texture.write(new_surf.get_view("1"))
         
     def get_texture(self) -> gl.Texture:
         """
@@ -228,11 +228,11 @@ class SpriteAtlas:
         """
 
         if not self.is_syncronized:
-            self.__sync_texture(self.get_surface())
+            self._sync_texture(self.get_surface())
             self.is_syncronized = True
 
-        return self.__cached_texture
+        return self._cached_texture
     
     def release(self):
-        if self.__cached_texture is not None:
-            self.__cached_texture.release()
+        if self._cached_texture is not None:
+            self._cached_texture.release()
