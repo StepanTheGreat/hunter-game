@@ -2,7 +2,7 @@ from ward import test
 from modules.network import *
 
 DT = 1/60
-IP = "192.168.1.14"
+IP = "127.0.0.1"
 
 ADDR_SERVER = (IP, 500)
 ADDR_CLIENT = (IP, 501)
@@ -16,7 +16,7 @@ def make_test_pair() -> tuple[HighUDPServer, HighUDPClient]:
 
 def connect_actors(server: HighUDPServer, *clients: HighUDPClient):
     for client in clients:
-        client.connect(server.addr, 2, 0.1)
+        client.connect(server.addr, 2, DT)
         tick_actors(0, client, server, client)
 
 def tick_actors(dt: float, *actors, times: int = 1):
@@ -121,6 +121,7 @@ def _():
     assert not client.has_packets()
 
     close_actors(server, client)
+
 
 @test("Test continuos packet sending/receiving")
 def _():

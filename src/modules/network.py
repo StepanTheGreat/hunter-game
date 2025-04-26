@@ -156,9 +156,8 @@ def fnv1_hash(data: bytes) -> int:
 def make_async_socket(addr: tuple[str, int]) -> socket.socket:
     "This function simply creates a new non-blocking UDP socket"
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setblocking(False)
     sock.bind(addr)
-
+    sock.setblocking(False)
     return sock
 
 class PacketType(Enum):
@@ -467,12 +466,11 @@ class HighUDPServer:
         else:
             print("SERVER: Connection refused for", addr)
             pass
-
+        
         self.sock.sendto(make_connection_response_packet(response), addr)
 
     def __process_packet(self, addr: tuple[str, int], seq_id: int, ty: PacketType, data: bytes):
         if addr in self.connections:
-            
             data = self.connections[addr].process_packet(seq_id, ty, data)
             if data is not None:
                 print("SERVER: Received message", data)
@@ -518,7 +516,6 @@ class HighUDPServer:
 
             # If the connection is closed - we close it as well
             if not connection.is_connected():
-                # print("SERVER: Disconnecting", addr)
                 removed_connections.append(addr)
         
         for removed_addr in removed_connections:
@@ -588,15 +585,14 @@ class HighUDPClient:
             self.active_connector = None
 
     def __process_packet(self, seq_id: int, ty: PacketType, data: bytes):
-        if self.connection:
+        if self.connection is not None:
             data = self.connection.process_packet(seq_id, ty, data)
             if data is not None:
-                print("CLIENT: Received message", data)
                 self.recv_queue.append(data)
-        elif self.active_connector:
+        elif self.active_connector is not None:
             # ConnectionResponse only contains a single byte of data, which is True/False
             if ty == PacketType.ConnectionResponse and data and data[0] == True:
-
+                print("CLIENT: Connected to", self.active_connector.addr)
                 # Move to an active UDP connection
                 self.connection_addr = self.active_connector.addr
                 self.connection = HighUDPConnection(self.sock, self.connection_addr, label="CLIENT")
