@@ -287,20 +287,27 @@ class Label(GUIElement):
         self.text_scale = text_scale
         self.color = color
 
+        self.__cached_drawcall = None
+
         self.set_text(text)
 
     def set_text_scale(self, new_scale: float):
         self.text_scale = new_scale
         self.set_text(self.text)
 
-    def set_text(self, text: str):
+    def set_text(self, text: str, force: bool = False):
+        if self.text == text and not force:
+            return
         self.text = text
 
         textw, texth = self.font.measure(self.text)
         self.set_size(textw*self.text_scale, texth*self.text_scale)
+        self.__cached_drawcall = None
 
     def draw(self, renderer):
-        renderer.draw_text(self.font, self.text, self.get_position(), self.color, self.text_scale)
+        if not self.__cached_drawcall:
+            self.__cached_drawcall = renderer.draw_text_call(self.font, self.text, self.get_position(), self.color, self.text_scale)
+        renderer.push_draw_call(self.__cached_drawcall)
 
 class BaseButton(GUIElement):
     "Not a user class, instead a super class for other button implementations"
