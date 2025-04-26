@@ -28,26 +28,27 @@ class MainMenuGUI:
         def insert_ingame_scene(as_server: bool):
             self.resources[SceneManager].insert_scene(IngameScene(self.resources, as_server))
         
-        play_btn = (TextButton(font, "Play", (0.5, 0.5), MainMenuGUI.BUTTON_SIZE, text_scale=2)
+        join_btn = (TextButton(font, "Join Game", (0.5, 0.5), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
             .with_callback(lambda: insert_ingame_scene(False)))
-        play_btn_server = (TextButton(font, "Play as Server", (0, 1), MainMenuGUI.BUTTON_SIZE, text_scale=2)
+        
+        create_btn = (TextButton(font, "Create Game", (0, 1), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
             .with_callback(lambda: insert_ingame_scene(True))
             .with_margin(0, 4)
-            .attached_to(play_btn))
+            .attached_to(join_btn))
 
         def go_to_settings():
             self.enter_settings_subscene()
 
-        settings_btn = (TextButton(font, "Settings", (0, 1), MainMenuGUI.BUTTON_SIZE, text_scale=2)
+        settings_btn = (TextButton(font, "Settings", (0, 1), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
             .with_margin(0, 4)
             .with_callback(go_to_settings)
-            .attached_to(play_btn_server))
+            .attached_to(create_btn))
         
-        *_, tree_w, tree_h =  play_btn.measure_tree()
-        play_btn.set_margin(-tree_w/2, -tree_h/2)
+        *_, tree_w, tree_h =  join_btn.measure_tree()
+        join_btn.set_margin(-tree_w/2, -tree_h/2)
 
         self.gui.replace_gui([
-            background, play_btn, 
+            background, join_btn, 
         ])
 
     def enter_settings_subscene(self):

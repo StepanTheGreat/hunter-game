@@ -56,43 +56,23 @@ def spawn_entities(resources: Resources):
     for i in range(5):
         world.create_entity(*make_enemy((50*i, 0), assets))
 
-_clock_time = [0]
-
-@rpc("f")
-def print_hello(resources: Resources, num: float):
-    print(f"Hello {num}?")
-
-@only_server
-def say_hello_to_clients(resources: Resources):
-    dt = resources[Clock].get_fixed_delta()
-
-    _clock_time[0] += dt
-    if _clock_time[0] > 5:
-        resources[Server].broadcast(512, print_hello, _clock_time[0])
-        _clock_time[0] = 0
-
 class IngameScene(SceneBundle):
     def __init__(self, resources: Resources, is_server: bool):
-        listener = Listener(resources, ("", 512))
-        listener.attach_rpcs(print_hello)
-        super().__init__(
+        super().__init__()
+
+        self.add_auto_resources(
             *make_world_map(resources, (0, 0)),
-            IngameGUI(resources),
-            listener
+            IngameGUI(resources)
         )
 
-        if is_server:
-            self.auto_resources += (Server(resources, ("", 0), 4),)
-
+    def post_init(self, resources):
         spawn_entities(resources)
 
-    def destroy(self, resources):
-        # We need to close our listener and server first, before leaving
+    def pre_destroy(self, resources):
+        # We need to close our listener and server before leaving
         resources[Listener].close()
         if Server in resources:
             resources[Server].close()
-
-        super().destroy(resources)
 
 class IngamePlugin(Plugin):
     def build(self, app):
@@ -100,4 +80,3 @@ class IngamePlugin(Plugin):
             MapRendererPlugin(),
             MinimapPlugin(),
         )
-        app.add_systems(Schedule.FixedUpdate, say_hello_to_clients)
