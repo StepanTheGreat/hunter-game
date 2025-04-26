@@ -78,7 +78,7 @@ and wraps around back to 1. This does mean that we're sending more data (by 1 by
 I'm going to come up with a separate structure for both.
 """
 
-from typing import Optional, Callable, Iterable
+from typing import Optional, Callable, Iterable, Union
 
 from .circleset import CircleSet
 from collections import deque
@@ -600,6 +600,10 @@ class HighUDPClient:
 
     def get_addr(self) -> tuple[str, int]:
         return self.addr
+    
+    def get_server_addr(self) -> Union[tuple[str, int], None]:
+        "Return the connected server's address if connected. Else returns `None`"
+        return self.connection_addr if self.is_connected() else None
 
     def is_connected(self) -> bool:
         return self.connection is not None and self.connection.is_connected()
