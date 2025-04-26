@@ -15,7 +15,7 @@ from .lights import LightManager
 
 from plugins.components import RenderPosition
 
-SPRITE_LIMIT = 256
+SPRITE_LIMIT = 64
 
 SPRITE_MESH = DynamicMeshCPU(
     # To explain this confusing matrix of 4 numbers (the last one)
@@ -72,8 +72,8 @@ class SpriteRenderer:
     class SpriteGroup:
         def __init__(self, size: int):
             self.amount = 0
-            self.sprite_positions = np.zeros((size, 3), dtype=np.float32)
-            self.sprite_sizes = np.zeros((size, 2), dtype=np.float32)
+            self.sprite_positions = np.zeros((size, 3), dtype=np.int16)
+            self.sprite_sizes = np.zeros((size, 2), dtype=np.uint8)
             self.sprite_uv_rects = np.zeros((size, 4), dtype=np.float32)
 
         def add(self, sprite: Sprite, pos: tuple[float, float], y: float):
@@ -129,7 +129,9 @@ class SpriteRenderer:
     def clear_sprite_groups(self):
         self.groups.clear()
 
-    def draw(self, lights: LightManager, camera: Camera3D) -> int:        
+    def draw(self, lights: LightManager, camera: Camera3D) -> int:     
+        # self.clear_sprite_groups(); return 0
+
         self.pipeline["projection"] = camera.get_projection_matrix()
         self.pipeline["camera_pos"] = camera.get_camera_position()
         self.pipeline["camera_rot"] = camera.get_camera_rotation().flatten()
