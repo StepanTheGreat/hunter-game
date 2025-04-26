@@ -1,6 +1,6 @@
 #version 330 core
 
-const int LIGHT_LIMIT = 64;
+const int LIGHT_LIMIT = 32;
 
 uniform mat4 projection;
 uniform mat3 camera_rot;

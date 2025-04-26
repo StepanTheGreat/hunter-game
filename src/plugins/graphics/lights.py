@@ -7,7 +7,7 @@ from core.ecs import WorldECS, component
 
 from plugins.components import RenderPosition
 
-LIGHTS_LIMIT = 64
+LIGHTS_LIMIT = 32
 
 @component
 class Light:
@@ -22,9 +22,9 @@ class LightManager:
         self.ambient_color: tuple[float, float, float] = ambient_color
         "A public attribute which describes the color of the entire scene"
 
-        self.light_positions = np.empty((self.max_lights, 3), dtype=np.float32)
-        self.light_colors = np.empty((self.max_lights, 3), dtype=np.float32)
-        self.light_radiuses = np.empty(self.max_lights, dtype=np.float32)
+        self.light_positions = np.empty((self.max_lights, 3), dtype=np.int16)
+        self.light_colors = np.empty((self.max_lights, 3), dtype=np.uint8)
+        self.light_radiuses = np.empty(self.max_lights, dtype=np.uint16)
         
         self.light_index = 0
 
