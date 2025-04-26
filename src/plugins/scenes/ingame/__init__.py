@@ -1,11 +1,13 @@
 from plugin import Plugin, Resources
 
 from core.ecs import WorldECS
+from core.pg import Clock
 
 from modules.scene import SceneBundle
 from modules.tilemap import Tilemap
 
 from plugins.map import WorldMap
+from plugins.network import Server, rpc, only_server, Listener
 
 from plugins.entities.player import make_player
 from plugins.entities.enemy import make_enemy
@@ -54,17 +56,43 @@ def spawn_entities(resources: Resources):
     for i in range(5):
         world.create_entity(*make_enemy((50*i, 0), assets))
 
+_clock_time = [0]
+
+@rpc("f")
+def print_hello(resources: Resources, num: float):
+    print(f"Hello {num}?")
+
+@only_server
+def say_hello_to_clients(resources: Resources):
+    dt = resources[Clock].get_fixed_delta()
+
+    _clock_time[0] += dt
+    if _clock_time[0] > 5:
+        resources[Server].broadcast(512, print_hello, _clock_time[0])
+        _clock_time[0] = 0
+
 class IngameScene(SceneBundle):
-    def __init__(self, resources: Resources):
+    def __init__(self, resources: Resources, is_server: bool):
+        listener = Listener(resources, ("", 512))
+        listener.attach_rpcs(print_hello)
         super().__init__(
             *make_world_map(resources, (0, 0)),
-            IngameGUI(resources)
+            IngameGUI(resources),
+            listener
         )
+
+        if is_server:
+            self.auto_resources += (Server(resources, ("", 0), 4),)
+
         spawn_entities(resources)
 
     def destroy(self, resources):
-        # We need to remove all our entities before leaving
-        pass
+        # We need to close our listener and server first, before leaving
+        resources[Listener].close()
+        if Server in resources:
+            resources[Server].close()
+
+        super().destroy(resources)
 
 class IngamePlugin(Plugin):
     def build(self, app):
@@ -72,3 +100,4 @@ class IngamePlugin(Plugin):
             MapRendererPlugin(),
             MinimapPlugin(),
         )
+        app.add_systems(Schedule.FixedUpdate, say_hello_to_clients)
