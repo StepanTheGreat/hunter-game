@@ -437,7 +437,6 @@ class HighUDPConnection:
 class HighUDPServer:
     "A server is responsible for accepting connections from clients and maintaining their connections"
     def __init__(self, addr: tuple[str, int], max_connections: int):
-        self.addr = addr
         self.max_connections = None
         self.set_max_connections(max_connections)
 
@@ -446,8 +445,12 @@ class HighUDPServer:
         self.connections: dict[tuple[str, int], HighUDPConnection] = {}
 
         self.sock = make_async_socket(addr)
+        self.addr = self.sock.getsockname()
 
         self.recv_queue: deque[bytes, tuple[tuple[str, int]]] = deque()
+
+    def get_addr(self) -> tuple[str, int]:
+        return self.addr
 
     def set_max_connections(self, to: int):
         assert to >= 0, "A number of maximum connections should more than 2"
@@ -549,15 +552,18 @@ class HighUDPClient:
             return self.attempts <= 0
 
     def __init__(self, addr: tuple[str, int]):
-        self.addr = addr
-
         self.connection: HighUDPConnection = None
         self.connection_addr: tuple[str, int] = None
 
         self.active_connector: HighUDPClient.ServerConnector = None
 
         self.sock = make_async_socket(addr)
+        self.addr = self.sock.getsockname()
+
         self.recv_queue: deque[bytes] = deque()
+
+    def get_addr(self) -> tuple[str, int]:
+        return self.addr
 
     def is_connected(self) -> bool:
         return self.connection is not None and self.connection.is_connected()

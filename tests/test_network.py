@@ -385,3 +385,18 @@ def _():
     for (message, addr) in ((message1, ADDR_CLIENT), (message2, ADDR_CLIENT2)):
         assert server.recv() == (message, addr)
     assert not server.has_packets()
+
+@test("Use actual socket addresses that are picked up when binding sockets")
+def _():
+    # We would like to use automatic OS address binding. For example, we don't know any available port,
+    # so we're going to put 0 instead
+    auto_addr = ("127.0.0.1", 0)
+
+    client = HighUDPClient(auto_addr)
+    server = HighUDPServer(auto_addr, 1)
+
+    # When bound however, they should have a different port from the one we gave
+    assert client.get_addr() != auto_addr
+    assert server.get_addr() != auto_addr
+    assert client.get_addr() != server.get_addr()
+
