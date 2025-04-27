@@ -197,8 +197,7 @@ def _():
     client.disconnect()
     assert not client.is_connected()
 
-    # We're going to tick them 2 times for 5 seconds, so that the server doesn't throw away other clients
-    tick_actors(5, server, client, client2, times=2)
+    tick_actors(DT, server, client, client2)
     
     # They shouldn't be present on the server
     assert not server.has_connection_addr(ADDR_CLIENT)
@@ -434,3 +433,30 @@ def _():
     assert not client.has_packets()
 
     close_actors(server, client, listener1, listener2)
+
+@test("Test immediate disconnection")
+def _():
+    server, client = make_test_pair()
+    connect_actors(server, client)
+
+    # We're going to disconnect them using special `disconnect` method, that also is going to send
+    # a disconnection packet
+    client.disconnect()
+    tick_actors(DT, server, client)
+
+    # This packets has a high chance of immediately terminating the connection in 1 tick!
+
+    assert not server.has_connection_addr(ADDR_CLIENT)
+    assert not client.is_connected()
+
+
+    # Now let's do the same thing, but the other way around
+    connect_actors(server, client)
+    
+    # Again, the connection is terminated in a single tick!
+    server.disconnect(ADDR_CLIENT)
+    tick_actors(DT, server, client)
+
+    assert not server.has_connection_addr(ADDR_CLIENT)
+    assert not client.is_connected()
+

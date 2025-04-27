@@ -194,6 +194,13 @@ class PacketType(Enum):
     ConnectionResponse = auto()
     "The server has agreed/disagreed on a connection"
 
+    Disconnection = auto()
+    """
+    A message that's sent to notify the receiving side of closing the connection.
+    This allows the closing side to disconnect way faster in most cases (if the packet loss is small).
+    It's still sent once via unreliable channel, so it's more of a higher chance.
+    """
+
 def open_packet(b: bytes) -> Optional[tuple[int, PacketType, bytes]]:
     "Tries opening a packet, and if succesful - returns its sequence ID, type and data"
 
@@ -245,6 +252,9 @@ def make_connection_response_packet(accept: bool) -> bytes:
 def make_broadcast_packet(data: bytes) -> bytes:
     return make_unreliable_packet(PacketType.Broadcast, data)
 
+def make_disconnection_packet() -> bytes:
+    return make_unreliable_packet(PacketType.Disconnection, b"")
+
 def receive_packets(sock: socket.socket, message_size: int) -> Iterable[tuple[tuple[int, int, bytes], tuple[str, int]]]:
     """
     An iterator over socket's received packets. Essentially, it will try to receive as many packets as it can
@@ -289,6 +299,10 @@ class Timer:
     def reset(self):
         self.on_interval = self.interval
 
+    def zero(self):
+        "Make this clock act immediately. Only usefil in specific cases"
+        self.on_interval = 0
+
 class HighUDPConnection:
     BYTES_PER_SECOND = 250_000 # Im being conservative here with 2Mbps or 250KB per second
     PACKETS_PER_SECOND = 200 # This is a pretty high number, so don't judge me! It's only a toy implementation!
@@ -318,9 +332,6 @@ class HighUDPConnection:
 
         self.next_self_heartbeat = Timer(HighUDPConnection.HEARTBEAT_RATE, False)
 
-        self.on_connection: Callable = None
-        self.on_disconnection: Callable = None
-
         self.label = label
         "Labels help when debugging"
 
@@ -331,6 +342,19 @@ class HighUDPConnection:
     def _queue_message(self, seq_id: int, packet: bytes):
         "Add this message to the queue. An internal method, as it requires ID assignment"
         self.packet_queue.append((seq_id, packet))
+
+    def _send_packet(self, data: bytes):
+        # Reset our heartbeat, because we have sent a packet!
+        self.next_self_heartbeat.reset()
+        self.sock.sendto(data, self.connected_to)
+
+    def disconnect(self):
+        "Close this connection by also sending a disconnection packet"
+
+        if self.is_connected():
+            self._send_packet(make_disconnection_packet())
+
+        self.no_end_heartbeat.zero()
 
     def queue_message(self, data: bytes, reliable: bool):
         "This method will both send a message and register it to non-acknowledged dictionary"
@@ -394,7 +418,7 @@ class HighUDPConnection:
 
                     if not should_lose_packet():
                         print(f"{self.label}: Sending {packet_to_send} of ID {seq_id}")
-                        self.sock.sendto(packet_to_send, self.connected_to)
+                        self._send_packet(packet_to_send)
                     else:
                         print(f"{self.label}: Lost a packet")
 
@@ -408,10 +432,6 @@ class HighUDPConnection:
         
         # We need to join them back, as the packet queue might not be entirely consumed
         self.packet_queue = packet_queue+self.packet_queue
-
-        if at_least_one:
-            # If we have send at least ONE heartbeat, we should update our heartbeat
-            self.next_self_heartbeat.reset()
 
     def acknowledge_received_packet(self, seq_id: int):
         "The packet the receiver sent to us was received. This is important to avoid dublicates"
@@ -432,6 +452,8 @@ class HighUDPConnection:
         "Process a packet, and if it's a message packet - return its bytes"
         ret = None
 
+        self.no_end_heartbeat.reset()
+
         if ty == PacketType.Acknowledgment:
             if len(data) == 2:
                 ack_id = int.from_bytes(data, BYTE_ORDER)
@@ -441,8 +463,9 @@ class HighUDPConnection:
             if not self.has_packet_been_received(seq_id):
                 ret = data
                 self.acknowledge_received_packet(seq_id)
-        
-        self.no_end_heartbeat.reset()
+        elif ty == PacketType.Disconnection:
+            self.no_end_heartbeat.zero()
+            print(f"{self.label}: Received a disconnection packet")
 
         return ret
 
@@ -542,6 +565,13 @@ class HighUDPServer:
     def has_connection_addr(self, addr: tuple[str, int]) -> bool:
         "Check if the provided address is connected"
         return addr in self.connections
+    
+    def disconnect(self, addr: tuple[str, int]):
+        "Disconnect the provided address from the server if it's present"
+        
+        if self.has_connection_addr(addr):
+            self.connections[addr].disconnect()
+            del self.connections[addr]
 
     def tick(self, dt: float):
         "Receive as many packets as possible and send your own packets"
@@ -646,7 +676,6 @@ class HighUDPClient:
                 # Remove this connector
                 self.active_connector = None
                     
-
     def has_packets(self) -> bool:
         "Check if the client has any available packets"
         return len(self.recv_queue) > 0
@@ -666,8 +695,10 @@ class HighUDPClient:
     def disconnect(self):
         "Disconnect from the currently connected server"
 
-        self.connection = None
-        self.connection_addr = None
+        if self.is_connected():
+            self.connection.disconnect()
+            self.connection = None
+            self.connection_addr = None
 
     def tick(self, dt: float):
         "Receive as many packets as possible and send your own packets"
@@ -681,6 +712,10 @@ class HighUDPClient:
             self._continue_connection_establishing(dt)
         elif self.is_connected():
             self.connection.tick(dt)
+        elif self.connection:
+            # If there's no connection, but we still have a connection object - remove it
+            self.connection = None
+            self.connection_addr = None
 
     def close(self):
         self.sock.close()
