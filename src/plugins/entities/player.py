@@ -81,7 +81,7 @@ def control_player(resources: Resources):
     input = resources[InputManager]
     world = resources[WorldECS]
 
-    for ent, (controller, angle_vel, weapon) in world.query_components(PlayerController, AngleVelocity, Weapon):
+    for _, (controller, angle_vel, weapon) in world.query_components(PlayerController, AngleVelocity, Weapon):
         angle_vel.set_velocity(input[InputAction.TurnRight]-input[InputAction.TurnLeft])
         controller.forward_dir = input[InputAction.Forward]-input[InputAction.Backwards]
         controller.horizontal_dir = input[InputAction.Right]-input[InputAction.Left]
