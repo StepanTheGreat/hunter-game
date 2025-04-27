@@ -3,12 +3,12 @@ import numpy as np
 
 from plugin import Plugin, Resources, Schedule
 
-from core.graphics import Camera3D
-from core.ecs import WorldECS, component, ComponentsRemovedEvent
+from core.ecs import WorldECS, component
 from core.input import InputManager
 from plugins.collisions import DynCollider
 
 from plugins.graphics.lights import Light
+from plugins.graphics.camera import Camera3DAttachment
 
 from plugins.components import *
 
@@ -61,7 +61,7 @@ PLAYER_PROJECTILE = ProjectileFactory(
 def make_player(pos: tuple[float, float]) -> tuple:
     return (
         Position(*pos),
-        RenderPosition(*pos, 44),
+        RenderPosition(*pos, 0),
         Velocity(0, 0, 200),
         Light((1, 1, 1), 300),
         AngleVelocity(0, 4),
@@ -73,6 +73,7 @@ def make_player(pos: tuple[float, float]) -> tuple:
         Team.friend(),
         Hittable(),
         Health(200_000, 0.25),
+        Camera3DAttachment(24, 0),
         Player()
     )
 
@@ -115,15 +116,11 @@ def orient_player(resources: Resources):
 
 def move_camera(resources: Resources):
     world = resources[WorldECS]
-    camera = resources[Camera3D]
 
     players = world.query_component(Player)
     if players:    
-        player_ent = players[0][0]
-        position, angle, health = world.get_components(player_ent, RenderPosition, RenderAngle, Health)
-
-        camera.set_pos(position.get_position())
-        camera.set_angle(angle.get_angle())
+        player_ent, _ = players[0]
+        health = world.get_component(player_ent, Health)
 
         resources[PlayerStats].update_health(health.get_percentage())
     else:

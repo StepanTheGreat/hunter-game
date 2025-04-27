@@ -12,6 +12,7 @@ from core.assets import AssetManager
 from core.ecs import WorldECS, component
 
 from .lights import LightManager
+from .camera import CurrentCameraAttached
 
 from plugins.components import RenderPosition
 
@@ -164,9 +165,12 @@ def draw_sprites(resources: Resources):
     """
     lights = resources[LightManager]
     renderer = resources[SpriteRenderer]
+    current_camera_entity = resources[CurrentCameraAttached].attached_entity
 
     for ent, (position, sprite) in resources[WorldECS].query_components(RenderPosition, Sprite)[:renderer.sprite_limit]:
-        renderer.push_sprite(sprite, position.get_position(), position.height)
+        if ent != current_camera_entity:
+            # If the entity is the current camera entity - we should ignore its sprite
+            renderer.push_sprite(sprite, position.get_position(), position.height)
 
     draw_calls = renderer.draw(lights, resources[Camera3D])
 
