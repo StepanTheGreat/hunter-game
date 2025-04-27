@@ -1,7 +1,8 @@
 from plugin import Plugin, Resources
 
 from core.ecs import WorldECS
-from core.pg import Clock
+from core.sound import SoundManager, Sound
+from core.assets import AssetManager
 
 from modules.scene import SceneBundle
 from modules.tilemap import Tilemap
@@ -67,6 +68,9 @@ class IngameScene(SceneBundle):
 
     def post_init(self, resources):
         spawn_entities(resources)
+
+        resources[SoundManager].load_music("sounds/test_sound.ogg")
+        resources[SoundManager].play_music()
 
     def pre_destroy(self, resources):
         # We need to close our listener and server before leaving
