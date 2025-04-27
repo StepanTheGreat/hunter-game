@@ -8,7 +8,7 @@ from core.input import InputManager
 from plugins.collisions import DynCollider
 
 from plugins.graphics.lights import Light
-from plugins.graphics.camera import Camera3DAttachment
+from plugins.perspective import PerspectiveAttachment
 
 from plugins.components import *
 
@@ -73,7 +73,7 @@ def make_player(pos: tuple[float, float]) -> tuple:
         Team.friend(),
         Hittable(),
         Health(200_000, 0.25),
-        Camera3DAttachment(24, 0),
+        PerspectiveAttachment(24, 0),
         Player()
     )
 

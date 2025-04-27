@@ -12,8 +12,7 @@ from core.assets import AssetManager
 from core.ecs import WorldECS, component
 
 from .lights import LightManager
-from .camera import CurrentCameraAttached
-
+from plugins.perspective import CurrentPerspectiveAttached
 from plugins.components import RenderPosition
 
 SPRITE_LIMIT = 64
@@ -165,10 +164,10 @@ def draw_sprites(resources: Resources):
     """
     lights = resources[LightManager]
     renderer = resources[SpriteRenderer]
-    current_camera_entity = resources[CurrentCameraAttached].attached_entity
+    current_perspective_entity = resources[CurrentPerspectiveAttached].attached_entity
 
     for ent, (position, sprite) in resources[WorldECS].query_components(RenderPosition, Sprite)[:renderer.sprite_limit]:
-        if ent != current_camera_entity:
+        if ent != current_perspective_entity:
             # If the entity is the current camera entity - we should ignore its sprite
             renderer.push_sprite(sprite, position.get_position(), position.height)
 

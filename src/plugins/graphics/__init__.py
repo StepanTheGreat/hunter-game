@@ -8,7 +8,6 @@ from .render3d import *
 from .sprite import *
 from .lights import *
 from .postprocessing import *
-from .camera import *
 
 class GraphicsPlugin(Plugin):
     def build(self, app):
@@ -19,5 +18,4 @@ class GraphicsPlugin(Plugin):
             Renderer2DPlugin(),
             TelemetryMenuPlugin(),
             PostProcessingPlugin(),
-            CameraAttachmentPlugin()
         )

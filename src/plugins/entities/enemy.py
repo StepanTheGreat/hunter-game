@@ -11,7 +11,6 @@ from core.ecs import WorldECS, component
 
 from plugins.components import *
 from plugins.graphics.sprite import Sprite
-from plugins.graphics.camera import Camera3DAttachment
 
 from .projectile import ProjectileFactory
 from .weapon import Weapon
