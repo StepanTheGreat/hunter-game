@@ -478,6 +478,17 @@ class HighUDPConnection:
 
         self._send_queued_messages(dt)
 
+def _maybe_fire(
+    callback: Union[None, Callable[[tuple[str, int]], None]], 
+    *args 
+):
+    """
+    I know this is silly, but this function is simply here to not call a function if it's `None`.
+    This avoid constant `if x is not None` checks.
+    """
+    if callback is not None:
+        callback(*args)
+
 class HighUDPServer:
     "A server is responsible for accepting connections from clients and maintaining their connections"
     def __init__(self, addr: tuple[str, int], max_connections: int):
@@ -492,6 +503,11 @@ class HighUDPServer:
         self.addr = self.sock.getsockname()
 
         self.recv_queue: deque[bytes, tuple[tuple[str, int]]] = deque()
+
+        self.on_connection: Callable[[tuple[str, int]], None] = None
+        "A callback that's fired when a client has connected. A public attribute"
+        self.on_disconnection: Callable[[tuple[str, int]], None] = None
+        "A callback that's fired when a client has disconnected. A public attribute"
 
     def get_addr(self) -> tuple[str, int]:
         return self.addr
@@ -510,9 +526,9 @@ class HighUDPServer:
         if response:
             print("SERVER: Connection accepted for", addr)
             self.connections[addr] = HighUDPConnection(self.sock, addr, label="SERVER")
+            _maybe_fire(self.on_connection, addr)
         else:
             print("SERVER: Connection refused for", addr)
-            pass
         
         self.sock.sendto(make_connection_response_packet(response), addr)
 
@@ -566,12 +582,21 @@ class HighUDPServer:
         "Check if the provided address is connected"
         return addr in self.connections
     
-    def disconnect(self, addr: tuple[str, int]):
+    def _remove_connection(self, addr: tuple[str, int], fire_callback: bool):
+        """
+        Delete the connection under the provided address and create fire the disconnection callback.
+        This will panic if the connection isn't present
+        """
+        del self.connections[addr]
+        if fire_callback:
+            _maybe_fire(self.on_disconnection, addr)
+    
+    def disconnect(self, addr: tuple[str, int], fire_callback: bool = True):
         "Disconnect the provided address from the server if it's present"
         
         if self.has_connection_addr(addr):
             self.connections[addr].disconnect()
-            del self.connections[addr]
+            self._remove_connection(addr, fire_callback)
 
     def tick(self, dt: float):
         "Receive as many packets as possible and send your own packets"
@@ -579,17 +604,14 @@ class HighUDPServer:
         for packet, addr in receive_packets(self.sock, RECV_BYTES):
             self._process_packet(addr, *packet)
         
-        removed_connections = []
-        for addr, connection in self.connections.items():
+        # removed_connections = []
+        for addr, connection in tuple(self.connections.items()):
             connection.tick(dt)
 
             # If the connection is closed - we close it as well
             if not connection.is_connected():
-                removed_connections.append(addr)
-        
-        for removed_addr in removed_connections:
-            del self.connections[removed_addr]
-    
+                self._remove_connection(addr, True)
+            
     def close(self):
         self.sock.close()
 
@@ -628,6 +650,13 @@ class HighUDPClient:
 
         self.recv_queue: deque[bytes] = deque()
 
+        self.on_connection: Union[None, Callable[[], None]] = None
+        "A callback that's fired when the client has connected to the server. A public attribute"
+        self.on_disconnection: Union[None, Callable[[], None]] = None
+        "A callback that's fired when the client has disconnected from the server. A public attribute"
+        self.on_connection_fail: Union[None, Callable[[], None]] = None
+        "A callback that's fired when the client fails all attempts to connect to the server. A public attribute"
+
     def get_addr(self) -> tuple[str, int]:
         return self.addr
     
@@ -658,6 +687,7 @@ class HighUDPClient:
             )
         
         if connector.is_exhausted():
+            _maybe_fire(self.on_connection_fail)
             self.active_connector = None
 
     def _process_packet(self, seq_id: int, ty: PacketType, data: bytes):
@@ -667,11 +697,15 @@ class HighUDPClient:
                 self.recv_queue.append(data)
         elif self.active_connector is not None:
             # ConnectionResponse only contains a single byte of data, which is True/False
-            if ty == PacketType.ConnectionResponse and data and data[0] == True:
-                print("CLIENT: Connected to", self.active_connector.addr)
-                # Move to an active UDP connection
-                self.connection_addr = self.active_connector.addr
-                self.connection = HighUDPConnection(self.sock, self.connection_addr, label="CLIENT")
+            if ty == PacketType.ConnectionResponse:
+                if data and data[0] == True:
+                    print("CLIENT: Connected to", self.active_connector.addr)
+                    # Move to an active UDP connection
+                    self.connection_addr = self.active_connector.addr
+                    self.connection = HighUDPConnection(self.sock, self.connection_addr, label="CLIENT")
+                    _maybe_fire(self.on_connection)
+                else:
+                    _maybe_fire(self.on_connection_fail)
 
                 # Remove this connector
                 self.active_connector = None
@@ -692,13 +726,20 @@ class HighUDPClient:
 
         self.connection.queue_message(data, reliable)
 
-    def disconnect(self):
+    def _remove_connection(self, fire_callback: bool):
+        "Remove the connection and optionally fire the binded callback"
+        self.connection = None
+        self.connection_addr = None
+
+        if fire_callback:
+            _maybe_fire(self.on_disconnection)
+
+    def disconnect(self, fire_callback: bool = True):
         "Disconnect from the currently connected server"
 
         if self.is_connected():
             self.connection.disconnect()
-            self.connection = None
-            self.connection_addr = None
+            self._remove_connection(fire_callback)
 
     def tick(self, dt: float):
         "Receive as many packets as possible and send your own packets"
@@ -714,8 +755,7 @@ class HighUDPClient:
             self.connection.tick(dt)
         elif self.connection:
             # If there's no connection, but we still have a connection object - remove it
-            self.connection = None
-            self.connection_addr = None
+            self._remove_connection(True)
 
     def close(self):
         self.sock.close()

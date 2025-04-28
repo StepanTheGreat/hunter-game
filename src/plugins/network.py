@@ -4,7 +4,7 @@ Some common abstractions for networking
 
 from typing import Callable, Union
 
-from plugin import Resources, Plugin, Schedule, event
+from plugin import Resources, Plugin, Schedule, event, EventWriter
 from itertools import count
 import struct
 
@@ -225,8 +225,25 @@ class Client:
     "A client abstractions for managing game clients"
     def __init__(self, resources: Resources, addr: tuple[str, int]):
         self.resources = resources
+        self.ewriter = resources[EventWriter]
         self.client = HighUDPClient(addr)
         self.rpcs: dict[int, Callable] = {}
+
+        self._init_hooks()
+
+    def _init_hooks(self):
+        def on_client_connection():
+            self.ewriter.push_event(ServerConnectedEvent())
+        
+        def on_client_disconnection():
+            self.ewriter.push_event(ServerDisonnectedEvent())
+
+        def on_client_connection_fail():
+            self.ewriter.push_event(ServerConnectionFailEvent())
+
+        self.client.on_connection = on_client_connection
+        self.client.on_disconnection = on_client_disconnection
+        self.client.on_connection_fail = on_client_connection_fail
 
     def attach_rpcs(self, *rpcs: Callable):
         _attach_rpcs(self.rpcs, rpcs)
@@ -252,8 +269,21 @@ class Client:
 class Server:
     def __init__(self, resources: Resources, addr: tuple[str, int], max_clients: int):
         self.resources = resources
+        self.ewriter = resources[EventWriter]
         self.server = HighUDPServer(addr, max_clients)
         self.rpcs: dict[int, Callable] = {}
+
+        self._init_event_hooks()
+
+    def _init_event_hooks(self):
+        def on_server_connection(addr: tuple[str, int]):
+            self.ewriter.push_event(ClientConnectedEvent(addr))
+        
+        def on_server_disconnection(addr: tuple[str, int]):
+            self.ewriter.push_event(ClientDisconnectedEvent(addr))
+
+        self.server.on_connection = on_server_connection
+        self.server.on_disconnection = on_server_disconnection
 
     def attach_rpcs(self, *rpcs: Callable):
         _attach_rpcs(self.rpcs, rpcs)
@@ -339,24 +369,28 @@ def only_server(system: Callable):
 # TODO: Add and dispatch events on connections/disconnections
 
 @event
-class ClientConnected:
+class ClientConnectedEvent:
     "A client has connected to the server. It's fired on the host (i.e. when you're the server)"
     def __init__(self, addr: tuple[str, int]):
         self.addr = addr
 
 @event
-class ClientDisconnected:
+class ClientDisconnectedEvent:
     "A client has disconnected from the server. It's fired on the host (i.e. when you're the server)"
     def __init__(self, addr: tuple[str, int]):
         self.addr = addr
 
 @event
-class ServerConnected:
+class ServerConnectedEvent:
     "A connection to the server was succesfully established (i.e. when you're the client)"
 
 @event
-class ServerDisonnected:
+class ServerDisonnectedEvent:
     "Connection was lost with the server (or forcefully disconnected) (i.e. when you're the client)"
+
+@event
+class ServerConnectionFailEvent:
+    "A connection to the server was unsuccesful (i.e. when you're the client)"
 
 class NetworkPlugin(Plugin):
     def build(self, app):

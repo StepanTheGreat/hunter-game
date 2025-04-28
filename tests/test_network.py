@@ -13,6 +13,9 @@ ADDR_CLIENT3 = (IP, 503)
 PORT_BROADCAST = 567
 ADDR_BROADCAST = (IP, PORT_BROADCAST)
 
+ADDR_SERVER_DUMMY = (IP, 499)
+"This address doesn't contain anything"
+
 def make_test_pair() -> tuple[HighUDPServer, HighUDPClient]:
     "-1% of boilerplate!"
     return HighUDPServer(ADDR_SERVER, 4), HighUDPClient(ADDR_CLIENT)
@@ -460,3 +463,113 @@ def _():
     assert not server.has_connection_addr(ADDR_CLIENT)
     assert not client.is_connected()
 
+    close_actors(server, client)
+
+@test("Test connection hooks for connection/disconnection/connection failure")
+def _():
+    server, client = make_test_pair()
+
+    def clear_all(*lists: list):
+        for lst in lists:
+            lst.clear()
+
+    def are_empty(*lists: list) -> bool:
+        return all(len(lst) == 0 for lst in lists)
+
+    # This is an ugly way of doing this, but lambdas don't really support statements
+    server_connections = []
+    server_disconnections = []
+
+    server.on_connection = lambda _: server_connections.append(1)
+    server.on_disconnection = lambda _: server_disconnections.append(1)
+
+    # Now for the client
+
+    client_connections = []
+    client_disconnections = []
+    client_fails = []
+
+    client.on_connection = lambda: client_connections.append(1)
+    client.on_disconnection = lambda: client_disconnections.append(1)
+    client.on_connection_fail = lambda: client_fails.append(1)
+
+    # Let's first tick them
+
+    tick_actors(DT, server, client)
+
+    # Obviously, they should produce ANY events when nothing has happened
+    assert are_empty(
+        server_connections, server_disconnections, 
+        client_connections, client_disconnections, client_fails
+    )
+    
+    # Let's connect them
+    connect_actors(server, client)
+
+    # They both should produce connection events
+    assert not are_empty(server_connections, client_connections)
+
+    # We clear again, but this time we're going to wait them out until they disconnect from heartbeat
+    clear_all(server_connections, client_connections)
+
+    # Tick them exactly 10 seconds
+    tick_actors(10, server, client)
+
+    # They should produce disconnection events
+    assert not are_empty(server_disconnections, client_disconnections)
+    clear_all(server_disconnections, client_disconnections)
+
+
+    # Now, let's try the same, but with direct disconnections
+
+    connect_actors(server, client)
+    clear_all(server_connections, client_connections)
+
+    # Let's disconnect our client and see the result
+    client.disconnect()
+    tick_actors(DT, server, client)
+    assert client_disconnections
+    assert server_disconnections
+    clear_all(server_disconnections, client_disconnections)
+
+    # Connect them back
+    connect_actors(server, client)
+    clear_all(server_connections, client_connections)
+
+    # Re-do the same, but from the server
+    server.disconnect(ADDR_CLIENT)
+    tick_actors(DT, server, client)
+    assert not are_empty(server_disconnections, client_disconnections)
+
+    clear_all(server_connections, client_connections)
+
+    # Now, let's check connection failures
+
+    server.accept_incoming_connections(False)
+    connect_actors(server, client)
+
+    # This should fail
+    assert client_fails
+    client_fails.clear()
+
+    # Now we're going to instead connect our client, but only tick them, without the server.
+    # This is for us to be able to see if it will call our function in case of exhaustion of all attempts
+
+    client.connect(ADDR_SERVER_DUMMY, 4, DT)
+    [client.tick(DT) for _ in range(5)]
+
+    # The client should now exhaust all its attempts and call the function
+    assert client_fails 
+
+    # Finally, we have an option to disable or overwrite hooks
+    client.on_connection = None
+
+    # Clear and connect them again
+    clear_all(server_connections, client_connections)
+    server.accept_incoming_connections(True)
+    connect_actors(server, client)
+
+    assert server_connections
+    assert not client_connections
+
+    close_actors(server, client)
