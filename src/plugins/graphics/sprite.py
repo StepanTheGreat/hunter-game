@@ -74,16 +74,16 @@ class SpriteRenderer:
             self.amount = 0
             self.sprite_positions = np.zeros((size, 3), dtype=np.int16)
             self.sprite_sizes = np.zeros((size, 2), dtype=np.uint8)
-            self.sprite_uv_rects = np.zeros((size, 4), dtype=np.float32)
+            self.sprite_uv_rects = np.zeros(size, dtype=np.uint8)
 
         def add(self, sprite: Sprite, pos: tuple[float, float], y: float):
             size = sprite.size
-            uv_rect = sprite.uv_rect
+            uvx, uvy, uvw, uvh = sprite.uv_rect
             #uv_rect is a tuple of 4 absolute texture coordinates
 
             self.sprite_positions[self.amount] = np.array([pos[0], y, -pos[1]])
             self.sprite_sizes[self.amount] = np.array([size.x, size.y])
-            self.sprite_uv_rects[self.amount] = np.array(uv_rect)
+            self.sprite_uv_rects[self.amount] = (uvx << 3) + (uvy << 2) + (uvw << 1) + uvh
             self.amount += 1
 
         def get_uniforms(self) -> tuple[np.ndarray]:
