@@ -125,51 +125,78 @@ def fill_grid_with_colliders(
     to do so.
     """
 
+    gsize = GRID_SIZE
+
+    cross_cells = [None for _ in range(8)]
+    main_cross_indices = (0, 1, 2, 3) 
+    
     # Iterate every collider
     for ent, (pos, collider) in colliders:
         pos = pos.get_position()
         pos = (int(pos.x/GRID_SIZE), int(pos.y/GRID_SIZE))
-
-        # Now here's where confusing stuff happens - what's a `hurricane_cell_map`?
-        # Well, because it would be highly inefficient to simply dump our entity's collider into
-        # all neighbouring 9 cells, we're going to perform bounding rect collision checks first.
-        #
-        # But, performing rectangle checks on our collider would mean complexity of 8N.
-        # If we imagine a grid (NO, THIS IS NOT WHAT YOU THINK IT IS):
-        #  o    x -> o
-        #  |
-        #  x    #    x
-        #            |
-        #  o <- x    o
-        #
-        # The center being the position of our collider - it's highly unlikely that it's going to collide
-        # in every single cell. Well, what can we do then?
-        # Well, we could instead of checking every single outside chunk, check these key 4 regions:
-        # left, top, right, bottom
-        #
-        # The idea behind this is that it would be impossible for a bounding box to reach say,
-        # top-left cell, without colliding first with the left and top cell.
-        # If we don't - there's no way we're ever going to collide with it, so we simply ignore it.
-        #
-        # Now, next step would be to not make a collision check at all for the corners, so our algorithm is
-        # 100% 4N complexity, but for now it will be like this. 
-        hurricane_cell_map = (
-            ((pos[0]-1, pos[1]), (pos[0]-1, pos[1]-1)), # Left -> Top-Left 
-            ((pos[0]+1, pos[1]), (pos[0]+1, pos[1]+1)), # Right -> Bottom-Right
-            ((pos[0], pos[1]-1), (pos[0]+1, pos[1]-1)), # Up -> Top-right
-            ((pos[0], pos[1]+1), (pos[0]-1, pos[1]+1)), # Down -> Bottom-Left
-        )       
-
-        # Get our collider's bounding rect
         collider_rect = collider.get_rect()
 
-        # Of course add its rectangle to the center 
-        grid.setdefault(pos, []).append((ent, collider))
+        # So what is this confusing algorithm, why am I reusing simple lists and so on?
+        # For the first case I can't really respond, as I believe it gives me some hope that the
+        # algorithm will allocate less and thus become a bit faster, though I think the performance
+        # difference will be less than 0.1%
+        #
+        # Anyway, to our algorithm! Because it doesn't make sense to simply add our collider to every
+        # single cell around it - we would like to only add it to cells that it touches. For this reason
+        # our colliders have a method `get_rect`, which computes their bounding box.
+        # Now, if you imagine 8 cells, around 1 cell (9 in total), you would see something like this:
+        # 
+        # o -- # -- o
+        # |    |    |
+        # # -- @ -- #
+        # |    |    |
+        # 0 -- # -- o
+        #
+        # We got the center, the cross and the corners. So, 9 cells in total.
+        #
+        # We automatically add to the main cell, as it will always have our collider.
+        # But regarding our other 8 cells... we don't need to check EVERY cell for collisions...
+        # Because corners are in between 2 cross cells and our center cell - it's absolutely impossible
+        # for our collider to somehow not collide with any of the 2 cross cells.
+        # What this allows us to do, is to only check for 4 cell collisions (left, top, right, bottom),
+        # and for every pair, if both are true - add their corner. For example, if left and top
+        # are true - top-left cell can be used as well
+        # 
+        # This in turn results in complexity N4, which is still a lot, but more managable overall. 
+        
+        # Define our 8 surrounding cells. Ignore the slicing, it just makes me feel safer... Safer?
+        cross_cells[:8] = (
+            (pos[0]-1, pos[1]),   # Left
+            (pos[0]-1, pos[1]-1), # Top-Left 
+            (pos[0],   pos[1]-1), # Top
+            (pos[0]+1, pos[1]-1), # Top-right
+            (pos[0]+1, pos[1]),   # Right
+            (pos[0]+1, pos[1]+1), # Bottom-Right
+            (pos[0],   pos[1]+1), # Bottom
+            (pos[0]-1, pos[1]+1), # Bottom-Left
+        )
 
-        for hurricane_cell in hurricane_cell_map:
-            for cell in hurricane_cell:
-                if collider_rect.colliderect(cell[0]*GRID_SIZE, cell[1]*GRID_SIZE, GRID_SIZE, GRID_SIZE):
-                    grid.setdefault(cell, []).append((ent, collider))
+        # Check rect collisions for every cross cell, and return a tuple of booleans:
+        # (left, top, right, bottom)
+        main_cross_cells = tuple(
+            collider_rect.colliderect(x*gsize, y*gsize, gsize, gsize)
+            for (x, y) in cross_cells[::2]
+        )
+
+        # Now, we're going to collision results for our 4 main cells
+        for ind in main_cross_indices:
+            if main_cross_cells[ind]:
+                # If it has collided - add the collider to the cells
+                local_ind = ind*2
+                grid.setdefault(cross_cells[local_ind], []).append((ent, collider))
+
+                # AND, if the cell before this one also has a collision - add the collider to the 
+                # cell in between (corner)
+                if main_cross_cells[ind-1]:
+                    grid.setdefault(cross_cells[local_ind-2], []).append((ent, collider))
+        
+        # Finally, add our primary cell to the colliders
+        grid.setdefault(pos, []).append((ent, collider))
 
 def resolve_collisions(resources: Resources):
     world = resources[WorldECS]
