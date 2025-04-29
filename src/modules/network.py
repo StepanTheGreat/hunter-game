@@ -78,7 +78,7 @@ and wraps around back to 1. This does mean that we're sending more data (by 1 by
 I'm going to come up with a separate structure for both.
 """
 
-from typing import Optional, Callable, Iterable
+from typing import Optional, Callable, Iterable, Union
 
 from .circleset import CircleSet
 from collections import deque
@@ -108,39 +108,39 @@ Because fragmentation can occur on large amounts of data - we're limiting here t
 RECV_BYTES = BYTES_PER_MESSAGE+64 
 # Sorry for the magic number, we're just compensating for headers and other possible garbage
 
-__global_loss_rate = 0
-__global_dublicates_rate = 0
-__global_corruption_rate = 0
+_global_loss_rate = 0
+_global_dublicates_rate = 0
+_global_corruption_rate = 0
 
 def should_corrupt() -> bool:
-    return rnd.random() < __global_loss_rate
+    return rnd.random() < _global_loss_rate
 
 def should_dublicate() -> bool:
-    return rnd.random() < __global_dublicates_rate
+    return rnd.random() < _global_dublicates_rate
 
 def should_lose_packet() -> bool:
-    return  rnd.random() < __global_loss_rate
+    return  rnd.random() < _global_loss_rate
 
 def set_loss_rate(to: float):
     assert 0 <= to <= 1
-    global __global_loss_rate
-    __global_loss_rate = to
+    global _global_loss_rate
+    _global_loss_rate = to
 
 def set_corruption_rate(to: int):
     assert 0 <= to <= 1
-    global __global_corruption_rate
-    __global_corruption_rate = to
+    global _global_corruption_rate
+    _global_corruption_rate = to
 
 def set_dublicates_rate(to: int):
     assert 0 <= to <= 1
-    global __global_dublicates_rate
-    __global_dublicates_rate = to
+    global _global_dublicates_rate
+    _global_dublicates_rate = to
 
 def reset_unreliability():
-    global __global_corruption_rate, __global_dublicates_rate, __global_loss_rate
-    __global_corruption_rate = 0
-    __global_dublicates_rate = 0
-    __global_loss_rate = 0
+    global _global_corruption_rate, _global_dublicates_rate, _global_loss_rate
+    _global_corruption_rate = 0
+    _global_dublicates_rate = 0
+    _global_loss_rate = 0
 
 def fnv1_hash(data: bytes) -> int: 
     "This is a Fowler-Noll-Vo hash function. For curious: python's `hash` uses a different salt every session, so it's unstable"
@@ -153,15 +153,32 @@ def fnv1_hash(data: bytes) -> int:
 
     return ret_hash 
 
-def make_async_socket(addr: tuple[str, int]) -> socket.socket:
-    "This function simply creates a new non-blocking UDP socket"
+def make_async_socket(
+    addr: tuple[str, int], 
+    broadcaster: bool = False,
+    shared: bool = False
+) -> socket.socket:
+    """
+    This function simply creates a new non-blocking UDP socket:
+    - `addr`: the address on which create and bind this socket
+    - `broadcaster`: can this socket send broadcasts? `True` if yes
+    - `shared`: can this socket's address be reused? `True` if yes
+    """
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setblocking(False)
+
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, shared)
+
     sock.bind(addr)
+    sock.setblocking(False)
+
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, broadcaster)
 
     return sock
 
 class PacketType(Enum):
+    Broadcast = auto()
+    "This variant only exists to make it possible to use the same packet format for broadcasters as well"
+
     Acknowledgment = auto()
     "A packet has been acknowledged"
     
@@ -176,6 +193,13 @@ class PacketType(Enum):
     
     ConnectionResponse = auto()
     "The server has agreed/disagreed on a connection"
+
+    Disconnection = auto()
+    """
+    A message that's sent to notify the receiving side of closing the connection.
+    This allows the closing side to disconnect way faster in most cases (if the packet loss is small).
+    It's still sent once via unreliable channel, so it's more of a higher chance.
+    """
 
 def open_packet(b: bytes) -> Optional[tuple[int, PacketType, bytes]]:
     "Tries opening a packet, and if succesful - returns its sequence ID, type and data"
@@ -225,6 +249,12 @@ def make_connection_request_packet() -> bytes:
 def make_connection_response_packet(accept: bool) -> bytes:
     return make_unreliable_packet(PacketType.ConnectionResponse, bytes([accept]))
 
+def make_broadcast_packet(data: bytes) -> bytes:
+    return make_unreliable_packet(PacketType.Broadcast, data)
+
+def make_disconnection_packet() -> bytes:
+    return make_unreliable_packet(PacketType.Disconnection, b"")
+
 def receive_packets(sock: socket.socket, message_size: int) -> Iterable[tuple[tuple[int, int, bytes], tuple[str, int]]]:
     """
     An iterator over socket's received packets. Essentially, it will try to receive as many packets as it can
@@ -269,6 +299,10 @@ class Timer:
     def reset(self):
         self.on_interval = self.interval
 
+    def zero(self):
+        "Make this clock act immediately. Only usefil in specific cases"
+        self.on_interval = 0
+
 class HighUDPConnection:
     BYTES_PER_SECOND = 250_000 # Im being conservative here with 2Mbps or 250KB per second
     PACKETS_PER_SECOND = 200 # This is a pretty high number, so don't judge me! It's only a toy implementation!
@@ -298,9 +332,6 @@ class HighUDPConnection:
 
         self.next_self_heartbeat = Timer(HighUDPConnection.HEARTBEAT_RATE, False)
 
-        self.on_connection: Callable = None
-        self.on_disconnection: Callable = None
-
         self.label = label
         "Labels help when debugging"
 
@@ -308,9 +339,22 @@ class HighUDPConnection:
         "In a connection between address A and B (where A is our socket), this method returns the address of B"
         return self.connected_to
     
-    def __queue_message(self, seq_id: int, packet: bytes):
+    def _queue_message(self, seq_id: int, packet: bytes):
         "Add this message to the queue. An internal method, as it requires ID assignment"
         self.packet_queue.append((seq_id, packet))
+
+    def _send_packet(self, data: bytes):
+        # Reset our heartbeat, because we have sent a packet!
+        self.next_self_heartbeat.reset()
+        self.sock.sendto(data, self.connected_to)
+
+    def disconnect(self):
+        "Close this connection by also sending a disconnection packet"
+
+        if self.is_connected():
+            self._send_packet(make_disconnection_packet())
+
+        self.no_end_heartbeat.zero()
 
     def queue_message(self, data: bytes, reliable: bool):
         "This method will both send a message and register it to non-acknowledged dictionary"
@@ -323,12 +367,12 @@ class HighUDPConnection:
             new_id = 0
             packet = make_unreliable_packet(PacketType.Message, data)
 
-        self.__queue_message(new_id, packet)
+        self._queue_message(new_id, packet)
 
-    def __queue_heartbeat(self):
-        self.__queue_message(0, make_heartbeat_packet())
+    def _queue_heartbeat(self):
+        self._queue_message(0, make_heartbeat_packet())
 
-    def __get_limits(self, dt: float) -> tuple[int, int]:
+    def _get_limits(self, dt: float) -> tuple[int, int]:
         "Computes BPS and PPS limits for the provided delta. If higher than 1 - clamps the results"
         bps, pps = HighUDPConnection.BYTES_PER_SECOND, HighUDPConnection.PACKETS_PER_SECOND
         return (
@@ -336,7 +380,7 @@ class HighUDPConnection:
             min(pps, int(pps * dt)),
         )
 
-    def __send_queued_messages(self, dt: float):
+    def _send_queued_messages(self, dt: float):
         """
         The key idea is that we would like to resend our messages as often as possible. This is why we're
         maintaining here a queue. 
@@ -348,7 +392,7 @@ class HighUDPConnection:
         Delta time is really important in this calculations, as it allows to 
         """
 
-        allowed_bytes, allowed_packet_amount = self.__get_limits(dt)
+        allowed_bytes, allowed_packet_amount = self._get_limits(dt)
 
         # Some packets are large, so we need to ensure to send at least ONE per tick
         at_least_one = True
@@ -374,13 +418,13 @@ class HighUDPConnection:
 
                     if not should_lose_packet():
                         print(f"{self.label}: Sending {packet_to_send} of ID {seq_id}")
-                        self.sock.sendto(packet_to_send, self.connected_to)
+                        self._send_packet(packet_to_send)
                     else:
                         print(f"{self.label}: Lost a packet")
 
                 if seq_id != 0:
                     # If sequence ID isn't zero - we're going to queue it again
-                    self.__queue_message(seq_id, packet)
+                    self._queue_message(seq_id, packet)
             else:
                 # We don't have much more bandwidth, so we're putting it back for later
                 packet_queue.appendleft((seq_id, packet))
@@ -389,16 +433,12 @@ class HighUDPConnection:
         # We need to join them back, as the packet queue might not be entirely consumed
         self.packet_queue = packet_queue+self.packet_queue
 
-        if at_least_one:
-            # If we have send at least ONE heartbeat, we should update our heartbeat
-            self.next_self_heartbeat.reset()
-
     def acknowledge_received_packet(self, seq_id: int):
         "The packet the receiver sent to us was received. This is important to avoid dublicates"
         if seq_id != 0:
             print(f"{self.label}: Acknowledged {seq_id}, sending this acknowledgement back!")
             self.received_packets.add(seq_id)
-            self.__queue_message(0, make_acknowledgement_packet(seq_id))
+            self._queue_message(0, make_acknowledgement_packet(seq_id))
     
     def has_packet_been_received(self, seq_id: int) -> bool:
         "A packet is received if it's ID is not 0 (unreliable), and it its ID is registered in the received database"
@@ -412,6 +452,8 @@ class HighUDPConnection:
         "Process a packet, and if it's a message packet - return its bytes"
         ret = None
 
+        self.no_end_heartbeat.reset()
+
         if ty == PacketType.Acknowledgment:
             if len(data) == 2:
                 ack_id = int.from_bytes(data, BYTE_ORDER)
@@ -421,8 +463,9 @@ class HighUDPConnection:
             if not self.has_packet_been_received(seq_id):
                 ret = data
                 self.acknowledge_received_packet(seq_id)
-        
-        self.no_end_heartbeat.reset()
+        elif ty == PacketType.Disconnection:
+            self.no_end_heartbeat.zero()
+            print(f"{self.label}: Received a disconnection packet")
 
         return ret
 
@@ -431,14 +474,24 @@ class HighUDPConnection:
         self.next_self_heartbeat.tick(dt)
 
         if self.next_self_heartbeat.has_finished():
-            self.__queue_heartbeat()
+            self._queue_heartbeat()
 
-        self.__send_queued_messages(dt)
+        self._send_queued_messages(dt)
+
+def _maybe_fire(
+    callback: Union[None, Callable[[tuple[str, int]], None]], 
+    *args 
+):
+    """
+    I know this is silly, but this function is simply here to not call a function if it's `None`.
+    This avoid constant `if x is not None` checks.
+    """
+    if callback is not None:
+        callback(*args)
 
 class HighUDPServer:
     "A server is responsible for accepting connections from clients and maintaining their connections"
     def __init__(self, addr: tuple[str, int], max_connections: int):
-        self.addr = addr
         self.max_connections = None
         self.set_max_connections(max_connections)
 
@@ -446,9 +499,18 @@ class HighUDPServer:
 
         self.connections: dict[tuple[str, int], HighUDPConnection] = {}
 
-        self.sock = make_async_socket(addr)
+        self.sock = make_async_socket(addr, True)
+        self.addr = self.sock.getsockname()
 
         self.recv_queue: deque[bytes, tuple[tuple[str, int]]] = deque()
+
+        self.on_connection: Callable[[tuple[str, int]], None] = None
+        "A callback that's fired when a client has connected. A public attribute"
+        self.on_disconnection: Callable[[tuple[str, int]], None] = None
+        "A callback that's fired when a client has disconnected. A public attribute"
+
+    def get_addr(self) -> tuple[str, int]:
+        return self.addr
 
     def set_max_connections(self, to: int):
         assert to >= 0, "A number of maximum connections should more than 2"
@@ -458,21 +520,20 @@ class HighUDPServer:
         "Make this server be able to accept incoming connections. Doesn't affect the existing ones"
         self.accept_connections = to
 
-    def __connection_response(self, addr: tuple[str, int], response: bool):
+    def _connection_response(self, addr: tuple[str, int], response: bool):
         assert addr not in self.connections, "Can't overwrite an existing connection"
 
         if response:
             print("SERVER: Connection accepted for", addr)
             self.connections[addr] = HighUDPConnection(self.sock, addr, label="SERVER")
+            _maybe_fire(self.on_connection, addr)
         else:
             print("SERVER: Connection refused for", addr)
-            pass
-
+        
         self.sock.sendto(make_connection_response_packet(response), addr)
 
-    def __process_packet(self, addr: tuple[str, int], seq_id: int, ty: PacketType, data: bytes):
+    def _process_packet(self, addr: tuple[str, int], seq_id: int, ty: PacketType, data: bytes):
         if addr in self.connections:
-            
             data = self.connections[addr].process_packet(seq_id, ty, data)
             if data is not None:
                 print("SERVER: Received message", data)
@@ -481,7 +542,7 @@ class HighUDPServer:
         else:
             if ty == PacketType.ConnectionRequest:
                 response = self.accept_connections and len(self.connections) < self.max_connections
-                self.__connection_response(addr, response)
+                self._connection_response(addr, response)
 
     def has_packets(self) -> bool:
         "Check if the server has any available packets"
@@ -499,31 +560,58 @@ class HighUDPServer:
 
         self.connections[addr].queue_message(data, reliable)
 
+    def broadcast(self, port: int, data: bytes):
+        """
+        Broadcast provided `data` to all broadcast listeners on the provided `port`.
+        Don't confuse this method with sending data to all connected clients - this will actually
+        send a broadcast packet to non-clients as well.
+
+        An additional note is that this method doesn't use a direct connection, so when broadcasting - 
+        all your packets are going to be sent immediately, since the concept of congestion control
+        doesn't get applied here (there's no connection).
+        """
+        self.sock.sendto(
+            make_broadcast_packet(data),
+            ("255.255.255.255", port),
+        )
+
     def get_connection_addresses(self) -> tuple[tuple[str, int], ...]:
         return tuple(self.connections.keys())
     
     def has_connection_addr(self, addr: tuple[str, int]) -> bool:
         "Check if the provided address is connected"
         return addr in self.connections
+    
+    def _remove_connection(self, addr: tuple[str, int], fire_callback: bool):
+        """
+        Delete the connection under the provided address and create fire the disconnection callback.
+        This will panic if the connection isn't present
+        """
+        del self.connections[addr]
+        if fire_callback:
+            _maybe_fire(self.on_disconnection, addr)
+    
+    def disconnect(self, addr: tuple[str, int], fire_callback: bool = True):
+        "Disconnect the provided address from the server if it's present"
+        
+        if self.has_connection_addr(addr):
+            self.connections[addr].disconnect()
+            self._remove_connection(addr, fire_callback)
 
     def tick(self, dt: float):
         "Receive as many packets as possible and send your own packets"
 
         for packet, addr in receive_packets(self.sock, RECV_BYTES):
-            self.__process_packet(addr, *packet)
+            self._process_packet(addr, *packet)
         
-        removed_connections = []
-        for addr, connection in self.connections.items():
+        # removed_connections = []
+        for addr, connection in tuple(self.connections.items()):
             connection.tick(dt)
 
             # If the connection is closed - we close it as well
             if not connection.is_connected():
-                # print("SERVER: Disconnecting", addr)
-                removed_connections.append(addr)
-        
-        for removed_addr in removed_connections:
-            del self.connections[removed_addr]
-    
+                self._remove_connection(addr, True)
+            
     def close(self):
         self.sock.close()
 
@@ -552,15 +640,29 @@ class HighUDPClient:
             return self.attempts <= 0
 
     def __init__(self, addr: tuple[str, int]):
-        self.addr = addr
-
         self.connection: HighUDPConnection = None
         self.connection_addr: tuple[str, int] = None
 
         self.active_connector: HighUDPClient.ServerConnector = None
 
         self.sock = make_async_socket(addr)
+        self.addr = self.sock.getsockname()
+
         self.recv_queue: deque[bytes] = deque()
+
+        self.on_connection: Union[None, Callable[[], None]] = None
+        "A callback that's fired when the client has connected to the server. A public attribute"
+        self.on_disconnection: Union[None, Callable[[], None]] = None
+        "A callback that's fired when the client has disconnected from the server. A public attribute"
+        self.on_connection_fail: Union[None, Callable[[], None]] = None
+        "A callback that's fired when the client fails all attempts to connect to the server. A public attribute"
+
+    def get_addr(self) -> tuple[str, int]:
+        return self.addr
+    
+    def get_server_addr(self) -> Union[tuple[str, int], None]:
+        "Return the connected server's address if connected. Else returns `None`"
+        return self.connection_addr if self.is_connected() else None
 
     def is_connected(self) -> bool:
         return self.connection is not None and self.connection.is_connected()
@@ -574,7 +676,7 @@ class HighUDPClient:
         assert not self.is_connected(), "Already is connected"
         self.active_connector = HighUDPClient.ServerConnector(to, attempts, attempt_delay)
 
-    def __continue_connection_establishing(self, dt: float):
+    def _continue_connection_establishing(self, dt: float):
         connector = self.active_connector
 
         retry = connector.tick(dt)
@@ -585,32 +687,35 @@ class HighUDPClient:
             )
         
         if connector.is_exhausted():
+            _maybe_fire(self.on_connection_fail)
             self.active_connector = None
 
-    def __process_packet(self, seq_id: int, ty: PacketType, data: bytes):
-        if self.connection:
+    def _process_packet(self, seq_id: int, ty: PacketType, data: bytes):
+        if self.connection is not None:
             data = self.connection.process_packet(seq_id, ty, data)
             if data is not None:
-                print("CLIENT: Received message", data)
                 self.recv_queue.append(data)
-        elif self.active_connector:
+        elif self.active_connector is not None:
             # ConnectionResponse only contains a single byte of data, which is True/False
-            if ty == PacketType.ConnectionResponse and data and data[0] == True:
-
-                # Move to an active UDP connection
-                self.connection_addr = self.active_connector.addr
-                self.connection = HighUDPConnection(self.sock, self.connection_addr, label="CLIENT")
+            if ty == PacketType.ConnectionResponse:
+                if data and data[0] == True:
+                    print("CLIENT: Connected to", self.active_connector.addr)
+                    # Move to an active UDP connection
+                    self.connection_addr = self.active_connector.addr
+                    self.connection = HighUDPConnection(self.sock, self.connection_addr, label="CLIENT")
+                    _maybe_fire(self.on_connection)
+                else:
+                    _maybe_fire(self.on_connection_fail)
 
                 # Remove this connector
                 self.active_connector = None
                     
-
     def has_packets(self) -> bool:
-        "Check if the server has any available packets"
+        "Check if the client has any available packets"
         return len(self.recv_queue) > 0
     
     def recv(self) -> bytes:
-        "Receive a single packet (its address and data). Will panic if the server doesn't have any packets"
+        "Receive a single packet (its data). Will panic if the client doesn't have any packets"
 
         assert self.has_packets(), "Nothing to receive"
 
@@ -621,11 +726,20 @@ class HighUDPClient:
 
         self.connection.queue_message(data, reliable)
 
-    def disconnect(self):
-        "Disconnect from the currently connected server"
-
+    def _remove_connection(self, fire_callback: bool):
+        "Remove the connection and optionally fire the binded callback"
         self.connection = None
         self.connection_addr = None
+
+        if fire_callback:
+            _maybe_fire(self.on_disconnection)
+
+    def disconnect(self, fire_callback: bool = True):
+        "Disconnect from the currently connected server"
+
+        if self.is_connected():
+            self.connection.disconnect()
+            self._remove_connection(fire_callback)
 
     def tick(self, dt: float):
         "Receive as many packets as possible and send your own packets"
@@ -633,13 +747,50 @@ class HighUDPClient:
         for packet, addr in receive_packets(self.sock, RECV_BYTES):
             # It should be either the server or a connector address
             if addr == self.connection_addr or (self.active_connector and self.active_connector.addr == addr):
-                self.__process_packet(*packet)
+                self._process_packet(*packet)
         
         if self.is_trying_to_connect():
-            self.__continue_connection_establishing(dt)
+            self._continue_connection_establishing(dt)
         elif self.is_connected():
             self.connection.tick(dt)
+        elif self.connection:
+            # If there's no connection, but we still have a connection object - remove it
+            self._remove_connection(True)
 
     def close(self):
         self.sock.close()
-            
+        
+class BroadcastListener:
+    """
+    Broadcast listener is an abstraction that allows you to listen for broadcasted messages. 
+    Why not just use the Client to receive broadcasts? Well, I think the problem with this API is that
+    a client is always expected to have the same port. Something that isn't possible 
+    """
+    def __init__(self, addr: tuple[str, int]):
+        # We're using a shared socket here, because it makes it possible to use the same port for
+        # multiple broadcast listeners accross multiple Python sessions. This is highly useful for
+        # testing.
+        self.sock = make_async_socket(addr, shared=True)
+        self.recv_queue: deque[tuple[bytes, tuple[str, int]]] = deque()
+    
+    def fetch(self):
+        "Fetch for any new packets on this listener. Fetching will allow you to later get your packets using the `recv` method"
+        for (_, ty, data), addr in receive_packets(self.sock, BYTES_PER_MESSAGE):
+            if ty == PacketType.Broadcast:
+                self.recv_queue.append((data, addr))
+
+    def has_packets(self) -> bool:
+        "Check if the listener has any available packets"
+        return len(self.recv_queue) > 0
+    
+    def recv(self) -> tuple[bytes, tuple[str, int]]:
+        "Receive a single packet (its data and address). Will panic if the listener doesn't have any packets"
+
+        assert self.has_packets(), "Nothing to receive"
+
+        return self.recv_queue.popleft()
+
+    def close(self):
+        "Close this broadcast listener"
+        self.sock.close()
+        

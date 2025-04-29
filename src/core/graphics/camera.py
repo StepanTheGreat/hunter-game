@@ -4,10 +4,7 @@ import pygame as pg
 from plugin import Plugin, Resources
 
 from core.pg import WindowResizeEvent
-
 from app_config import CONFIG
-
-HEIGHT = 24
 
 def perspective_matrix(aspect_ratio: float, fov: float, zfar: float, znear: float) -> np.ndarray:
     "A perspective matrix generator"
@@ -87,7 +84,7 @@ class Camera2D:
 
     def get_projection_matrix(self) -> np.ndarray:
         return self.projection
-
+    
 def update_cameras(resources: Resources, event: WindowResizeEvent):
     resources[Camera2D].update_projection(event.new_width, event.new_height)
     resources[Camera3D].update_projection(event.new_width, event.new_height)
@@ -95,7 +92,7 @@ def update_cameras(resources: Resources, event: WindowResizeEvent):
 class CameraPlugin(Plugin):
     def build(self, app):
         app.insert_resource(
-            Camera3D(CONFIG.width, CONFIG.height, pg.Vector2(0, 0), HEIGHT)
+            Camera3D(CONFIG.width, CONFIG.height, pg.Vector2(0, 0), 0)
         )
         app.insert_resource(
             Camera2D(CONFIG.width, CONFIG.height)

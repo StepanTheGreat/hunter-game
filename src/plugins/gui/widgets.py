@@ -23,10 +23,10 @@ class GUIElement:
         self.children: list[GUIElement] = []
         "The elements that are attached to this element"
 
-        self.__rect: pg.Rect = None
-        self.__size: tuple[float, float] = None
+        self._rect: pg.Rect = None
+        self._size: tuple[float, float] = None
 
-        self.__margin: tuple[int, int] = (0, 0)
+        self._margin: tuple[int, int] = (0, 0)
         """
         The offset in pixels from this element that goes (left, top, right, bottom). 
         It doesn't affect the rectangle, but child position calculations instead (it can also stack with the child's margin as well)
@@ -39,7 +39,7 @@ class GUIElement:
         self.edge: tuple[float, float] = edge
     
     def set_margin(self, new_x: float, new_y: float):
-        self.__margin = (new_x, new_y)
+        self._margin = (new_x, new_y)
 
         self.recompute_position()
 
@@ -55,10 +55,10 @@ class GUIElement:
         self.attach_to(to)
         return self
 
-    def __add_child(self, child: "GUIElement"):
+    def _add_child(self, child: "GUIElement"):
         self.children.append(child)
 
-    def __remove_child(self, child: "GUIElement"):
+    def _remove_child(self, child: "GUIElement"):
         try:
             self.children.remove(child)
         except ValueError:
@@ -73,20 +73,20 @@ class GUIElement:
     def attach_to(self, parent: Optional["GUIElement"]):
         if self.parent is not None:
             # If we had a parent, we need to remove ourselves from it 
-            self.parent.__remove_child(self)
+            self.parent._remove_child(self)
 
         self.parent = parent
 
         if self.parent is not None:
             # Of course, if we attach to nothing - we don't need to notify anything
-            self.parent.__add_child(self)
+            self.parent._add_child(self)
 
         self.recompute_position()
 
     def get_rect(self) -> pg.Rect:
-        return self.__rect.copy()
+        return self._rect.copy()
     
-    def __compute_position(self, width: float, height: float) -> tuple[float, float]:
+    def _compute_position(self, width: float, height: float) -> tuple[float, float]:
         pivotx, pivoty = self.pivot
         edgex, edgey = self.edge
         
@@ -97,13 +97,13 @@ class GUIElement:
             return x - pivotx*width, y - pivoty*height
         else:
             rect = self.parent.get_rect()
-            mx, my = self.__margin
+            mx, my = self._margin
 
             return (rect.x+rect.w*edgex) - pivotx*width + mx, (rect.y+rect.h*edgey) - pivoty*height + my
             
-    def __compute_rect(self, new_width: float, new_height: float) -> pg.Rect:
+    def _compute_rect(self, new_width: float, new_height: float) -> pg.Rect:
         return pg.Rect(
-            *self.__compute_position(new_width, new_height), 
+            *self._compute_position(new_width, new_height), 
             new_width, 
             new_height
         )
@@ -119,17 +119,17 @@ class GUIElement:
     
     def recompute_position(self):
         "Recursively recompute this element's and its childrens' positions"
-        self.__rect = self.__compute_rect(*self.__size)
+        self._rect = self._compute_rect(*self._size)
 
         for child in self.children:
             child.recompute_position()
 
     def get_position(self) -> tuple[float, float]:
-        return self.__rect.topleft
+        return self._rect.topleft
     
     def set_size(self, new_width: float, new_height: float, recompute: bool = True):
         "Update this element's size, while also notifying its children of its new size"
-        self.__size = (new_width, new_height)
+        self._size = (new_width, new_height)
         if recompute:
             self.recompute_position()
 
@@ -138,7 +138,7 @@ class GUIElement:
         assert self.is_root(), "Can't set a position on child elements"
         
         self.position = (x, y)
-        self.set_size(*self.__size)
+        self.set_size(*self._size)
 
     def set_tree_position(self, x: float, y: float, pivot: tuple[float, float] = (0, 0)):
         """
@@ -287,20 +287,27 @@ class Label(GUIElement):
         self.text_scale = text_scale
         self.color = color
 
+        self._cached_drawcall = None
+
         self.set_text(text)
 
     def set_text_scale(self, new_scale: float):
         self.text_scale = new_scale
         self.set_text(self.text)
 
-    def set_text(self, text: str):
+    def set_text(self, text: str, force: bool = False):
+        if self.text == text and not force:
+            return
         self.text = text
 
         textw, texth = self.font.measure(self.text)
         self.set_size(textw*self.text_scale, texth*self.text_scale)
+        self._cached_drawcall = None
 
     def draw(self, renderer):
-        renderer.draw_text(self.font, self.text, self.get_position(), self.color, self.text_scale)
+        if not self._cached_drawcall:
+            self._cached_drawcall = renderer.draw_text_call(self.font, self.text, self.get_position(), self.color, self.text_scale)
+        renderer.push_draw_call(self._cached_drawcall)
 
 class BaseButton(GUIElement):
     "Not a user class, instead a super class for other button implementations"
@@ -313,7 +320,7 @@ class BaseButton(GUIElement):
         self.immediate = True
         self.callback: Callable[[], None] = None
 
-    def __call_callback(self):
+    def _call_callback(self):
         if self.callback is not None:
             self.callback()
 
@@ -344,12 +351,12 @@ class BaseButton(GUIElement):
         if not self.clicked and type(event) == MouseButtonDownEvent:
             if rect.collidepoint((event.x, event.y)):
                 if self.immediate:
-                    self.__call_callback()
+                    self._call_callback()
                 self.clicked = True
         elif self.clicked and type(event) == MouseButtonUpEvent:
             if rect.collidepoint((event.x, event.y)):
                 if not self.immediate:
-                    self.__call_callback()
+                    self._call_callback()
             self.clicked = False
 
 class TextButton(BaseButton):

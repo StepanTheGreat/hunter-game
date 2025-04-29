@@ -1,11 +1,14 @@
 from plugin import Plugin, Resources
 
 from core.ecs import WorldECS
+from core.sound import SoundManager, Sound
+from core.assets import AssetManager
 
 from modules.scene import SceneBundle
 from modules.tilemap import Tilemap
 
 from plugins.map import WorldMap
+from plugins.network import Server, rpc, only_server, Listener
 
 from plugins.entities.player import make_player
 from plugins.entities.enemy import make_enemy
@@ -55,16 +58,25 @@ def spawn_entities(resources: Resources):
         world.create_entity(*make_enemy((50*i, 0), assets))
 
 class IngameScene(SceneBundle):
-    def __init__(self, resources: Resources):
-        super().__init__(
+    def __init__(self, resources: Resources, is_server: bool):
+        super().__init__()
+
+        self.add_auto_resources(
             *make_world_map(resources, (0, 0)),
             IngameGUI(resources)
         )
+
+    def post_init(self, resources):
         spawn_entities(resources)
 
-    def destroy(self, resources):
-        # We need to remove all our entities before leaving
-        pass
+        resources[SoundManager].load_music("sounds/test_sound.ogg")
+        resources[SoundManager].play_music()
+
+    def pre_destroy(self, resources):
+        # We need to close our listener and server before leaving
+        resources[Listener].close()
+        if Server in resources:
+            resources[Server].close()
 
 class IngamePlugin(Plugin):
     def build(self, app):

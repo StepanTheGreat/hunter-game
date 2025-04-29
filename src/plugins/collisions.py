@@ -34,7 +34,7 @@ class DynCollider:
         assert mass > 0, "A dynamic collider's mass can't be negative or 0"
         
         self.pos = pg.Vector2(0, 0)
-        self.__rect = pg.Rect(0, 0, radius*2, radius*2)
+        self._rect = pg.Rect(0, 0, radius*2, radius*2)
 
         self.radius = radius
         self.mass = mass
@@ -45,11 +45,11 @@ class DynCollider:
     def as_moved(self, pos: pg.Vector2) -> "DynCollider":
         "This method is only used for calculations, colliders usually use positions from components"
         self.pos = pos
-        self.__rect.center = (pos.x, pos.y)
+        self._rect.center = (pos.x, pos.y)
         return self
     
     def get_rect(self) -> pg.Rect:
-        return self.__rect
+        return self._rect
     
     def is_sensor(self) -> bool:
         return self.sensor
@@ -112,9 +112,9 @@ class DynCollider:
             if 0 < distance <= radius:
                 pos += (pos-point).normalize() * (radius-distance)
 
-__grid_dynamic: dict[tuple[int, int], list[tuple[int, DynCollider]]] = {}
-__grid_static: dict[tuple[int, int], list[tuple[int, StaticCollider]]] = {}
-__resolved: set = set()
+_grid_dynamic: dict[tuple[int, int], list[tuple[int, DynCollider]]] = {}
+_grid_static: dict[tuple[int, int], list[tuple[int, StaticCollider]]] = {}
+_resolved: set = set()
 
 def fill_grid_with_colliders(
     grid: dict[tuple[int, int], list[tuple[int, DynCollider]]], 
@@ -177,16 +177,16 @@ def resolve_collisions(resources: Resources):
 
     # Collect our colliders
     dyn_colliders = [(ent, (pos, collider.as_moved(pos.get_position()))) for ent, (pos, collider) in world.query_components(Position, DynCollider)]
-    fill_grid_with_colliders(__grid_dynamic, dyn_colliders)
+    fill_grid_with_colliders(_grid_dynamic, dyn_colliders)
 
     events = deque()
 
     # Now, the most ugly part - the collision detection and resolution
     checks = 0
-    for cell, d_colliders in __grid_dynamic.items():
+    for cell, d_colliders in _grid_dynamic.items():
         # We're going to iterate all cells and its colliders in our dynamic grid
 
-        s_colliders = __grid_static.get(cell, ())
+        s_colliders = _grid_static.get(cell, ())
         # As well, we're going to grab static colliders from the same cell if they exist. If not - return an empty tuple
 
         # Iterate every dynamic collider
@@ -197,7 +197,7 @@ def resolve_collisions(resources: Resources):
                 if collider1 is collider2:
                     # If this is the same collider - just continue iterating
                     continue
-                elif ((ent1, ent2) in __resolved) or ((ent2, ent1) in __resolved):
+                elif ((ent1, ent2) in _resolved) or ((ent2, ent1) in _resolved):
                     # The most important part! Don't resolve or check collisions if pairs are already resolved!
                     continue
                 
@@ -216,14 +216,14 @@ def resolve_collisions(resources: Resources):
                     collider1.resolve_collision_dynamic(collider2)
 
                 # Don't forget to add it to the resolved set of course
-                __resolved.add((ent1, ent2))
+                _resolved.add((ent1, ent2))
 
 
             # Now, we resolve static collisions!
 
             for ent2, collider2 in s_colliders:
                 checks += 1
-                if ((ent1, ent2) in __resolved) or ((ent2, ent1) in __resolved):
+                if ((ent1, ent2) in _resolved) or ((ent2, ent1) in _resolved):
                     # Of course ignore colliders that we already resolved
                     continue
             
@@ -234,7 +234,7 @@ def resolve_collisions(resources: Resources):
                 else:
                     collider1.resolve_collision_static(collider2)
 
-                __resolved.add((ent1, ent2))
+                _resolved.add((ent1, ent2))
 
     # print(f"Performing {checks} collision checks on {len(dyn_colliders)} dyn objects")
 
@@ -248,8 +248,8 @@ def resolve_collisions(resources: Resources):
         ewriter.push_event(event)
 
     # And clear out our grids and sets (well, not really, because we would like to preserve lists and their allocated capacity for performance reasons)
-    [cell.clear() for cell in __grid_dynamic.values()]
-    __resolved.clear()
+    [cell.clear() for cell in _grid_dynamic.values()]
+    _resolved.clear()
 
 def on_new_static_collider(resources: Resources, event: Union[ComponentsRemovedEvent, ComponentsAddedEvent]):
     if StaticCollider not in event.components:
@@ -257,8 +257,8 @@ def on_new_static_collider(resources: Resources, event: Union[ComponentsRemovedE
     
     world = resources[WorldECS]
     static_colliders = [(ent, (pos, collider.as_moved(pos.get_position()))) for ent, (pos, collider) in world.query_components(Position, StaticCollider)]
-    [cell.clear() for cell in __grid_static.values()]
-    fill_grid_with_colliders(__grid_static, static_colliders)
+    [cell.clear() for cell in _grid_static.values()]
+    fill_grid_with_colliders(_grid_static, static_colliders)
 
 @event
 class CollisionEvent:

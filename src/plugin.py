@@ -237,11 +237,11 @@ class App:
     def get_resources(self) -> Resources:
         return self.resources
     
-    def __push_event(self, event):
+    def _push_event(self, event):
         for event_listener in self.event_listeners.get(type(event), []):
             event_listener(self.resources, event)
 
-    def __dispatch_events(self, ewriter: EventWriter):
+    def _dispatch_events(self, ewriter: EventWriter):
         "Dispatch all event handlers on the existing events."
 
         # For curious, the only reason I'm passing the EventWriter object is to reduce
@@ -249,11 +249,11 @@ class App:
 
         if ewriter.contains_events():
             for event in ewriter.read_events():
-                self.__push_event(event)
+                self._push_event(event)
 
             ewriter.clear_events()
 
-    def __execute_schedules(self, *schedules: Schedule):
+    def _execute_schedules(self, *schedules: Schedule):
         "Execute all systems in a schedule and run dispatch collected events in the end"
         ewriter = self.resources[EventWriter]
 
@@ -261,29 +261,29 @@ class App:
             for system in self.systems.get(schedule, []):
                 system(self.resources)
 
-            self.__dispatch_events(ewriter)
+            self._dispatch_events(ewriter)
 
     def startup(self):
         "Execute all startup systems"
-        self.__execute_schedules(Schedule.Startup)
+        self._execute_schedules(Schedule.Startup)
 
     def update(self, fixed_steps: int):
         "Execute all update systems"
 
         # Execute the first schedule
-        self.__execute_schedules(Schedule.First)
+        self._execute_schedules(Schedule.First)
         
-        self.__execute_schedules(Schedule.PreUpdate)
+        self._execute_schedules(Schedule.PreUpdate)
         
         while fixed_steps > 0:
             fixed_steps -= 1
-            self.__execute_schedules(Schedule.FixedUpdate)
+            self._execute_schedules(Schedule.FixedUpdate)
 
-        self.__execute_schedules(Schedule.Update, Schedule.PostUpdate)
+        self._execute_schedules(Schedule.Update, Schedule.PostUpdate)
     
     def render(self):
         "Execute all render systems"
-        self.__execute_schedules(
+        self._execute_schedules(
             Schedule.PreDraw,
             Schedule.Draw,
             Schedule.PostDraw,
@@ -292,7 +292,7 @@ class App:
     
     def finalize(self):
         "Execute all finalize systems"
-        self.__execute_schedules(Schedule.Finalize)
+        self._execute_schedules(Schedule.Finalize)
 
     def run(self):
         "Run the application by starting the runner function. This function should be called only once."

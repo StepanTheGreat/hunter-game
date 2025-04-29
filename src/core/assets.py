@@ -26,6 +26,10 @@ class AssetManager:
         In any other case, an asset manager doesn't know how to load assets
         """
 
+    def asset_path(self, path: str) -> str:
+        "Transform this path into an absolute assets path"
+        return self.assets_dir+path
+
     def add_loader(self, ty: Type[A], f: Callable[[Resources, str], A]):
         "Add an asset loader function for the provided asset type"
         self.loaders[ty] = f
@@ -56,7 +60,7 @@ class AssetManager:
             return cached_asset
         else:
             # Load the asset using the registered loader function
-            loaded_asset = self.loaders[ty](self.resources, self.assets_dir+path, **kwargs)
+            loaded_asset = self.loaders[ty](self.resources, self.asset_path(path), **kwargs)
 
             # Initialize a new type map if it doesn't exist
             if ty not in self.database:

@@ -9,10 +9,10 @@ from .ctx import GraphicsContext, DEFAULT_FILTER
 from modules.atlas import SpriteAtlas, SpriteRect
 
 DEFAULT_FONT_SIZE = 64
+DEFAULT_CHARACTERS = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890_~=\|-?.,><+@!#$%^&*()"
 
 class FontGPU:
-    DEFAULT_CHARACTERS = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890_~=\|-?.,><+@!#$%^&*()"
-    TEXTURE_LIMIT = 1024
+    TEXTURE_LIMIT = 2048 #I'm being conservative
 
     def __init__(self, ctx: gl.Context, font: pg.font.Font, filter: int = DEFAULT_FILTER):
         self.ctx = ctx
@@ -20,7 +20,7 @@ class FontGPU:
         self.atlas = SpriteAtlas(ctx, 256, True, FontGPU.TEXTURE_LIMIT, filter)
         
         # Prerender a default character set
-        self.load_chars(FontGPU.DEFAULT_CHARACTERS)
+        self.load_chars(DEFAULT_CHARACTERS)
 
     def measure(self, s: str) -> tuple[int, int]:
         "Measure a string"

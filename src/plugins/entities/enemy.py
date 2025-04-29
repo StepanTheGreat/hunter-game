@@ -35,6 +35,7 @@ def make_enemy(pos: tuple[float, float], assets: AssetManager) -> tuple:
         Position(*pos),
         Angle(0.0),
         RenderPosition(*pos, 0),
+        RenderAngle(0.0),
         Velocity(0, 0, 75),
         Sprite(texture, pg.Vector2(48, 48), (0, 0, 1, 1)),
         Team.enemy(),
@@ -49,7 +50,7 @@ def orient_enemy(resources: Resources):
 
     players = list(world.query_component(Position, including=Player))
     if len(players) > 0:
-        player_ent, player_pos = players[0]
+        _, player_pos = players[0]
         
         for ent, (position, velocity, angle, weapon) in world.query_components(Position, Velocity, Angle, Weapon, including=Enemy):
             new_vel = (player_pos.get_position()-position.get_position())
@@ -70,7 +71,7 @@ def init_projectile_sprite(resources: Resources):
 
     ENEMY_PROJECTILE.user_components = (
         Sprite(
-            assets.load(gl.Texture, "images/meteorite.png"),
+            assets.load(gl.Texture, "images/character.png"),
             pg.Vector2(16, 16),
             (0, 0, 1, 1)
         ),

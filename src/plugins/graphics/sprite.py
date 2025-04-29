@@ -12,10 +12,10 @@ from core.assets import AssetManager
 from core.ecs import WorldECS, component
 
 from .lights import LightManager
-
+from plugins.perspective import CurrentPerspectiveAttached
 from plugins.components import RenderPosition
 
-SPRITE_LIMIT = 256
+SPRITE_LIMIT = 64
 
 SPRITE_MESH = DynamicMeshCPU(
     # To explain this confusing matrix of 4 numbers (the last one)
@@ -72,8 +72,8 @@ class SpriteRenderer:
     class SpriteGroup:
         def __init__(self, size: int):
             self.amount = 0
-            self.sprite_positions = np.zeros((size, 3), dtype=np.float32)
-            self.sprite_sizes = np.zeros((size, 2), dtype=np.float32)
+            self.sprite_positions = np.zeros((size, 3), dtype=np.int16)
+            self.sprite_sizes = np.zeros((size, 2), dtype=np.uint8)
             self.sprite_uv_rects = np.zeros((size, 4), dtype=np.float32)
 
         def add(self, sprite: Sprite, pos: tuple[float, float], y: float):
@@ -96,6 +96,9 @@ class SpriteRenderer:
         def get_amount(self) -> int:
             return self.amount
         
+        def reset(self):
+            self.amount = 0
+        
     """
     A batching primitive for sprite rendering. 
     
@@ -111,6 +114,7 @@ class SpriteRenderer:
         model, pipeline = sprite_model(self.ctx, assets)
         self.model: Model = model
         self.pipeline: Pipeline = pipeline
+        self.can_draw: bool = True
         
     def push_sprite(self, sprite: Sprite, pos: tuple[float, float], y: float):  
         texture = sprite.texture
@@ -127,9 +131,12 @@ class SpriteRenderer:
         return [(sprite_group.get_amount(), texture, *sprite_group.get_uniforms()) for texture, sprite_group in self.groups.items()]
 
     def clear_sprite_groups(self):
-        self.groups.clear()
+        for group in self.groups.values():
+            group.reset()
 
-    def draw(self, lights: LightManager, camera: Camera3D) -> int:        
+    def draw(self, lights: LightManager, camera: Camera3D) -> int:     
+        # self.clear_sprite_groups(); return 0
+
         self.pipeline["projection"] = camera.get_projection_matrix()
         self.pipeline["camera_pos"] = camera.get_camera_position()
         self.pipeline["camera_rot"] = camera.get_camera_rotation().flatten()
@@ -157,9 +164,12 @@ def draw_sprites(resources: Resources):
     """
     lights = resources[LightManager]
     renderer = resources[SpriteRenderer]
+    current_perspective_entity = resources[CurrentPerspectiveAttached].attached_entity
 
     for ent, (position, sprite) in resources[WorldECS].query_components(RenderPosition, Sprite)[:renderer.sprite_limit]:
-        renderer.push_sprite(sprite, position.get_position(), position.height)
+        if ent != current_perspective_entity:
+            # If the entity is the current camera entity - we should ignore its sprite
+            renderer.push_sprite(sprite, position.get_position(), position.height)
 
     draw_calls = renderer.draw(lights, resources[Camera3D])
 
