@@ -37,11 +37,12 @@ def draw_minimap(resources: Resources):
         r = collider.radius*MINIMAP_SCALE
 
         if (x+r >= 0 and x < width) and (y+r >= 0 and y < height):
-            color = (0, 255, 0) if world.has_component(ent, Player) else (255, 0, 0)
+            is_player = world.has_component(ent, Player)
+            if not is_player:
+                continue
+            color = (0, 255, 0) if is_player else (255, 0, 0)
 
-            circles.append((
-                (x, y), r, color
-            ))
+            circles.append(((x, y), r, color))
     
     if rects:
         renderer.draw_rects(rects)

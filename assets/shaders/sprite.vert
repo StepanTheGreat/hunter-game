@@ -6,10 +6,11 @@ const int SPRITE_LIMIT = 64;
 uniform mat4 projection;
 uniform mat3 camera_rot;
 uniform vec3 camera_pos;
+uniform vec2 texture_size;
 
 uniform vec3 sprite_positions[SPRITE_LIMIT];
 uniform vec2 sprite_sizes[SPRITE_LIMIT];
-uniform int sprite_uv_rects[SPRITE_LIMIT];
+uniform mat2 sprite_uv_rects[SPRITE_LIMIT];
 
 uniform vec3[LIGHT_LIMIT] light_positions;
 uniform vec3[LIGHT_LIMIT] light_colors;
@@ -56,10 +57,10 @@ void main()
 {   
     vec3 sprite_pos = sprite_positions[gl_InstanceID];
     vec2 sprite_size = sprite_sizes[gl_InstanceID];
-    int uv_rect_int = sprite_uv_rects[gl_InstanceID];
+    mat2 uv_rect_mat = sprite_uv_rects[gl_InstanceID];
 
-    vec2 uv_xy = vec2((uv_rect_int >> 3)&1, (uv_rect_int >> 2)&1);
-    vec2 uv_wh = vec2((uv_rect_int >> 1)&1, (uv_rect_int)&1);
+    vec2 uv_xy = vec2(uv_rect_mat[0].x, uv_rect_mat[0].y);
+    vec2 uv_wh = vec2(uv_rect_mat[1].x, uv_rect_mat[1].y);
 
     // Swapping the Y component with X in arctangent produces a slightly different angle, which in turn
     // produces the "billboard" effect, always looking at the player
@@ -86,6 +87,7 @@ void main()
         uv_xy.x * uv_mat[0].x + uv_wh.x * uv_mat[1].x,
         uv_xy.y * uv_mat[0].y + uv_wh.y * uv_mat[1].y
     );
+    in_uv = vec2(in_uv.x/texture_size.x, in_uv.y/texture_size.y);
 
     in_color = apply_lights(vec3(1, 1, 1), pos, normalize(world_pos));
 }  

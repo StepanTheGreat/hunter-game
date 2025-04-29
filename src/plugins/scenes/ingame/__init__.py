@@ -34,8 +34,10 @@ def make_world_map(resources: Resources, offset: tuple[float, float] = (0, 0)) -
         color_map = {
             1: "images/window.png",
             2: "images/cool_texture.png",
-            3: (0.8, 0.8, 0.55),
-            4: (0.12, 0.8, 0.6)
+            # 3: (0.8, 0.8, 0.55),
+            # 4: (0.12, 0.8, 0.6)
+            3: (200, 200, 60),
+            4: (30, 200, 170)
         },
         transparent_tiles = set([
             1

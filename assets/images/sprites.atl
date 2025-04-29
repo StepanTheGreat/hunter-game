@@ -1,0 +1,6 @@
+{
+    "sources": {
+        "character": "images/character.png",
+        "meteorite": "images/meteorite.png"
+    }
+}

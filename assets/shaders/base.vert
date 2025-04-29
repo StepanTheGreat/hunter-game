@@ -5,6 +5,7 @@ const int LIGHT_LIMIT = 32;
 uniform mat4 projection;
 uniform mat3 camera_rot;
 uniform vec3 camera_pos;
+uniform vec2 texture_size;
 
 uniform vec3[LIGHT_LIMIT] light_positions;
 uniform vec3[LIGHT_LIMIT] light_colors;
@@ -43,5 +44,5 @@ void main() {
     gl_Position = projection*(vec4(pos, 1));
 
     in_color = apply_lights(color);
-    in_uv = uv;
+    in_uv = vec2(uv.x/texture_size.x, uv.y/texture_size.y);
 }  

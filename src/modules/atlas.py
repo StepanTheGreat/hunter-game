@@ -1,10 +1,6 @@
 "A module for batching images and their associated data into bigger images"
 
 import pygame as pg
-import moderngl as gl
-
-from core.graphics.ctx import make_texture, DEFAULT_FILTER
-
 from typing import Any, Optional
 
 class SpriteRect:
@@ -49,56 +45,54 @@ class SpriteRect:
         "Render this sprite onto a surface"
         screen.blit(self.surf, self.rect)
 
-class SpriteAtlas:
-    """
-    A sprite atlas is a really primitive sprite batcher. Texture switches are expensive on GPU, so atlasing
-    is the most widely used practice to avoid issuing multiple draw calls per every image.
+def scale_dimensions(size: tuple[int, int]) -> tuple[int, int]:
+    "Scale the provided dimensions in a power-of-2 way"
+    width, height = size
+    if width == height:
+        width *= 2
+    else:
+        height *= 2
 
-    It essentially fits a lot of smaller rectangles onto a texture, 
-    """
+    return width, height
 
-    TEXTURE_LIMIT = 2048
-    "A reasonable limit on most hardware"
-
-    def __init__(
-            self, 
-            ctx: gl.Context, 
-            texture_size: int, 
-            resizable: bool, 
-            texture_limit: int = None, 
-            filter: int = DEFAULT_FILTER
-        ):
-        self.ctx = ctx
-
+class SurfaceAtlas:
+    "A CPU surface atlas"
+    def __init__(self, surface_size: tuple[int, int], resizable: bool, surface_limit: int):
         self.sprite_map: dict[Any, SpriteRect] = {}
-        self.filter = filter
         self.resizable = resizable
-        self.texture_width: int = texture_size
-        self.texture_height: int = texture_size
+        self.surface_width: int = surface_size[0]
+        self.surface_height: int = surface_size[1]
 
-        self.texture_limit = texture_limit if texture_limit is not None else SpriteAtlas.TEXTURE_LIMIT
-
-        self.is_syncronized = False 
+        self.surface_limit = surface_limit
         self.taken_corners = set()
 
-        self._cached_texture: gl.Texture = None
+        self.new_added_sprites: list[Any] = []
 
-    def _resize(self):
-        "Resize rectangularly. First in x axis, then in y - on repeat"
-        if self.texture_width == self.texture_height:
-            self.texture_width *= 2
-        else:
-            self.texture_height *= 2
-        self.is_syncronized = False
-
-    def can_resize(self) -> bool:
-        "This atlas can resize unless it's of size `TEXTURE_LIMIT`, which is 2048 on most hardware"
+    def _can_scale(self, size: tuple[int, int]) -> bool:
         return (
             self.resizable and 
-            (self.texture_width < self.texture_limit or self.texture_height < self.texture_limit)
+            (size[0] < self.surface_limit or size[1] < self.surface_limit)
         )
 
-    def _fit_char(self, key: Any, new_sprite: SpriteRect) -> bool:
+    def can_resize(self) -> bool:
+        "This atlas can resize unless it's of size of `surface_limit`"
+        return self._can_scale(self.surface_width, self.surface_height)
+    
+    def _insert_sprite(self, key: Any, new_sprite: SpriteRect, corner_pos: tuple[int, int]):
+        """
+        Insert the provided sprite into the sprite map, update the newly added sprites, and if
+        corner position isn't `None` - will also insert the corner position in the taken corners set.
+        """
+        self.sprite_map[key] = new_sprite
+        self.new_added_sprites.append(new_sprite)
+
+        if corner_pos is not None:
+            self.taken_corners.add(corner_pos)
+
+    def get_size(self) -> tuple[int, int]:
+        return self.surface_width, self.surface_height
+
+    def _fit_sprite(self, key: Any, new_sprite: SpriteRect) -> bool:
         """
         The algorithm here is extremely simple: for every rectangle we already have in the map - we will iterate
         its corners, and check if our rectangle collides with any other rectangles. It isn't the best algorithm
@@ -111,40 +105,53 @@ class SpriteAtlas:
         can't be fit - we will resize the texture, but won't resize it back.
         In the future, only when a sprite is able to get fit - we will actually change our rectangle's dimensions.
         """
-        sprite_rects = list(self.sprite_map.values())
+        sprite_rects = tuple(self.sprite_map.values())
+
+        surf_size = self.get_size()
+
+        fit_sprite: tuple[Any, SpriteRect, None] = None
 
         if len(self.sprite_map) < 1:
             # If the map is empty, simply insert it at coordinates 0, 0
-            self.sprite_map[key] = new_sprite
-            self.is_syncronized = False
-            return True
+            fit_sprite = (key, new_sprite, None)
+            # A possible bug is the sprite being too large, thus not fitting in the initial
+            # capacity!
         else:
             # Else we will need to insert it with other sprites
-            while True:
+            while not fit_sprite:
                 for existing_rect in sprite_rects:
                     corners = existing_rect.corners(new_sprite.width(), new_sprite.height())
-                    for (x, y) in corners:
-
+                    for (x, y) in corners:                        
                         if (x, y) in self.taken_corners:
                             continue
-                        elif x >= self.texture_width-new_sprite.width() or y >= self.texture_height-new_sprite.height():
+                        elif x >= surf_size[0]-new_sprite.width() or y >= surf_size[1]-new_sprite.height():
                             continue
                         elif x < 0 or y < 0:
                             continue
 
                         new_sprite.move(x, y)
                         if not new_sprite.collides(sprite_rects):
-                            self.sprite_map[key] = new_sprite
-                            self.taken_corners.add((x, y))
-                            self.is_syncronized = False
-                            return True
+                            fit_sprite = (key, new_sprite, (x, y))
+                            break
+                    
+                    if fit_sprite:
+                        # An early break in case we did find the sprite
+                        break
                 
-                if self.can_resize():
+                if self._can_scale(surf_size):
                     # TODO: Fix the bug mentioned in the doc string
-                    self._resize()
+                    surf_size = scale_dimensions(surf_size)
                 else:
-                    "Maximum size"
-                    return False
+                    # Maximum size
+                    break
+        
+        if fit_sprite:
+            self._insert_sprite(*fit_sprite)
+
+            if surf_size != self.get_size():
+                self.surface_width, self.surface_height = surf_size
+        
+        return fit_sprite is not None
     
     def contains_sprite(self, key: Any) -> bool:
         return key in self.sprite_map
@@ -159,7 +166,7 @@ class SpriteAtlas:
 
         if key not in self.sprite_map:
             sprite_rect = SpriteRect(surf)
-            return self._fit_char(key, sprite_rect) 
+            return self._fit_sprite(key, sprite_rect) 
         
         return True
         
@@ -167,7 +174,7 @@ class SpriteAtlas:
         "Try get a sprite under the provided key"
         return self.sprite_map.get(key)
     
-    def get_local_sprite_rect(self, key: Any) -> Optional[tuple[float, ...]]:
+    def get_sprite_uv_rect(self, key: Any) -> Optional[tuple[float, ...]]:
         """
         A \"local\" sprite rect is a rectangle whose coordinates are in range between 0 and 1. 
         Texture coordinates simply put.
@@ -177,62 +184,27 @@ class SpriteAtlas:
             x, y, w, h = sprite.get_rect()
 
             return (
-                x/self.texture_width,
-                y/self.texture_height,
-                w/self.texture_width,
-                h/self.texture_height
+                x/self.surface_width,
+                y/self.surface_height,
+                w/self.surface_width,
+                h/self.surface_height
             )
         
     def get_surface(self) -> pg.Surface:
         """
-        Render this sprite map onto a surface. This will return a pygame surface, though you most likely would
-        likely want to use the `get_texture` one.
+        Render this sprite map onto a surface. This will return a pygame surface.
+        Don't call this frequently, as this method doesn't cache the surface!
         """
-        surf = pg.Surface((self.texture_width, self.texture_height), pg.SRCALPHA)
+        surf = pg.Surface((self.surface_width, self.surface_height), pg.SRCALPHA)
 
         for sprite_rect in self.sprite_map.values():
             sprite_rect.draw(surf)
 
         return surf
-
-    def _sync_texture(self, new_surf: pg.Surface):
-        "Syncronize the internal GPU texture with our CPU surface"
-
-        if self._cached_texture is None:
-            # If a texture is not initialized - just make a new one with our data! 
-
-            self._cached_texture = make_texture(self.ctx, new_surf, self.filter)
-        else:
-            # Else we would need to update an existing one
-
-            if self._cached_texture.width != self.texture_width or self._cached_texture.height != self.texture_height:
-                # Now, if its dimensions are different from our surface - we obviously will have to delete the last one
-                # and create a new one
-
-                self._cached_texture.release()
-                self._cached_texture = make_texture(self.ctx, new_surf, self.filter)
-            else:
-                # In any other case, just write our surface data to our texture
-                
-                self._cached_texture.write(new_surf.get_view("1"))
-        
-    def get_texture(self) -> gl.Texture:
-        """
-        Get a GPU texture of this atlas. Since the atlas is lazy, it will immediately perform all rendering 
-        operations if it has changed since last texture. 
-
-        A new texture can absolutely be different from the one issued later, so always use the most recent ones.
-
-        Calling this method frequently isn't expensive since it will cache the texture internally, though it 
-        could be if you add new sprites frequently.
-        """
-
-        if not self.is_syncronized:
-            self._sync_texture(self.get_surface())
-            self.is_syncronized = True
-
-        return self._cached_texture
     
-    def release(self):
-        if self._cached_texture is not None:
-            self._cached_texture.release()
+    def consume_added_sprites(self) -> tuple[SpriteRect]:
+        "Consume and return all newly added sprites to this atlas"
+        ret = tuple(self.new_added_sprites)
+        self.new_added_sprites.clear()
+
+        return ret

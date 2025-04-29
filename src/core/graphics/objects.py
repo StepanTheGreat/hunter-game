@@ -82,6 +82,9 @@ class ReservedMeshCPU:
 
         self.free_index = 0
 
+    def get_vertex_dtype(self) -> np.dtype:
+        return self.verticies.dtype()
+
     def can_fit(self, verticies: int, indices: int) -> bool:
         "Check whether this amount of verticies and indices can be fit into a mesh"
         return (
@@ -162,6 +165,9 @@ class DynamicMeshCPU:
 
         self.free_index = indices.max()+1 if indices.size > 0 else 0
 
+    def get_vertex_dtype(self) -> np.dtype:
+        return self.verticies.dtype()
+
     def add_geometry(self, verticies: np.ndarray, indices: np.ndarray):
         """
         Add vertex and index arrays to this mesh.
@@ -213,21 +219,47 @@ class Model:
         mesh: DynamicMeshCPU, 
         pipeline: Pipeline, 
         dynamic_buffers: bool = False,
+        vertex_format: str = None
     ):
         self.ctx = ctx
         
         self.mesh = mesh
         self.pipeline = pipeline
+        self.vertex_format = vertex_format
 
         self.is_dynamic = dynamic_buffers
 
-        self.vbo = self.ctx.buffer(reserve=mesh.vertex_capacity()*4, dynamic=self.is_dynamic)
+        self.vbo = self.ctx.buffer(
+            reserve=mesh.vertex_capacity()*self.mesh.get_vertex_dtype().itemsize, 
+            dynamic=self.is_dynamic
+        )
         self.ibo = self.ctx.buffer(reserve=mesh.index_capacity()*4, dynamic=self.is_dynamic)
         self.vertices_to_draw = mesh.index_elements()
 
-        self.vao = self.ctx.vertex_array(pipeline.program, self.vbo, *pipeline.vertex_attributes, index_buffer=self.ibo)
+        self.vao: gl.VertexArray = None
+        self._make_vao(pipeline)
 
         self.sync_mesh()
+
+    def _make_vao(self, pipeline: Pipeline):
+        if self.vao:
+            self.vao.release()
+
+        if self.vertex_format is None:
+            self.vao = self.ctx.vertex_array(
+                pipeline.program, 
+                self.vbo,
+                *self.pipeline.vertex_attributes,
+                index_buffer=self.ibo
+            )
+        else:
+            self.vao = self.ctx.vertex_array(
+                pipeline.program, 
+                [
+                    (self.vbo, self.vertex_format, *self.pipeline.vertex_attributes)
+                ],
+                index_buffer=self.ibo
+            )
 
     def render(self, vertices: int = -1, first: int = 0, instances: int = -1):
         self.pipeline.apply_params()
@@ -251,11 +283,13 @@ class Model:
 
         rebuild_vao = False
 
+        vertex_size = int(self.mesh.get_vertex_dtype().itemsize)
+
         # Update the vertex buffer
-        if self.mesh.vertex_elements()*4 > self.vbo.size:
+        if self.mesh.vertex_elements()*vertex_size > self.vbo.size:
             rebuild_vao = True
             self.vbo.release()
-            self.vbo = self.ctx.buffer(reserve=self.mesh.vertex_capacity()*4, dynamic=self.is_dynamic)
+            self.vbo = self.ctx.buffer(reserve=self.mesh.vertex_capacity()*vertex_size, dynamic=self.is_dynamic)
 
         self.vbo.write(self.mesh.get_verticies())
 
@@ -269,13 +303,7 @@ class Model:
         
         # If neccessary, rebuild the vertex attribute array
         if rebuild_vao:
-            self.vao.release()
-            self.vao = self.vao = self.ctx.vertex_array(
-                self.pipeline.program, 
-                self.vbo, 
-                *self.pipeline.vertex_attributes, 
-                index_buffer=self.ibo
-            )
+            self._make_vao()
         
         self.vertices_to_draw = self.mesh.index_elements()
 

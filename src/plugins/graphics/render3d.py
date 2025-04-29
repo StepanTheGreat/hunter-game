@@ -18,29 +18,13 @@ MODEL_PIPELINE_PARAMS = PipelineParams(
 )
 
 MODEL_VERTEX_ATTRIBUTES = ("position", "normal", "color", "uv")
-
-def make_quads_3d(quads: list[tuple[tuple[float, ...], tuple[float, ...], tuple[float, 3], tuple[float, float]]]) -> DynamicMeshCPU:
-    "The same as `make_quads` from render2d, but for 3D quads"
-
-    quads_len = len(quads)
-
-    verticies = np.zeros((quads_len, 3+3+3+2), dtype=np.float32)
-    indices = np.zeros((quads_len, 6), dtype=np.uint32)
-
-    lind = 0
-    for ind, quad in enumerate(quads):
-        p1, p2, p3, p4 = quad
-
-        verticies[ind] = [
-            *p1[0],   *p1[1],  *p1[2], *p1[3],
-            *p2[0],   *p2[1],  *p2[2], *p2[3],
-            *p3[0],   *p3[1],  *p3[2], *p3[3],
-            *p4[0],   *p4[1],  *p4[2], *p4[3],
-        ]
-        indices[ind] = [lind, lind+1, lind+2, lind+1, lind+2, lind+3]
-        lind += 4
-    
-    return DynamicMeshCPU(verticies.ravel(), indices.ravel())
+VERTEX_DTYPE = np.dtype([
+    ("position", "i2", 3),
+    ("normal", "f4", 3),
+    ("color", "u1", 3),
+    ("uv", "u2", 2),
+])
+VERTEX_GL_FORMAT = "3i2 3f 3f1 2u2"
 
 class ModelRenderer:
     """
@@ -71,8 +55,7 @@ class ModelRenderer:
         assert model.pipeline == self.pipeline, "Pipeline mismatch"
 
         if texture is None:
-            texture = self.white_texture
-
+            texture = self.white_texture.texture
         self.models.append((model, texture))
     
     def clear(self):
@@ -89,6 +72,7 @@ class ModelRenderer:
 
         draw_calls = 0
         for model, texture in self.models:
+            self.pipeline["texture_size"] = texture.size
             texture.use()
             model.render()
             draw_calls += 1

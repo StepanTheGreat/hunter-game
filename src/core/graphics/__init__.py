@@ -6,6 +6,7 @@ from .objects import *
 from .camera import *
 from .text import *
 from .ctx import *
+from .atlas import *
 
 class GraphicsPlugin(Plugin):
     "A plugin responsible for managing a ModernGL context"
@@ -14,6 +15,7 @@ class GraphicsPlugin(Plugin):
     def build(self, app):
         app.add_plugins(
             GraphicsContextPlugin(),
+            AtlasPlugin(),
             CameraPlugin(),
             TextPlugin(),
         )

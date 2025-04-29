@@ -8,7 +8,7 @@ from plugin import Resources, Plugin, Schedule, run_if, resource_exists
 from typing import Optional
 
 from plugins.map import WorldMap
-from plugins.graphics import ModelRenderer
+from plugins.graphics import ModelRenderer, VERTEX_GL_FORMAT, VERTEX_DTYPE
 
 from core.graphics import *
 from core.assets import AssetManager
@@ -21,6 +21,7 @@ def gen_tile_mesh(
     coords: tuple[int, int], 
     size: float, 
     color: tuple[int, int, int],
+    uv_region: tuple[int, int, int],
     neighbours: tuple[bool, bool, bool, bool]
 ) -> Optional[DynamicMeshCPU]:
     """ 
@@ -40,55 +41,58 @@ def gen_tile_mesh(
     s = size
     x, y = coords
     x, y = x*s, y*s
-    r, g, b = color
     top_neighbour, left_neighbour, right_neighbour, bottom_neighbour = neighbours
 
+    uvx, uvy, uvw, uvh = uv_region
+    uvw, uvh = uvx+uvw, uvy+uvh
+
     mesh = DynamicMeshCPU(
-        np.array([], dtype=np.float32),
-        np.array([], dtype=np.uint32)
+        np.array([], dtype=VERTEX_DTYPE),
+        np.array([], dtype=np.uint32),
+        vertex_dtype=VERTEX_DTYPE
     )
 
     if not top_neighbour:
         mesh.add_geometry(
             np.array([
-                x,   s, y,  0, 0, -1,    r, g, b,      1, 0,
-                x+s, s, y,  0, 0, -1,    r, g, b,      0, 0,
-                x,   0, y,  0, 0, -1,    r, g, b,      1, 1,
-                x+s, 0, y,  0, 0, -1,    r, g, b,      0, 1
-            ], dtype=np.float32),
+                ((x,   s, y),  (0, 0, -1),    color,      (uvw, uvy)),
+                ((x+s, s, y),  (0, 0, -1),    color,      (uvx, uvy)),
+                ((x,   0, y),  (0, 0, -1),    color,      (uvw, uvh)),
+                ((x+s, 0, y),  (0, 0, -1),    color,      (uvx, uvh))
+            ], dtype=VERTEX_DTYPE),
             np.array([0, 1, 2, 2, 1, 3], dtype=np.uint32)
         )
 
     if not bottom_neighbour:
         mesh.add_geometry(
             np.array([
-                x,   s, y-s,  0, 0, 1,  r, g, b,    0, 0,
-                x+s, s, y-s,  0, 0, 1,  r, g, b,    1, 0,
-                x,   0, y-s,  0, 0, 1,  r, g, b,    0, 1,
-                x+s, 0, y-s,  0, 0, 1,  r, g, b,    1, 1,
-            ], dtype=np.float32),
+                ((x,   s, y-s),  (0, 0, 1),  color,    (uvx, uvy)),
+                ((x+s, s, y-s),  (0, 0, 1),  color,    (uvw, uvy)),
+                ((x,   0, y-s),  (0, 0, 1),  color,    (uvx, uvh)),
+                ((x+s, 0, y-s),  (0, 0, 1),  color,    (uvw, uvh)),
+            ], dtype=VERTEX_DTYPE),
             np.array([1, 0, 2, 1, 2, 3], dtype=np.uint32)
         )
 
     if not left_neighbour:
         mesh.add_geometry(
             np.array([
-                x, s, y,       1, 0, 0,  r, g, b,    0, 0,
-                x, s, y-s,     1, 0, 0,  r, g, b,    1, 0,
-                x, 0, y,       1, 0, 0,  r, g, b,    0, 1,
-                x, 0, y-s,     1, 0, 0,  r, g, b,    1, 1,
-            ], dtype=np.float32),
+                ((x, s, y),       (1, 0, 0),  color,    (uvx, uvy)),
+                ((x, s, y-s),     (1, 0, 0),  color,    (uvw, uvy)),
+                ((x, 0, y),       (1, 0, 0),  color,    (uvx, uvh)),
+                ((x, 0, y-s),     (1, 0, 0),  color,    (uvw, uvh)),
+            ], dtype=VERTEX_DTYPE),
             np.array([1, 0, 2, 1, 2, 3], dtype=np.uint32)
         )
 
     if not right_neighbour:
         mesh.add_geometry(
             np.array([
-                x+s, s, y,     -1, 0, 0,  r, g, b,    1, 0,
-                x+s, s, y-s,   -1, 0, 0,  r, g, b,    0, 0,
-                x+s, 0, y,     -1, 0, 0,  r, g, b,    1, 1,
-                x+s, 0, y-s,   -1, 0, 0,  r, g, b,    0, 1,
-            ], dtype=np.float32),
+                ((x+s, s, y),     (-1, 0, 0),  color,    (uvw, uvy)),
+                ((x+s, s, y-s),   (-1, 0, 0),  color,    (uvx, uvy)),
+                ((x+s, 0, y),     (-1, 0, 0),  color,    (uvw, uvh)),
+                ((x+s, 0, y-s),   (-1, 0, 0),  color,    (uvx, uvh)),
+            ], dtype=VERTEX_DTYPE),
             np.array([0, 1, 2, 2, 1, 3], dtype=np.uint32)
         )
 
@@ -99,23 +103,28 @@ def gen_platform_mesh(
     size: float, 
     y: float,
     color: tuple[int, int, int],
+    uv_region: tuple[int, int, int, int],
     reverse: bool
 ) -> DynamicMeshCPU:
     s = size
     x, z = coords
     x, z = x*s, z*s
-    r, g, b = color
 
     indices = [0, 1, 2, 1, 3, 2] if reverse else [2, 1, 0, 1, 2, 3]
     normal_dir = 1 if reverse else -1
+
+    uvx, uvy, uvw, uvh = uv_region
+    uvw, uvh = uvx+uvw, uvy+uvh
+
     return DynamicMeshCPU(
         np.array([
-            x,   y, z,    0, normal_dir, 0,  r, g, b,    0, 0,
-            x+s, y, z,    0, normal_dir, 0,  r, g, b,    1, 0,
-            x,   y, z-s,  0, normal_dir, 0,  r, g, b,    0, 1,
-            x+s, y, z-s,  0, normal_dir, 0,  r, g, b,    1, 1,
-        ], dtype=np.float32),
-        np.array(indices, dtype=np.uint32)
+            ((x,   y, z),    (0, normal_dir, 0),  color,    (uvx, uvy)),
+            ((x+s, y, z),    (0, normal_dir, 0),  color,    (uvw, uvy)),
+            ((x,   y, z-s),  (0, normal_dir, 0),  color,    (uvx, uvh)),
+            ((x+s, y, z-s),  (0, normal_dir, 0),  color,    (uvw, uvh)),
+        ], dtype=VERTEX_DTYPE),
+        np.array(indices, dtype=np.uint32),
+        vertex_dtype=VERTEX_DTYPE
     )
 
 def gen_map_models(
@@ -139,6 +148,7 @@ def gen_map_models(
             return ntile != 0 and ntile not in transparent_tiles
     
     ctx = gfx.get_context()
+    white_texture = gfx.get_white_texture()
 
     tilemap = worldmap.get_map()
     tiles = tilemap.get_tiles()
@@ -161,35 +171,57 @@ def gen_map_models(
                 # A material is either a color or a texture path
                 material = color_map[tile]
 
-                color = (1, 1, 1) if type(material) is str else material
-                texture = assets.load(gl.Texture, material) if type(material) is str else None
+                color = (255, 255, 255) if type(material) is str else material
+                texture = assets.load(Texture, material) if type(material) is str else white_texture
 
                 tile_mesh = gen_tile_mesh(
                     (offsetx+x, -offsety-y), 
                     TILE_SIZE,
                     color,
+                    texture.region,
                     neighbours
                 )
 
+                gl_texture = texture.texture
                 if tile_mesh is not None:
-                    if (group_mesh := mesh_group.get(texture)):
+                    if (group_mesh := mesh_group.get(gl_texture)):
                         group_mesh.add_mesh(tile_mesh)
                     else:
-                        mesh_group[texture] = tile_mesh
+                        mesh_group[gl_texture] = tile_mesh
             
-            if tile == 0 or tile in transparent_tiles:
-                floor_mesh = gen_platform_mesh((offsetx+x, -offsety-y), TILE_SIZE, 0, FLOOR_COLOR, False)
-                floor_mesh.add_mesh(
-                    gen_platform_mesh((offsetx+x, -offsety-y), TILE_SIZE, TILE_SIZE, CEILING_COLOR, True)
+            if tile == 0 or (tile in transparent_tiles):
+                floor_mesh = gen_platform_mesh(
+                    (offsetx+x, -offsety-y), 
+                    TILE_SIZE, 
+                    0, 
+                    FLOOR_COLOR, 
+                    white_texture.region,
+                    False
                 )
-                texture = None
-                if texture in mesh_group:
-                    mesh_group[texture].add_mesh(floor_mesh)
+
+                # Generate the ceiling mesh
+                floor_mesh.add_mesh(
+                    gen_platform_mesh(
+                        (offsetx+x, -offsety-y), 
+                        TILE_SIZE, 
+                        TILE_SIZE, 
+                        CEILING_COLOR, 
+                        white_texture.region,
+                        True
+                    )
+                )
+
+                gl_texture = white_texture.texture
+                if gl_texture in mesh_group:
+                    mesh_group[gl_texture].add_mesh(floor_mesh)
                 else:
-                    mesh_group[texture] = floor_mesh
+                    mesh_group[gl_texture] = floor_mesh
 
     pipeline = model_renderer.get_pipeline()
-    models = [(Model(ctx, group_mesh, pipeline), group_texture) for group_texture, group_mesh in mesh_group.items()]
+    models = [
+        (Model(ctx, group_mesh, pipeline, vertex_format=VERTEX_GL_FORMAT), group_texture) 
+        for group_texture, group_mesh in mesh_group.items()
+    ]
     return models
     
 class MapModel:
