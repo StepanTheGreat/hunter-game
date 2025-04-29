@@ -29,7 +29,8 @@ ENEMY_PROJECTILE = ProjectileFactory(
 )
 
 def make_enemy(pos: tuple[float, float], assets: AssetManager) -> tuple:
-    texture = assets.load(Texture, "images/character.png")
+    # texture = assets.load(Texture, "images/character.png")
+    texture = assets.load(Texture, "images/sprites.atl#character")
     return (
         Enemy(),
         Position(*pos),
@@ -71,7 +72,7 @@ def init_projectile_sprite(resources: Resources):
 
     ENEMY_PROJECTILE.user_components = (
         Sprite(
-            assets.load(Texture, "images/character.png"),
+            assets.load(Texture, "images/sprites.atl#meteorite"),
             pg.Vector2(16, 16)
         ),
     )

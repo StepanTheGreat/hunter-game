@@ -123,6 +123,10 @@ class StaticTextureAtlas:
     source: str
     sprites: dict
 
+@typed_dataclass
+class DynamicTextureAtlas:
+    sources: dict
+
 def _closest_pow2_size(image_size: tuple[int, int]) -> tuple[int, int]:
     """
     For any image size, transform it to the closest possible power-of-2 image size, whose axis
@@ -154,16 +158,12 @@ def _load_static_texture_atlas(
     new_atlas = TextureAtlas(ctx, texture_size, False, max(texture_size))
 
     for sprite_key, sprite_region in atlas.sprites.items():
-        assert sprite_region is tuple and len(sprite_region) == 4, "Invalid sprite format used in a static texture atlas"
+        assert type(sprite_region) is tuple and len(sprite_region) == 4, "Invalid sprite format used in a static texture atlas"
         (x, y, w, h) = sprite_region
 
         new_atlas.push_sprite(sprite_key, img.subsurface(x, y, w, h))
     
     return new_atlas
-
-@typed_dataclass
-class DynamicTextureAtlas:
-    sources: dict
 
 def _load_dynamic_texture_atlas(
     ctx: gl.Context, 
@@ -177,7 +177,7 @@ def _load_dynamic_texture_atlas(
     new_atlas = TextureAtlas(ctx, DYNAMIC_ATLAS_MIN_SIZE, True, DYNAMIC_ATLAS_MAX_SIZE)
 
     for source_key, source_path in atlas.sources.items():
-        assert source_path is str, "Invalid sprite format used in a dynamic texture atlas"
+        assert type(source_path) is str, "Invalid sprite format used in a dynamic texture atlas"
 
         img = pg.image.load(assets.asset_path(source_path))
         new_atlas.push_sprite(source_key, img)
@@ -199,7 +199,7 @@ def _load_texture_atlas(
     try:
         atlas = load_config(StaticTextureAtlas, atlas_data)
         return _load_static_texture_atlas(ctx, assets, atlas)
-    except TypedDataclassTypeMismatch:
+    except (TypeError, TypedDataclassTypeMismatch, AssertionError):
         atlas = load_config(DynamicTextureAtlas, atlas_data)
         return _load_dynamic_texture_atlas(ctx, assets, atlas)
 
@@ -212,9 +212,10 @@ def loader_texture_atlas(resources: Resources, path: str) -> TextureAtlas:
         atlas_data
     )
 
-def _get_path_atlas_split(path: str) -> Union[tuple[str, str]]:
-    path_file = path.split("/")[-1]
-    atlas_texture_split = path_file.split("#")
+def _get_path_atlas_split(path: str) -> Union[str, None]:
+    atlas_texture_split = path.split("#")
+
+    assert len(atlas_texture_split) <= 2, "Incorrect atlas referencing. Only 1 # can be used"
 
     if len(atlas_texture_split) == 2:
         # We got an atlas-texture split, so we can return the atlas path and the texture's key
@@ -231,7 +232,7 @@ def loader_texture(resources: Resources, path: str, filter: int = DEFAULT_FILTER
     else:
         atlas_path, sprite_key = texture_atlas_split
         return (resources[AssetManager]
-            .load(TextureAtlas, atlas_path)
+            .load_abs(TextureAtlas, atlas_path)
             .get_sprite_texture(sprite_key))
     
 class AtlasPlugin(Plugin):
