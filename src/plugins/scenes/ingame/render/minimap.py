@@ -38,8 +38,6 @@ def draw_minimap(resources: Resources):
 
         if (x+r >= 0 and x < width) and (y+r >= 0 and y < height):
             is_player = world.has_component(ent, Player)
-            if not is_player:
-                continue
             color = (0, 255, 0) if is_player else (255, 0, 0)
 
             circles.append(((x, y), r, color))
@@ -47,7 +45,7 @@ def draw_minimap(resources: Resources):
     if rects:
         renderer.draw_rects(rects)
     if circles:
-        renderer.draw_circles(circles)
+        renderer.draw_circles(circles, points=10)
 
 class MinimapPlugin(Plugin):
     def build(self, app):
