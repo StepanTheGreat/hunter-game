@@ -74,6 +74,8 @@ import pygame as pg
 
 from json import loads
 
+from os.path import abspath
+
 from plugin import Plugin, Resources
 from math import log2, ceil
 from file import load_file_str
@@ -326,7 +328,7 @@ def _load_texture_atlas(
 def loader_texture_atlas(resources: Resources, path: str) -> TextureAtlas:
     "A loader for texture atlases"
     atlas_data = load_file_str(path)
-    atlas_dir = path + "/../" # Yup, I know, it's not the best way, but it's a simple one
+    atlas_dir = abspath(path + "/../")+"/" # Yup, I know, it's not the best way, but it's a simple one
 
     return _load_texture_atlas(
         resources[GraphicsContext].get_context(),
