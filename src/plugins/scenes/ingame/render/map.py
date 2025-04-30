@@ -14,8 +14,16 @@ from core.graphics import *
 from core.assets import AssetManager
 
 TILE_SIZE = 48
-FLOOR_COLOR = (0.1, 0.8, 0.1)
+# FLOOR_COLOR = (0.1, 0.8, 0.1)
+FLOOR_COLOR = (30, 200, 30)
 CEILING_COLOR = FLOOR_COLOR
+
+def _bitcrush(x: float) -> float:
+    return max(min(x * 128, 127), -128)
+
+def normal(x: float, y: float, z: float):
+    "Bit crush this normal's coordinates into byte range between -128 and 127"
+    return _bitcrush(x), _bitcrush(y), _bitcrush(z)
 
 def gen_tile_mesh(
     coords: tuple[int, int], 
@@ -55,10 +63,10 @@ def gen_tile_mesh(
     if not top_neighbour:
         mesh.add_geometry(
             np.array([
-                ((x,   s, y),  (0, 0, -1),    color,      (uvw, uvy)),
-                ((x+s, s, y),  (0, 0, -1),    color,      (uvx, uvy)),
-                ((x,   0, y),  (0, 0, -1),    color,      (uvw, uvh)),
-                ((x+s, 0, y),  (0, 0, -1),    color,      (uvx, uvh))
+                ((x,   s, y),  normal(0, 0, -1),    color,      (uvw, uvy)),
+                ((x+s, s, y),  normal(0, 0, -1),    color,      (uvx, uvy)),
+                ((x,   0, y),  normal(0, 0, -1),    color,      (uvw, uvh)),
+                ((x+s, 0, y),  normal(0, 0, -1),    color,      (uvx, uvh))
             ], dtype=VERTEX_DTYPE),
             np.array([0, 1, 2, 2, 1, 3], dtype=np.uint32)
         )
@@ -66,10 +74,10 @@ def gen_tile_mesh(
     if not bottom_neighbour:
         mesh.add_geometry(
             np.array([
-                ((x,   s, y-s),  (0, 0, 1),  color,    (uvx, uvy)),
-                ((x+s, s, y-s),  (0, 0, 1),  color,    (uvw, uvy)),
-                ((x,   0, y-s),  (0, 0, 1),  color,    (uvx, uvh)),
-                ((x+s, 0, y-s),  (0, 0, 1),  color,    (uvw, uvh)),
+                ((x,   s, y-s),  normal(0, 0, 1),  color,    (uvx, uvy)),
+                ((x+s, s, y-s),  normal(0, 0, 1),  color,    (uvw, uvy)),
+                ((x,   0, y-s),  normal(0, 0, 1),  color,    (uvx, uvh)),
+                ((x+s, 0, y-s),  normal(0, 0, 1),  color,    (uvw, uvh)),
             ], dtype=VERTEX_DTYPE),
             np.array([1, 0, 2, 1, 2, 3], dtype=np.uint32)
         )
@@ -77,10 +85,10 @@ def gen_tile_mesh(
     if not left_neighbour:
         mesh.add_geometry(
             np.array([
-                ((x, s, y),       (1, 0, 0),  color,    (uvx, uvy)),
-                ((x, s, y-s),     (1, 0, 0),  color,    (uvw, uvy)),
-                ((x, 0, y),       (1, 0, 0),  color,    (uvx, uvh)),
-                ((x, 0, y-s),     (1, 0, 0),  color,    (uvw, uvh)),
+                ((x, s, y),       normal(1, 0, 0),  color,    (uvx, uvy)),
+                ((x, s, y-s),     normal(1, 0, 0),  color,    (uvw, uvy)),
+                ((x, 0, y),       normal(1, 0, 0),  color,    (uvx, uvh)),
+                ((x, 0, y-s),     normal(1, 0, 0),  color,    (uvw, uvh)),
             ], dtype=VERTEX_DTYPE),
             np.array([1, 0, 2, 1, 2, 3], dtype=np.uint32)
         )
@@ -88,10 +96,10 @@ def gen_tile_mesh(
     if not right_neighbour:
         mesh.add_geometry(
             np.array([
-                ((x+s, s, y),     (-1, 0, 0),  color,    (uvw, uvy)),
-                ((x+s, s, y-s),   (-1, 0, 0),  color,    (uvx, uvy)),
-                ((x+s, 0, y),     (-1, 0, 0),  color,    (uvw, uvh)),
-                ((x+s, 0, y-s),   (-1, 0, 0),  color,    (uvx, uvh)),
+                ((x+s, s, y),     normal(-1, 0, 0),  color,    (uvw, uvy)),
+                ((x+s, s, y-s),   normal(-1, 0, 0),  color,    (uvx, uvy)),
+                ((x+s, 0, y),     normal(-1, 0, 0),  color,    (uvw, uvh)),
+                ((x+s, 0, y-s),   normal(-1, 0, 0),  color,    (uvx, uvh)),
             ], dtype=VERTEX_DTYPE),
             np.array([0, 1, 2, 2, 1, 3], dtype=np.uint32)
         )
@@ -118,10 +126,10 @@ def gen_platform_mesh(
 
     return DynamicMeshCPU(
         np.array([
-            ((x,   y, z),    (0, normal_dir, 0),  color,    (uvx, uvy)),
-            ((x+s, y, z),    (0, normal_dir, 0),  color,    (uvw, uvy)),
-            ((x,   y, z-s),  (0, normal_dir, 0),  color,    (uvx, uvh)),
-            ((x+s, y, z-s),  (0, normal_dir, 0),  color,    (uvw, uvh)),
+            ((x,   y, z),    normal(0, normal_dir, 0),  color,    (uvx, uvy)),
+            ((x+s, y, z),    normal(0, normal_dir, 0),  color,    (uvw, uvy)),
+            ((x,   y, z-s),  normal(0, normal_dir, 0),  color,    (uvx, uvh)),
+            ((x+s, y, z-s),  normal(0, normal_dir, 0),  color,    (uvw, uvh)),
         ], dtype=VERTEX_DTYPE),
         np.array(indices, dtype=np.uint32),
         vertex_dtype=VERTEX_DTYPE

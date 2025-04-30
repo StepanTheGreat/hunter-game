@@ -20,11 +20,11 @@ MODEL_PIPELINE_PARAMS = PipelineParams(
 MODEL_VERTEX_ATTRIBUTES = ("position", "normal", "color", "uv")
 VERTEX_DTYPE = np.dtype([
     ("position", "i2", 3),
-    ("normal", "f4", 3),
+    ("normal", "i1", 3),
     ("color", "u1", 3),
     ("uv", "u2", 2),
 ])
-VERTEX_GL_FORMAT = "3i2 3f 3f1 2u2"
+VERTEX_GL_FORMAT = "3i2 3i1 3f1 2u2"
 
 class ModelRenderer:
     """

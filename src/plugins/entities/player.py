@@ -61,9 +61,9 @@ PLAYER_PROJECTILE = ProjectileFactory(
 def make_player(pos: tuple[float, float]) -> tuple:
     return (
         Position(*pos),
-        RenderPosition(*pos, 0),
+        RenderPosition(*pos, 24),
         Velocity(0, 0, 200),
-        Light((1, 1, 1), 300),
+        Light((1, 1, 1), 20000, 1.2),
         AngleVelocity(0, 4),
         Angle(0),
         RenderAngle(0),
@@ -133,7 +133,7 @@ def make_test_lights(resources: Resources):
         world.create_entity(
             Position(x, y),
             RenderPosition(x, y, 24),
-            Light((0.3, 0.5, 1), 1000)
+            Light((0.3, 0.5, 1), 10000, 1)
         )
 
 class PlayerPlugin(Plugin):

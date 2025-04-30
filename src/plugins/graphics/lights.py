@@ -11,9 +11,13 @@ LIGHTS_LIMIT = 32
 
 @component
 class Light:
-    def __init__(self, color: tuple[float, float, float], radius: float):
+    def __init__(self, color: tuple[float, float, float], radius: float, luminosity: float):
+        assert luminosity > 0
+        assert radius > 0
+
         self.color = color
         self.radius = radius
+        self.luminosity = luminosity
 
 class LightManager:
     def __init__(self, ambient_color: tuple, max_lights: int):
@@ -25,6 +29,7 @@ class LightManager:
         self.light_positions = np.empty((self.max_lights, 3), dtype=np.int16)
         self.light_colors = np.empty((self.max_lights, 3), dtype=np.uint8)
         self.light_radiuses = np.empty(self.max_lights, dtype=np.uint16)
+        self.light_luminosities = np.empty(self.max_lights, dtype=np.uint8)
         
         self.light_index = 0
 
@@ -35,6 +40,7 @@ class LightManager:
         self.light_positions[self.light_index] = (x, height, -y)
         self.light_colors[self.light_index] = light.color
         self.light_radiuses[self.light_index] = light.radius
+        self.light_luminosities[self.light_index] = light.luminosity
 
         self.light_index += 1
     
@@ -51,6 +57,7 @@ class LightManager:
         pipeline["light_positions"] = self.light_positions
         pipeline["light_colors"] = self.light_colors
         pipeline["light_radiuses"] = self.light_radiuses
+        pipeline["light_luminosities"] = self.light_luminosities
 
         pipeline["lights_amount"] = self.light_index
         pipeline["ambient_color"] = self.ambient_color
