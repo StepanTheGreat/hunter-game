@@ -9,7 +9,8 @@ from .ctx import GraphicsContext, DEFAULT_FILTER, Texture
 from .atlas import TextureAtlas, SpriteRect
 
 DEFAULT_FONT_SIZE = 64
-DEFAULT_CHARACTERS = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890_~=\|-?.,><+@!#$%^&*() "
+# DEFAULT_CHARACTERS = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890_~=\|-?.,><+@!#$%^&*() "
+DEFAULT_CHARACTERS = "=UqJYiNcwEdgxrG4O)vKMofWPSpXy|nC(m^+.%,a7~_6lhQH!Rs8@9#B>-Dez$\\TjtV15<LAkZ2& ?uFb*30I"
 
 FONT_MIN_TEXTURE_SIZE = (256, 256)
 FONT_MAX_TEXTURE_SIZE = 2048
@@ -31,10 +32,10 @@ class FontGPU:
         return self.font.get_height()
 
     def get_or_insert_char(self, char: str) -> SpriteRect:
-        if not self.atlas.contains_sprite(char):
+        if not self.atlas.contains_sprites(char):
             assert self.push_char(char), "Couldn't fit a character"
                     
-        return self.atlas.get_sprite(char)
+        return self.atlas.get_sprites(char)[0]
 
     def get_char_texture(self, char: str) -> Texture:
         """
@@ -51,7 +52,7 @@ class FontGPU:
         return self.get_or_insert_char(char).get_size()
     
     def contains_char(self, char: str) -> bool:
-        return self.atlas.contains_sprite(char)
+        return self.atlas.contains_sprites(char)
     
     def push_char(self, char: str) -> bool:
         char_w, char_h = self.measure(char)
@@ -63,7 +64,7 @@ class FontGPU:
         else:
             char_surf = self.font.render(char, True, (255, 255, 255)) 
         
-        return self.atlas.push_sprite(char, char_surf)
+        return self.atlas.push_sprites(char, (char_surf, ))
     
     def load_chars(self, chars: str):
         for char in chars:

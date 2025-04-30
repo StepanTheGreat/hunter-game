@@ -40,10 +40,10 @@ class TextureAtlas:
 
         self._cached_texture: gl.Texture = None
 
-    def contains_sprite(self, key: Any) -> bool:
-        self.atlas.contains_sprite(key)
+    def contains_sprites(self, key: Any) -> bool:
+        return self.atlas.contains_sprites(key)
     
-    def push_sprite(self, key: Any, surf: pg.Surface) -> bool:
+    def push_sprites(self, key: Any, surfaces: tuple[pg.Surface]) -> bool:
         """
         Try fit a surface under the provided key. If successful it will return `True`, and the provided surface
         will get registered under the provided key. If `False`, then nothing will happen to the texture.
@@ -51,19 +51,26 @@ class TextureAtlas:
         If a sprite is fit however, depends on whether the texture has enough space 
         """
 
-        return self.atlas.push_sprite(key, surf)
+        return self.atlas.push_sprites(key, surfaces)
         
-    def get_sprite(self, key: Any) -> Optional[SpriteRect]:
+    def get_sprites(self, key: Any) -> Optional[tuple[SpriteRect]]:
         "Try get a sprite under the provided key"
-        return self.atlas.get_sprite(key)
+        return self.atlas.get_sprites(key)
+    
+    def get_sprite_textures(self, key: Any) -> Optional[tuple[Texture]]:
+        self._sync_texture()
+
+        if self.atlas.contains_sprites(key):
+            return tuple(
+                Texture(self._cached_texture, sprite.get_rect()) 
+                for sprite in self.get_sprites(key)
+            )
     
     def get_sprite_texture(self, key: Any) -> Optional[Texture]:
         self._sync_texture()
 
-        if (sprite := self.get_sprite(key)):
-            x, y, w, h = sprite.get_rect()
-
-            return Texture(self._cached_texture, (x, y, w, h))
+        if self.atlas.contains_sprites(key):
+            return Texture(self._cached_texture, self.atlas.get_sprite(key).get_rect())
 
     def _sync_texture(self):
         "Syncronize the internal GPU texture with our CPU surface"
@@ -167,7 +174,7 @@ def _load_static_texture_atlas(
 
         (x, y, w, h) = sprite_region
 
-        new_atlas.push_sprite(sprite_key, img.subsurface(x, y, w, h))
+        new_atlas.push_sprites(sprite_key, (img.subsurface(x, y, w, h), ))
     
     return new_atlas
 
@@ -184,7 +191,7 @@ def _load_dynamic_texture_atlas(
         assert type(source_path) is str, "Invalid sprite format used in a dynamic texture atlas"
 
         img = pg.image.load(assets.asset_path(source_path))
-        new_atlas.push_sprite(source_key, img)
+        new_atlas.push_sprites(source_key, (img, ))
     
     return new_atlas
 
