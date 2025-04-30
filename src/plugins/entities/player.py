@@ -3,12 +3,12 @@ import numpy as np
 
 from plugin import Plugin, Resources, Schedule
 
-from core.graphics import Camera3D
-from core.ecs import WorldECS, component, ComponentsRemovedEvent
+from core.ecs import WorldECS, component
 from core.input import InputManager
 from plugins.collisions import DynCollider
 
 from plugins.graphics.lights import Light
+from plugins.perspective import PerspectiveAttachment
 
 from plugins.components import *
 
@@ -61,9 +61,9 @@ PLAYER_PROJECTILE = ProjectileFactory(
 def make_player(pos: tuple[float, float]) -> tuple:
     return (
         Position(*pos),
-        RenderPosition(*pos, 44),
+        RenderPosition(*pos, 24),
         Velocity(0, 0, 200),
-        Light((1, 1, 1), 300),
+        Light((1, 1, 1), 20000, 1.2),
         AngleVelocity(0, 4),
         Angle(0),
         RenderAngle(0),
@@ -73,6 +73,7 @@ def make_player(pos: tuple[float, float]) -> tuple:
         Team.friend(),
         Hittable(),
         Health(200_000, 0.25),
+        PerspectiveAttachment(24, 0),
         Player()
     )
 
@@ -80,7 +81,7 @@ def control_player(resources: Resources):
     input = resources[InputManager]
     world = resources[WorldECS]
 
-    for ent, (controller, angle_vel, weapon) in world.query_components(PlayerController, AngleVelocity, Weapon):
+    for _, (controller, angle_vel, weapon) in world.query_components(PlayerController, AngleVelocity, Weapon):
         angle_vel.set_velocity(input[InputAction.TurnRight]-input[InputAction.TurnLeft])
         controller.forward_dir = input[InputAction.Forward]-input[InputAction.Backwards]
         controller.horizontal_dir = input[InputAction.Right]-input[InputAction.Left]
@@ -115,15 +116,11 @@ def orient_player(resources: Resources):
 
 def move_camera(resources: Resources):
     world = resources[WorldECS]
-    camera = resources[Camera3D]
 
     players = world.query_component(Player)
     if players:    
-        player_ent = players[0][0]
-        position, angle, health = world.get_components(player_ent, RenderPosition, RenderAngle, Health)
-
-        camera.set_pos(position.get_position())
-        camera.set_angle(angle.get_angle())
+        player_ent, _ = players[0]
+        health = world.get_component(player_ent, Health)
 
         resources[PlayerStats].update_health(health.get_percentage())
     else:
@@ -136,7 +133,7 @@ def make_test_lights(resources: Resources):
         world.create_entity(
             Position(x, y),
             RenderPosition(x, y, 24),
-            Light((0.3, 0.5, 1), 1000)
+            Light((0.3, 0.5, 1), 10000, 1)
         )
 
 class PlayerPlugin(Plugin):

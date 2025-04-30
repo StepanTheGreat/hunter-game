@@ -22,11 +22,11 @@ RENDERER_PIPELINE_PARAMS = PipelineParams(
 RENDERER_VERTEX_ATTRIBUTES = ("position", "uv", "color")
 VERTEX_DTYPE = np.dtype([
     ("position", "i2", 2),
-    ("uv", "f4", 2),
+    ("uv", "u2", 2),
     ("color", "u1", 3),
     ("_padding", "u1")
 ])
-VERTEX_GL_FORMAT = "2i2 2f 3f1 x"
+VERTEX_GL_FORMAT = "2i2 2u2 3f1 x"
 
 PADDING = 0
 """
@@ -135,6 +135,13 @@ class DrawCall:
         self.mesh = mesh
         self.texture = texture
 
+    def can_merge(self, other: "DrawCall") -> bool:
+        return self.texture == other.texture
+
+    def merge(self, other: "DrawCall"):
+        assert self.texture == other.texture
+        self.mesh.add_mesh(other.mesh) 
+
 class DrawCallBatch:
     "Draw call container and merger"
     def __init__(self, verticies: int, indicies: int):
@@ -212,17 +219,17 @@ class Renderer2D:
             self.dc_batches[self.dc_ptr].merge_draw_call(draw_call)
 
     def reset_draw_call_batches(self):
-        """
-        Resetting means setting their internal pointers to zero and setting textures to `None`.
-        
-        Nothing is actually cleared, and all batches will get reused again
-        """
         for batch in self.dc_batches[:self.dc_ptr+1]:
             batch.reset()
 
         self.dc_ptr = None
 
-    def draw_rect(self, rect: tuple[int, ...], color: tuple[float, ...]):
+    def draw_rect_call(self, rect: tuple[int, ...], color: tuple[float, ...]) -> DrawCall:
+        """
+        Resetting means setting their internal pointers to zero and setting textures to `None`.
+        
+        Nothing is actually cleared, and all batches will get reused again
+        """
         x, y, w, h = rect
         r, g, b = color
         rect_mesh = make_quad(
@@ -231,19 +238,25 @@ class Renderer2D:
             ((x, y+h),   (0, 0), (r, g, b)),
             ((x+w, y+h), (1, 0), (r, g, b)),
         )
-        self.push_draw_call(DrawCall(rect_mesh, self.white_texture))
+        return DrawCall(rect_mesh, self.white_texture.texture)
 
-    def draw_rects(self, entries: list[tuple[int, ...], tuple[float, ...]]):
-        "The same as `draw_rect`, but for A LOT of rectangles. Highly efficient"
+    def draw_rect(self, rect: tuple[int, ...], color: tuple[float, ...]):
+        self.push_draw_call(self.draw_rect_call(rect, color))
+
+    def draw_rects_call(self, entries: list[tuple[int, ...], tuple[float, ...]]):
         quads = make_quads([(
             ((x, y), (0, 1), color), 
             ((x+w, y), (1, 1), color),
             ((x, y+h), (0, 0), color),
             ((x+w, y+h), (1, 0), color),
         ) for (x, y, w, h), color in entries])
-        self.push_draw_call(DrawCall(quads, self.white_texture))
+        return DrawCall(quads, self.white_texture.texture)
+    
+    def draw_rects(self, entries: list[tuple[int, ...], tuple[float, ...]]) -> DrawCall:
+        "The same as `draw_rect`, but for A LOT of rectangles. Highly efficient"
+        self.push_draw_call(self.draw_rects_call(entries))
 
-    def draw_rect_lines(self, rect: tuple[int, ...], color: tuple[float, ...], thickness: float = 1):
+    def draw_rect_lines_call(self, rect: tuple[int, ...], color: tuple[float, ...], thickness: float = 1):
         x, y, w, h = rect
         r, g, b = color
         t = thickness/2
@@ -279,15 +292,35 @@ class Renderer2D:
             )
         ])
 
-        self.push_draw_call(DrawCall(quads, self.white_texture))
+        return DrawCall(quads, self.white_texture.texture)
+    
+    def draw_rect_lines(self, rect: tuple[int, ...], color: tuple[float, ...], thickness: float = 1):
+        self.push_draw_call(self.draw_rect_call(rect, color, thickness))
 
-    def draw_texture(
+    def draw_texture_call(
             self, 
-            texture: gl.Texture,
+            texture: Texture,
             pos: tuple[int, ...], 
             size: tuple[int, ...] = None, 
             color: tuple[float, ...] = (1, 1, 1, 1),
-            uv: tuple[int, ...] = (0, 0, 1, 1)
+        ):
+        x, y = pos
+        w, h = size if size is not None else texture.texture.size
+        uv_x, uv_y, uv_w, uv_h = texture.region
+
+        return DrawCall(make_quad(
+            ((x,    y),    (uv_x,     uv_y),         color),
+            ((x+w, y),    (uv_w,      uv_y),         color),
+            ((x,    y+h), (uv_x,     uv_h),     color),
+            ((x+w, y+h), (uv_w, uv_h),     color)
+        ), texture.texture)
+
+    def draw_texture(
+            self, 
+            texture: Texture,
+            pos: tuple[int, ...], 
+            size: tuple[int, ...] = None, 
+            color: tuple[float, ...] = (1, 1, 1, 1),
         ):
         """
         Draw a texture at a specified position with a specified size.
@@ -295,32 +328,30 @@ class Renderer2D:
         The UV rect argument provided to this function takes absolute coordinates, instead of a normal rectangle
         `x, y, w, h`, you should instead provide `x, y, x+w, y+h`
         """
-        x, y = pos
-        w, h = size if size is not None else texture.size
-        uv_x, uv_y, uv_w, uv_h = uv
+        self.push_draw_call(self.draw_texture_call(texture, pos, size, color))
 
-        self.push_draw_call(DrawCall(make_quad(
-            ((x,    y),    (uv_x,     uv_y),         color),
-            ((x+w, y),    (uv_w,      uv_y),         color),
-            ((x,    y+h), (uv_x,     uv_h),     color),
-            ((x+w, y+h), (uv_w, uv_h),     color)
-        ), texture))
+    def draw_circle_call(self, pos: tuple[float, float], radius: float, color: tuple[float, ...], points: int = 20):
+        circle_mesh = make_circle(pos, radius, color, points)
+        return DrawCall(circle_mesh, self.white_texture.texture)
 
     def draw_circle(self, pos: tuple[float, float], radius: float, color: tuple[float, ...], points: int = 20):
-        circle_mesh = make_circle(pos, radius, color, points)
-        self.push_draw_call(DrawCall(circle_mesh, self.white_texture))
+        self.push_draw_call(self.draw_circle_call(pos, radius, color, points))
+
+    def draw_circles_call(self, circles: tuple[tuple[tuple[int, int], int, tuple[float, float, float]]], points: int = 20):
+        circles_mesh = make_circles(circles, points)
+        return DrawCall(circles_mesh, self.white_texture.texture)
 
     def draw_circles(self, circles: tuple[tuple[tuple[int, int], int, tuple[float, float, float]]], points: int = 20):
-        circles_mesh = make_circles(circles, points)
-        self.push_draw_call(DrawCall(circles_mesh, self.white_texture))
+        self.push_draw_call(self.draw_circles_call(circles, points))
 
-    def draw_text(self, font: FontGPU, text: str, pos: tuple[int], color: tuple[float], size: float):
+    def draw_text_call(self, font: FontGPU, text: str, pos: tuple[int], color: tuple[float], size: float):
         x, y = pos
         x_offset = 0
 
         quads = []
         for char in text:
-            uv_x, uv_y, uv_w, uv_h = font.get_char_uvs(char)
+            texture = font.get_char_texture(char)
+            uv_x, uv_y, uv_w, uv_h = texture.region
             uv_w, uv_h = uv_x+uv_w, uv_y+uv_h
             cw, ch = font.get_char_size(char)
             cw, ch = cw*size, ch*size
@@ -335,7 +366,10 @@ class Renderer2D:
 
             x_offset += cw
         
-        self.push_draw_call(DrawCall(make_quads(quads), font.get_texture()))
+        return DrawCall(make_quads(quads), font.get_texture())
+    
+    def draw_text(self, font: FontGPU, text: str, pos: tuple[int], color: tuple[float], size: float):
+        self.push_draw_call(self.draw_text_call(font, text, pos, color, size))
 
     def draw(self, camera: Camera2D) -> int:
         "Render everything with the provided projection matrix, reset the draw batches and return the amount of draw calls"
@@ -356,6 +390,7 @@ class Renderer2D:
             vertex_elements = len(indices)
 
             draw_batch.texture.use()
+            self.pipeline["texture_size"] = draw_batch.texture.size
             self.vao.render(vertices=vertex_elements)
             draw_calls += 1
 

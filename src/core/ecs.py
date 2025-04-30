@@ -15,30 +15,30 @@ C3 = TypeVar("C3")
 C4 = TypeVar("C4")
 C5 = TypeVar("C5")
 
-__component_bit_counter = 0b1
+_component_bit_counter = 0b1
 # This counter shifts its bit to the left for every new component
 def component(cls):
     """
     A class decorator for components, which registers them by assigning a unique bit mask.
     This is required for every single component
     """
-    global __component_bit_counter
-    assert __component_bit_counter.bit_length() < MAX_COMPONENTS, f"Reached a component limit of {MAX_COMPONENTS}"
+    global _component_bit_counter
+    assert _component_bit_counter.bit_length() < MAX_COMPONENTS, f"Reached a component limit of {MAX_COMPONENTS}"
 
     # Set our class component mask to the current bit
-    cls.__component_mask = __component_bit_counter
+    cls.__component_mask = _component_bit_counter
 
     # Shift it
-    __component_bit_counter <<= 1
+    _component_bit_counter <<= 1
 
     return cls
 
-__signature_cache = {}
+_signature_cache = {}
 
 def compute_signature(components: Union[tuple[Type, ...], Type]) -> int:
     "Compute a bitmask signature for the provided tuple of components. This internally uses caching for all results"
 
-    signature = __signature_cache.get(components)
+    signature = _signature_cache.get(components)
     if signature is None:
 
         if type(components) is tuple:
@@ -51,7 +51,7 @@ def compute_signature(components: Union[tuple[Type, ...], Type]) -> int:
             assert hasattr(components, "__component_mask"), "Can't use a component that is not registered with @component decorator"
             signature = components.__component_mask
 
-        __signature_cache[components] = signature    
+        _signature_cache[components] = signature    
     return signature
 
 class Archetype:
@@ -192,23 +192,23 @@ class WorldECS:
         self.dead_entities: set[int] = set()
         "Entities that are marked as removed. Dead entities aren't immediately removed for stability reasons"
 
-        self.__query_cache = {}
+        self._query_cache = {}
         """
         We will store here components as keys, and lists of query results as values. If nothing changes - there's
         no reason for us to re-query entities. This is especially important for rendering logic, as it doesn't
         modify entities much, but still queries them more often than the game's logic itself.
         """
 
-        self.__entity_counter = count(start=0)
+        self._entity_counter = count(start=0)
 
-    def __get_or_make_archetype(self, components: tuple[Type, ...]):
+    def _get_or_make_archetype(self, components: tuple[Type, ...]):
         signature = compute_signature(components)
         if signature not in self.archetypes:
             self.archetypes[signature] = Archetype(components)
         
         return self.archetypes[signature]
     
-    def __query_archetypes(self, components_sig: int, with_sig: int, without_sig: int) -> tuple[Archetype]:
+    def _query_archetypes(self, components_sig: int, with_sig: int, without_sig: int) -> tuple[Archetype]:
         "Query archetypes that contain the provided signature. This method returns a tuple"
 
         components_sig = components_sig | with_sig
@@ -217,7 +217,7 @@ class WorldECS:
 
         return tuple(archetype for archetype in self.archetypes.values() if archetype.matches_signatures(components_sig, without_sig))
     
-    def __assign_entity_archetype(self, entity: int):
+    def _assign_entity_archetype(self, entity: int):
         """
         This method will essentially register an existing entity to an archetype if it doesn't have one, or move
         to a new one instead (while removing it from the previous archetype). 
@@ -226,15 +226,15 @@ class WorldECS:
         """
         assert entity in self.entities
 
-        self.__discard_entity_archetype(entity, False)
+        self._discard_entity_archetype(entity, False)
 
-        archetype = self.__get_or_make_archetype(tuple(self.entities[entity].keys()))
+        archetype = self._get_or_make_archetype(tuple(self.entities[entity].keys()))
         archetype.add_entity(entity)
         self.entity_to_archetype[entity] = archetype
 
-        self.__clear_cache()
+        self._clear_cache()
 
-    def __discard_entity_archetype(self, entity: int, clear_archetype_entry: bool = True):
+    def _discard_entity_archetype(self, entity: int, clear_archetype_entry: bool = True):
         """
         If the entity ID has an archetype bound - it will remove said entity from the archetype, and optionally
         remove it from the entity_to_archetype map as well.
@@ -245,18 +245,18 @@ class WorldECS:
 
         if entity in self.entity_to_archetype:
             self.entity_to_archetype[entity].remove_entity(entity)
-            self.__clear_cache()
+            self._clear_cache()
 
             if clear_archetype_entry:
                 del self.entity_to_archetype[entity]
 
-    def __clear_cache(self):
+    def _clear_cache(self):
         "Should be called every time a change to either an archetype or an entity is done"
-        self.__query_cache.clear()
+        self._query_cache.clear()
 
     def consume_new_entity_id(self) -> int:
         "An internal method for generating a new unique entity ID. Don't call this unless you know what you're doing."
-        return next(self.__entity_counter)
+        return next(self._entity_counter)
     
     def command_buffer(self) -> CommandBuffer:
         """
@@ -292,7 +292,7 @@ class WorldECS:
         self.entities[entity_id] = {type(component): component for component in components}
 
         # Add our entity to an archetype 
-        self.__assign_entity_archetype(entity_id)
+        self._assign_entity_archetype(entity_id)
 
         # Notify everyone
         self.ewriter.push_event(ComponentsAddedEvent(entity_id, tuple(self.entities[entity_id].keys())))
@@ -361,20 +361,20 @@ class WorldECS:
         that don't have components specified in the `including` filter.        
         """
         
-        result = self.__query_cache.get((components, including, excluding))
+        result = self._query_cache.get((components, including, excluding))
         if result is None:
-            result = self.__query_cache.setdefault(
+            result = self._query_cache.setdefault(
                 (components, including, excluding), 
-                list(self.__query_components(components, including, excluding))
+                list(self._query_components(components, including, excluding))
             )
         return result
 
-    def __query_components(self, components: tuple[Type[Any]], including: tuple[Type, ...], excluding: tuple[Type, ...]):
+    def _query_components(self, components: tuple[Type[Any]], including: tuple[Type, ...], excluding: tuple[Type, ...]):
         component_sig = compute_signature(components)
         with_sig = compute_signature(including)
         without_sig = compute_signature(excluding)
 
-        for archetype in self.__query_archetypes(component_sig, with_sig, without_sig):
+        for archetype in self._query_archetypes(component_sig, with_sig, without_sig):
             for entity in archetype.get_entities():
                 yield entity, self.get_components(entity, *components)
 
@@ -388,20 +388,20 @@ class WorldECS:
         Query all entities with the provided component. 
         The same as `query_components`, but for a single component.        
         """
-        result = self.__query_cache.get((component_ty, including, excluding))
+        result = self._query_cache.get((component_ty, including, excluding))
         if result is None:
-            result = self.__query_cache.setdefault(
+            result = self._query_cache.setdefault(
                 (component_ty, including, excluding), 
-                list(self.__query_component(component_ty, including, excluding))
+                list(self._query_component(component_ty, including, excluding))
             )
         return result
 
-    def __query_component(self, component_ty: Type[C], including: tuple[Type, ...], excluding: tuple[Type, ...]):
+    def _query_component(self, component_ty: Type[C], including: tuple[Type, ...], excluding: tuple[Type, ...]):
         component_sig = compute_signature((component_ty, ))
         with_sig = compute_signature(including)
         without_sig = compute_signature(excluding)
 
-        for archetype in self.__query_archetypes(component_sig, with_sig, without_sig):
+        for archetype in self._query_archetypes(component_sig, with_sig, without_sig):
             for entity in archetype.get_entities():
                 yield entity, self.get_component(entity, component_ty)
 
@@ -465,7 +465,7 @@ class WorldECS:
             entity_components[component_ty] = component
         
         # Since our entity has changed components - we need to move it to a different archetype
-        self.__assign_entity_archetype(entity)
+        self._assign_entity_archetype(entity)
         
         self.ewriter.push_event(ComponentsAddedEvent(entity, tuple(self.entities[entity].keys())))
 
@@ -487,7 +487,7 @@ class WorldECS:
 
                 del self.entities[entity][component_ty]
             
-        self.__assign_entity_archetype(entity)
+        self._assign_entity_archetype(entity)
 
         self.ewriter.push_event(ComponentsRemovedEvent(entity, tuple(removed_components)))
 
@@ -501,7 +501,7 @@ class WorldECS:
         entities that are part of the same archetype). Only call this at the END of the iteration.
         """
         for entity in self.dead_entities:
-            self.__discard_entity_archetype(entity)
+            self._discard_entity_archetype(entity)
 
             # Notify everyone
             self.ewriter.push_event(ComponentsRemovedEvent(entity, tuple(self.entities[entity].keys())))

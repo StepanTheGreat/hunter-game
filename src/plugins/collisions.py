@@ -10,7 +10,7 @@ from collections import deque
 from .components import Position
 
 # The less - better, but also more unstable. If a collider's total rectangle is larger than GRID_SIZE*2 - this will get unstable quick
-GRID_SIZE = 48
+GRID_SIZE = 24
 
 @component
 class StaticCollider:
@@ -34,7 +34,7 @@ class DynCollider:
         assert mass > 0, "A dynamic collider's mass can't be negative or 0"
         
         self.pos = pg.Vector2(0, 0)
-        self.__rect = pg.Rect(0, 0, radius*2, radius*2)
+        self._rect = pg.Rect(0, 0, radius*2, radius*2)
 
         self.radius = radius
         self.mass = mass
@@ -45,11 +45,11 @@ class DynCollider:
     def as_moved(self, pos: pg.Vector2) -> "DynCollider":
         "This method is only used for calculations, colliders usually use positions from components"
         self.pos = pos
-        self.__rect.center = (pos.x, pos.y)
+        self._rect.center = (pos.x, pos.y)
         return self
     
     def get_rect(self) -> pg.Rect:
-        return self.__rect
+        return self._rect
     
     def is_sensor(self) -> bool:
         return self.sensor
@@ -112,9 +112,9 @@ class DynCollider:
             if 0 < distance <= radius:
                 pos += (pos-point).normalize() * (radius-distance)
 
-__grid_dynamic: dict[tuple[int, int], list[tuple[int, DynCollider]]] = {}
-__grid_static: dict[tuple[int, int], list[tuple[int, StaticCollider]]] = {}
-__resolved: set = set()
+_grid_dynamic: dict[tuple[int, int], list[tuple[int, DynCollider]]] = {}
+_grid_static: dict[tuple[int, int], list[tuple[int, StaticCollider]]] = {}
+_resolved: set = set()
 
 def fill_grid_with_colliders(
     grid: dict[tuple[int, int], list[tuple[int, DynCollider]]], 
@@ -125,51 +125,78 @@ def fill_grid_with_colliders(
     to do so.
     """
 
+    gsize = GRID_SIZE
+
+    cross_cells = [None for _ in range(8)]
+    main_cross_indices = (0, 1, 2, 3) 
+    
     # Iterate every collider
     for ent, (pos, collider) in colliders:
         pos = pos.get_position()
         pos = (int(pos.x/GRID_SIZE), int(pos.y/GRID_SIZE))
-
-        # Now here's where confusing stuff happens - what's a `hurricane_cell_map`?
-        # Well, because it would be highly inefficient to simply dump our entity's collider into
-        # all neighbouring 9 cells, we're going to perform bounding rect collision checks first.
-        #
-        # But, performing rectangle checks on our collider would mean complexity of 8N.
-        # If we imagine a grid (NO, THIS IS NOT WHAT YOU THINK IT IS):
-        #  o    x -> o
-        #  |
-        #  x    #    x
-        #            |
-        #  o <- x    o
-        #
-        # The center being the position of our collider - it's highly unlikely that it's going to collide
-        # in every single cell. Well, what can we do then?
-        # Well, we could instead of checking every single outside chunk, check these key 4 regions:
-        # left, top, right, bottom
-        #
-        # The idea behind this is that it would be impossible for a bounding box to reach say,
-        # top-left cell, without colliding first with the left and top cell.
-        # If we don't - there's no way we're ever going to collide with it, so we simply ignore it.
-        #
-        # Now, next step would be to not make a collision check at all for the corners, so our algorithm is
-        # 100% 4N complexity, but for now it will be like this. 
-        hurricane_cell_map = (
-            ((pos[0]-1, pos[1]), (pos[0]-1, pos[1]-1)), # Left -> Top-Left 
-            ((pos[0]+1, pos[1]), (pos[0]+1, pos[1]+1)), # Right -> Bottom-Right
-            ((pos[0], pos[1]-1), (pos[0]+1, pos[1]-1)), # Up -> Top-right
-            ((pos[0], pos[1]+1), (pos[0]-1, pos[1]+1)), # Down -> Bottom-Left
-        )       
-
-        # Get our collider's bounding rect
         collider_rect = collider.get_rect()
 
-        # Of course add its rectangle to the center 
-        grid.setdefault(pos, []).append((ent, collider))
+        # So what is this confusing algorithm, why am I reusing simple lists and so on?
+        # For the first case I can't really respond, as I believe it gives me some hope that the
+        # algorithm will allocate less and thus become a bit faster, though I think the performance
+        # difference will be less than 0.1%
+        #
+        # Anyway, to our algorithm! Because it doesn't make sense to simply add our collider to every
+        # single cell around it - we would like to only add it to cells that it touches. For this reason
+        # our colliders have a method `get_rect`, which computes their bounding box.
+        # Now, if you imagine 8 cells, around 1 cell (9 in total), you would see something like this:
+        # 
+        # o -- # -- o
+        # |    |    |
+        # # -- @ -- #
+        # |    |    |
+        # 0 -- # -- o
+        #
+        # We got the center, the cross and the corners. So, 9 cells in total.
+        #
+        # We automatically add to the main cell, as it will always have our collider.
+        # But regarding our other 8 cells... we don't need to check EVERY cell for collisions...
+        # Because corners are in between 2 cross cells and our center cell - it's absolutely impossible
+        # for our collider to somehow not collide with any of the 2 cross cells.
+        # What this allows us to do, is to only check for 4 cell collisions (left, top, right, bottom),
+        # and for every pair, if both are true - add their corner. For example, if left and top
+        # are true - top-left cell can be used as well
+        # 
+        # This in turn results in complexity N4, which is still a lot, but more managable overall. 
+        
+        # Define our 8 surrounding cells. Ignore the slicing, it just makes me feel safer... Safer?
+        cross_cells[:8] = (
+            (pos[0]-1, pos[1]),   # Left
+            (pos[0]-1, pos[1]-1), # Top-Left 
+            (pos[0],   pos[1]-1), # Top
+            (pos[0]+1, pos[1]-1), # Top-right
+            (pos[0]+1, pos[1]),   # Right
+            (pos[0]+1, pos[1]+1), # Bottom-Right
+            (pos[0],   pos[1]+1), # Bottom
+            (pos[0]-1, pos[1]+1), # Bottom-Left
+        )
 
-        for hurricane_cell in hurricane_cell_map:
-            for cell in hurricane_cell:
-                if collider_rect.colliderect(cell[0]*GRID_SIZE, cell[1]*GRID_SIZE, GRID_SIZE, GRID_SIZE):
-                    grid.setdefault(cell, []).append((ent, collider))
+        # Check rect collisions for every cross cell, and return a tuple of booleans:
+        # (left, top, right, bottom)
+        main_cross_cells = tuple(
+            collider_rect.colliderect(x*gsize, y*gsize, gsize, gsize)
+            for (x, y) in cross_cells[::2]
+        )
+
+        # Now, we're going to collision results for our 4 main cells
+        for ind in main_cross_indices:
+            if main_cross_cells[ind]:
+                # If it has collided - add the collider to the cells
+                local_ind = ind*2
+                grid.setdefault(cross_cells[local_ind], []).append((ent, collider))
+
+                # AND, if the cell before this one also has a collision - add the collider to the 
+                # cell in between (corner)
+                if main_cross_cells[ind-1]:
+                    grid.setdefault(cross_cells[local_ind-1], []).append((ent, collider))
+        
+        # Finally, add our primary cell to the colliders
+        grid.setdefault(pos, []).append((ent, collider))
 
 def resolve_collisions(resources: Resources):
     world = resources[WorldECS]
@@ -177,27 +204,44 @@ def resolve_collisions(resources: Resources):
 
     # Collect our colliders
     dyn_colliders = [(ent, (pos, collider.as_moved(pos.get_position()))) for ent, (pos, collider) in world.query_components(Position, DynCollider)]
-    fill_grid_with_colliders(__grid_dynamic, dyn_colliders)
+    fill_grid_with_colliders(_grid_dynamic, dyn_colliders)
 
     events = deque()
 
     # Now, the most ugly part - the collision detection and resolution
     checks = 0
-    for cell, d_colliders in __grid_dynamic.items():
+    for cell, d_colliders in _grid_dynamic.items():
         # We're going to iterate all cells and its colliders in our dynamic grid
 
-        s_colliders = __grid_static.get(cell, ())
+        s_colliders = _grid_static.get(cell, ())
         # As well, we're going to grab static colliders from the same cell if they exist. If not - return an empty tuple
 
         # Iterate every dynamic collider
         for ent1, collider1 in d_colliders:
-            # Iterate again over all colliders
+            
+            # Resolve dynamic collisions
+            for ent2, collider2 in s_colliders:
+                checks += 1
+                if ((ent1, ent2) in _resolved) or ((ent2, ent1) in _resolved):
+                    # Of course ignore colliders that we already resolved
+                    continue
+            
+                # The same check applies for sensor and static colliders 
+
+                if collider1.sensor and collider1.is_colliding_static(collider2):
+                    events.appendleft(CollisionEvent(ent1, ent2, StaticCollider))
+                else:
+                    collider1.resolve_collision_static(collider2)
+
+                _resolved.add((ent1, ent2))
+
+            # Resolve static collisions
             for ent2, collider2 in d_colliders:
                 checks += 1
                 if collider1 is collider2:
                     # If this is the same collider - just continue iterating
                     continue
-                elif ((ent1, ent2) in __resolved) or ((ent2, ent1) in __resolved):
+                elif ((ent1, ent2) in _resolved) or ((ent2, ent1) in _resolved):
                     # The most important part! Don't resolve or check collisions if pairs are already resolved!
                     continue
                 
@@ -216,25 +260,7 @@ def resolve_collisions(resources: Resources):
                     collider1.resolve_collision_dynamic(collider2)
 
                 # Don't forget to add it to the resolved set of course
-                __resolved.add((ent1, ent2))
-
-
-            # Now, we resolve static collisions!
-
-            for ent2, collider2 in s_colliders:
-                checks += 1
-                if ((ent1, ent2) in __resolved) or ((ent2, ent1) in __resolved):
-                    # Of course ignore colliders that we already resolved
-                    continue
-            
-                # The same check applies for sensor and static colliders 
-
-                if collider1.sensor and collider1.is_colliding_static(collider2):
-                    events.appendleft(CollisionEvent(ent1, ent2, StaticCollider))
-                else:
-                    collider1.resolve_collision_static(collider2)
-
-                __resolved.add((ent1, ent2))
+                _resolved.add((ent1, ent2))
 
     # print(f"Performing {checks} collision checks on {len(dyn_colliders)} dyn objects")
 
@@ -248,8 +274,8 @@ def resolve_collisions(resources: Resources):
         ewriter.push_event(event)
 
     # And clear out our grids and sets (well, not really, because we would like to preserve lists and their allocated capacity for performance reasons)
-    [cell.clear() for cell in __grid_dynamic.values()]
-    __resolved.clear()
+    [cell.clear() for cell in _grid_dynamic.values()]
+    _resolved.clear()
 
 def on_new_static_collider(resources: Resources, event: Union[ComponentsRemovedEvent, ComponentsAddedEvent]):
     if StaticCollider not in event.components:
@@ -257,8 +283,8 @@ def on_new_static_collider(resources: Resources, event: Union[ComponentsRemovedE
     
     world = resources[WorldECS]
     static_colliders = [(ent, (pos, collider.as_moved(pos.get_position()))) for ent, (pos, collider) in world.query_components(Position, StaticCollider)]
-    [cell.clear() for cell in __grid_static.values()]
-    fill_grid_with_colliders(__grid_static, static_colliders)
+    [cell.clear() for cell in _grid_static.values()]
+    fill_grid_with_colliders(_grid_static, static_colliders)
 
 @event
 class CollisionEvent:

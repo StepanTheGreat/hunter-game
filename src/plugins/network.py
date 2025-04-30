@@ -4,49 +4,70 @@ Some common abstractions for networking
 
 from typing import Callable, Union
 
+from plugin import Resources, Plugin, Schedule, event, EventWriter
 from itertools import count
 import struct
 
-from modules.network import HighUDPClient, HighUDPServer
+from core.pg import Clock
+
+from modules.network import HighUDPClient, HighUDPServer, BroadcastListener
 
 MAX_RPC_FUNC = 256
+DEFAULT_RPC_RELIABILITY = False
+"By default, all RPCs are unreliable, unless explicitly changed"
 
 ENDIAN = "!"
 "Standardized endian value used for all RPC's"
 
-__rpc_database: dict[int, Callable] = {}
-__rpc_id_counter = count(0, step=1)
+_rpc_id_counter = count(0, step=1)
+_rpc_caller_addr: tuple[str, int] = None
+
+def get_rpc_caller_addr() -> tuple[str, int]:
+    """
+    Get the current RPC caller's IP address. This function can only be called inside RPC functions,
+    in any other case it will throw an error.
+    """
+
+    assert _rpc_caller_addr is not None, "Can't get RPC caller's address outside an RPC function"
+    return _rpc_caller_addr
+
+def _set_rpc_caller_addr(to: Union[tuple[str, int], None]):
+    global _rpc_caller_addr
+    _rpc_caller_addr = to
 
 class RPCFormatError(Exception):
     "The arguments passed to the RPC were malformed, thus the RPC wasn't executed."
 
-def __register_rpc(rpc_func: Callable, serialize_call: Callable):
+def _register_rpc(rpc_func: Callable, serialize_call: Callable, is_reliable: bool):
     """
     Registers an RPC function into the database and attaches some internal attributes
     like its internal RPC ID and its `serialize_call` method. 
     """
-    new_rpc_id = next(__rpc_id_counter)
+    new_rpc_id = next(_rpc_id_counter)
     assert new_rpc_id < MAX_RPC_FUNC, f"Reached the maximum amount of RPC functions: {MAX_RPC_FUNC}"
-
-    __rpc_database[new_rpc_id] = rpc_func
 
     # We'll assign this function its unique ID as well, so it can be retrieved by other APIs
     rpc_func.__rpc_id = new_rpc_id
 
+    rpc_func.__reliable = is_reliable
+
     # We'll assign its helper `serialize_call` method 
     rpc_func.serialize_call = serialize_call
 
-def rpc(struct_format: str):
+def rpc(struct_format: str, reliable: bool = DEFAULT_RPC_RELIABILITY):
     """
-    A function decorator that essentially transforms a function into a function that will only 
-    accept arguments in the form of a byte array. What this essentially allows us to do, is to make it possible
-    to execute the function throughh network, without passing Python values. 
+    A function decorator that essentially transforms a system into a network system that will only 
+    accept arguments in a form of bytes. What this essentially allows us to do, is make it possible
+    to execute the system through network, without passing Python values (well, we can't anyway). 
 
-    This RPC additionally will register itself into its internal session-global database, so it can be used easily
-    in conjunction with Server/Client classes.
+    Every RPC additionally gets a unique RPC identifier (1 byte integer), so it makes it extremely
+    efficient to communicate between same sessions, as this decorator 
 
-    It takes 1 argument: the `byte_format` in which it will try to parse the input and convert it into
-    python arguments ([you can read about it here](https://docs.python.org/3/library/struct.html)).
+    It takes 2 argument: the `byte_format` in which it will try to parse the input and convert it into
+    python arguments ([you can read about it here](https://docs.python.org/3/library/struct.html)), and
+    optionally `reliable` boolean, which by default is False.
+    Reliability gives an RPC function guarantees, that it's going to get delievered (even when lost).
+    It does mean more latency, so this should be only done for important actions. 
     
     ## Note:
     1. This decorator will automatically use the big-endian for your format (it's added automatically), so don't
@@ -55,12 +76,12 @@ def rpc(struct_format: str):
     all arguments in your function. No need to do that:
     ```
     @rpc("ii")
-    def my_rpc(args: tuple):
+    def my_rpc(_, args: tuple):
         # Don't do this
         ...
 
     @rpc("ii")
-    def my_rpc(a: int, b: int):
+    def my_rpc(_, a: int, b: int):
         # Do this instead
         ...
     ```
@@ -69,7 +90,7 @@ def rpc(struct_format: str):
     byte format. You don't need to tinker with bytes, you can just do this instead:
     ```
     @rpc("ii")
-    def my_rpc(a: int, b: int):
+    def my_rpc(_, a: int, b: int):
         ...
 
     my_rpc(
@@ -84,10 +105,10 @@ def rpc(struct_format: str):
     """
     def decorator(func):
         format_struct = struct.Struct(ENDIAN+struct_format)
-        def rpc_func(serialized_arguments: bytes):
+        def rpc_func(resources: Resources, serialized_arguments: bytes):
             try:
                 parsed_args = format_struct.unpack(serialized_arguments)
-                func(*parsed_args)
+                func(resources, *parsed_args)
             except struct.error:
                 raise RPCFormatError()
 
@@ -95,12 +116,12 @@ def rpc(struct_format: str):
             "Serialize provided arguments into bytes that can be used to call the RPC function"
             return format_struct.pack(*args)
 
-        __register_rpc(rpc_func, serialize_call)
+        _register_rpc(rpc_func, serialize_call, reliable)
 
         return rpc_func
     return decorator
 
-def rpc_raw(func):
+def rpc_raw(reliable: bool = DEFAULT_RPC_RELIABILITY):
     """
     Before you use this RPC decorator, you should first read about the `rpc`.
     This decorator solely exists for edge cases, like managing growable structures in RPC's. If you have a consistent
@@ -112,23 +133,263 @@ def rpc_raw(func):
     on suspicious behaviour.
     """
 
-    # We can't avoid this method due to common API
-    def serialize_call(args: bytes) -> bytes:
-        return args
-    
-    __register_rpc(func, serialize_call)
-    return func
+    # For anyone not understanding what happens here - the python's decorator magic is as follows:
+    # when a decorator is applied without parantheses: `@dec` - it calls the decorator, with its only
+    # argument being the function.
+    # If however, the decorator is called: `@dec()` - Python expects this decorator to return a decorator
+    # function, and the arguments passed to this decorator will be passed in the decorator instead.
 
-# TODO: Currently it's unclear how to pass caller's IP address into RPC calls without resorting to global
-# TODO: state. Perhaps indeed, Godot's approach could be used, where one can get the current callee's IP address
-# TODO: using a special function like `get_rpc_caller_ip`, which should be manually set by external APIs before 
-# TODO: executing RPC functions.
-# TODO: When used outside - it should throw an exception.
+    # We're using `reliable` argument to make it possible to pass keyword arguments to this RPC.
+    # This however, doesn't mean at all that it's going to be
+
+    # If the first argument is a function - we're going to use the default reliability. 
+    # In any other case we're using what the user gives us
+    is_reliable = DEFAULT_RPC_RELIABILITY if callable(reliable) else reliable
+
+    def decorator(func):
+        # We can't avoid this method due to common API
+        def serialize_call(args: bytes) -> bytes:
+            return args
+        
+        _register_rpc(func, serialize_call, is_reliable)
+
+        return func
+    
+    if callable(reliable):
+        return decorator(reliable)
+    else:
+        return decorator
+
+def is_rpc(rpc_func: Callable) -> bool:
+    "Returns whether the provided function is an RPC function"
+    return hasattr(rpc_func, "__rpc_id")
+
+def get_rpc_id(func: Callable) -> int:
+    "Get RPC's ID"
+    assert is_rpc(func)
+
+    return func.__rpc_id
+
+def is_rpc_reliable(func: Callable) -> bool:
+    "Does the RPC use reliable communication? `True` means yes"
+    assert is_rpc(func)
+
+    return func.__reliable
+
+def serialize_call(func: Callable, args: tuple) -> bytes:
+    "Constructs an entire binary RPC call, according to the RPC protocol: `[id][args][args][args]...`"
+    rpc_id = get_rpc_id(func)
+
+    return bytes([rpc_id]) + func.serialize_call(*args)
+
+def _parse_rpc_call(call: bytes) -> Union[tuple[int, bytes], None]:
+    return call[0], call[1:] if len(call) > 0 else None
+
+def _try_call_rpc(
+    rpcs: dict[int, Callable], 
+    resources: Resources, 
+    caller_addr: tuple[str, int],
+    rpc_call: bytes,
+):
+    """
+    This functions will try to parse an RPC call, and if it's valid, and is registered in the database - 
+    try call the RPC.
+    This function still can crash, since an RPC can throw an `RPCFormatError` due to wrong format, so
+    it's important to also catch this error outside.
+    """
+    rpc_call = _parse_rpc_call(rpc_call)
+    if rpc_call is None:
+        return
+    
+    rpc_id, rpc_args = rpc_call
+    if rpc_id not in rpcs:
+        return
+    
+    _set_rpc_caller_addr(caller_addr) # It's important we set the caller's address before calling it
+
+    try:
+        rpcs[rpc_id](resources, rpc_args)
+    except RPCFormatError:
+        # In the future this should be present on every single actor separately
+        print("Malformed input used on RPC {}", rpc_id)
+
+    _set_rpc_caller_addr(None)
+
+def _attach_rpcs(to: dict[int, Callable], rpcs: tuple[Callable, ...]):
+    for rpc in rpcs:
+        assert is_rpc(rpc), "Only systems with @rpc or @rpc_raw decorators can be attached"
+        assert rpc.__rpc_id not in to, "The RPC under the same ID is already attached"
+        to[rpc.__rpc_id] = rpc
 
 class Client:
-    def __init__(self, addr: tuple[str, int]):
+    "A client abstractions for managing game clients"
+    def __init__(self, resources: Resources, addr: tuple[str, int]):
+        self.resources = resources
+        self.ewriter = resources[EventWriter]
         self.client = HighUDPClient(addr)
+        self.rpcs: dict[int, Callable] = {}
+
+        self._init_hooks()
+
+    def _init_hooks(self):
+        def on_client_connection():
+            self.ewriter.push_event(ServerConnectedEvent())
+        
+        def on_client_disconnection():
+            self.ewriter.push_event(ServerDisonnectedEvent())
+
+        def on_client_connection_fail():
+            self.ewriter.push_event(ServerConnectionFailEvent())
+
+        self.client.on_connection = on_client_connection
+        self.client.on_disconnection = on_client_disconnection
+        self.client.on_connection_fail = on_client_connection_fail
+
+    def attach_rpcs(self, *rpcs: Callable):
+        _attach_rpcs(self.rpcs, rpcs)
+
+    def tick(self, dt: float):
+        self.client.tick(dt)
+        addr = self.client.get_server_addr()
+        while self.client.has_packets():
+            data = self.client.recv()
+            _try_call_rpc(self.rpcs, self.resources, addr, data)
+
+    def call(self, rpc_func: Callable, *args):
+        "Call the provided RPC function with the provided arguments on the server (if it's attached there)"
+        self.client.send(
+            serialize_call(rpc_func, args), 
+            is_rpc_reliable(rpc_func)
+        )
+
+    def close(self):
+        "Always close the client when you're done with it"
+        self.client.close()
 
 class Server:
-    def __init__(self, addr: tuple[str, int], max_clients: int):
+    def __init__(self, resources: Resources, addr: tuple[str, int], max_clients: int):
+        self.resources = resources
+        self.ewriter = resources[EventWriter]
         self.server = HighUDPServer(addr, max_clients)
+        self.rpcs: dict[int, Callable] = {}
+
+        self._init_event_hooks()
+
+    def _init_event_hooks(self):
+        def on_server_connection(addr: tuple[str, int]):
+            self.ewriter.push_event(ClientConnectedEvent(addr))
+        
+        def on_server_disconnection(addr: tuple[str, int]):
+            self.ewriter.push_event(ClientDisconnectedEvent(addr))
+
+        self.server.on_connection = on_server_connection
+        self.server.on_disconnection = on_server_disconnection
+
+    def attach_rpcs(self, *rpcs: Callable):
+        _attach_rpcs(self.rpcs, rpcs)
+
+    def tick(self, dt: float):
+        self.server.tick(dt)
+        while self.server.has_packets():
+            data, addr = self.server.recv()
+            _try_call_rpc(self.rpcs, self.resources, addr, data)
+
+    def call(self, addr: tuple[str, int], rpc_func: Callable, *args):
+        "Call the provided RPC function with the provided arguments on the provided client (if it's attached there)"
+        self.server.send_to(
+            addr,
+            serialize_call(rpc_func, args), 
+            is_rpc_reliable(rpc_func)
+        )
+
+    def call_all(self, rpc_func: Callable, *args):
+        "Execute the RPC function on all connected clients"
+        rpc_call = serialize_call(rpc_func, args)
+        reliability = is_rpc_reliable(rpc_func)
+
+        for addr in self.server.get_connection_addresses():
+            self.server.send_to(addr, rpc_call, reliability)
+
+    def broadcast(self, port: int, rpc_func: Callable, *args):
+        """
+        Broadcast the RPC function on the provided port. 
+        This is different from calling all connected clients.
+        
+        An additional important fact is that all broadcast RPC calls are unreliable, as there's
+        no connection established. So, it's not possible to use reliable features when broadcasting.
+        """
+
+        self.server.broadcast(
+            port,
+            serialize_call(rpc_func, args), 
+        )
+
+    def close(self):
+        "Always close the server when you're done with it"
+        self.server.close()
+
+class Listener:
+    def __init__(self, resources: Resources, addr: tuple[str, int]):
+        self.resources = resources
+        self.listener = BroadcastListener(addr)
+        self.rpcs: dict[int, Callable] = {}
+
+    def attach_rpcs(self, *rpcs: Callable):
+        _attach_rpcs(self.rpcs, rpcs)
+
+    def tick(self, _dt: float):
+        self.listener.fetch()
+        while self.listener.has_packets():
+            data, addr = self.listener.recv()
+            _try_call_rpc(self.rpcs, self.resources, addr, data)
+
+    def close(self):
+        "Always close the listener when you're done with it"
+        self.listener.close()
+
+def update_network_actors(resources: Resources):
+    dt = resources[Clock].get_fixed_delta()
+
+    # The order here is specific: first update the client, so that they can send a message
+    # Then, the server should receive this message, and notify both the client and the listener
+    # Finally, the listener can act on server's action.
+    # On the next tick the Client would be able to receive Server's message
+    for actor in (resources.get(Client), resources.get(Server), resources.get(Listener)):
+        if actor is not None:
+            actor.tick(dt)
+
+def only_server(system: Callable):
+    "A conditional system decorator that allows a system get ONLY executed, when it's executed on the server"
+    def conditional_system(resources: Resources):
+        if Server in resources:
+           system(resources) 
+    
+    return conditional_system
+
+@event
+class ClientConnectedEvent:
+    "A client has connected to the server. It's fired on the host (i.e. when you're the server)"
+    def __init__(self, addr: tuple[str, int]):
+        self.addr = addr
+
+@event
+class ClientDisconnectedEvent:
+    "A client has disconnected from the server. It's fired on the host (i.e. when you're the server)"
+    def __init__(self, addr: tuple[str, int]):
+        self.addr = addr
+
+@event
+class ServerConnectedEvent:
+    "A connection to the server was succesfully established (i.e. when you're the client)"
+
+@event
+class ServerDisonnectedEvent:
+    "Connection was lost with the server (or forcefully disconnected) (i.e. when you're the client)"
+
+@event
+class ServerConnectionFailEvent:
+    "A connection to the server was unsuccesful (i.e. when you're the client)"
+
+class NetworkPlugin(Plugin):
+    def build(self, app):
+        app.add_systems(Schedule.FixedUpdate, update_network_actors)

@@ -1,5 +1,4 @@
 import pygame as pg
-import moderngl as gl 
 
 from plugin import Plugin, Resources, Schedule
 
@@ -8,6 +7,7 @@ from .player import Player
 from plugins.collisions import DynCollider
 from core.assets import AssetManager
 from core.ecs import WorldECS, component
+from core.graphics import Texture
 
 from plugins.components import *
 from plugins.graphics.sprite import Sprite
@@ -29,14 +29,16 @@ ENEMY_PROJECTILE = ProjectileFactory(
 )
 
 def make_enemy(pos: tuple[float, float], assets: AssetManager) -> tuple:
-    texture = assets.load(gl.Texture, "images/character.png")
+    # texture = assets.load(Texture, "images/character.png")
+    texture = assets.load(Texture, "images/sprites.atl#character")
     return (
         Enemy(),
         Position(*pos),
         Angle(0.0),
         RenderPosition(*pos, 0),
+        RenderAngle(0.0),
         Velocity(0, 0, 75),
-        Sprite(texture, pg.Vector2(48, 48), (0, 0, 1, 1)),
+        Sprite(texture, pg.Vector2(48, 48)),
         Team.enemy(),
         Hittable(),
         Weapon(ENEMY_PROJECTILE, 0.2, True),
@@ -49,7 +51,7 @@ def orient_enemy(resources: Resources):
 
     players = list(world.query_component(Position, including=Player))
     if len(players) > 0:
-        player_ent, player_pos = players[0]
+        _, player_pos = players[0]
         
         for ent, (position, velocity, angle, weapon) in world.query_components(Position, Velocity, Angle, Weapon, including=Enemy):
             new_vel = (player_pos.get_position()-position.get_position())
@@ -70,9 +72,8 @@ def init_projectile_sprite(resources: Resources):
 
     ENEMY_PROJECTILE.user_components = (
         Sprite(
-            assets.load(gl.Texture, "images/meteorite.png"),
-            pg.Vector2(16, 16),
-            (0, 0, 1, 1)
+            assets.load(Texture, "images/sprites.atl#meteorite"),
+            pg.Vector2(16, 16)
         ),
     )
     

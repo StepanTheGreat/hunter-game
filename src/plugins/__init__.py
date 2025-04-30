@@ -6,6 +6,8 @@ from .scenes import ScenesPlugin
 from .gui import GUIPlugin
 from .collisions import CollisionsPlugin
 from .components import CommonComponentsPlugin
+from .network import NetworkPlugin
+from .perspective import PerspectivePlugin
 
 class PluginsCollection(Plugin):
     def build(self, app):
@@ -16,4 +18,6 @@ class PluginsCollection(Plugin):
             EntitiesPlugin(),
             GUIPlugin(),
             ScenesPlugin(),
+            NetworkPlugin(),
+            PerspectivePlugin()
         )

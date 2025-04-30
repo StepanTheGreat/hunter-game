@@ -29,7 +29,7 @@ class NumpyList:
     def __len__(self) -> int:
         return self.length
     
-    def __resize(self, need: int):
+    def _resize(self, need: int):
         """
         Resize this array (double itx capacity) to accomodate the required `need` amount of values.
         It will automatically increase the array's capacity and move the original data to it.
@@ -44,10 +44,10 @@ class NumpyList:
         self.array = np.empty(capacity, self.dtype())
         self.array[:len(data)] = data
 
-    def __ensure_can_fit(self, amount: int):
+    def _ensure_can_fit(self, amount: int):
         "Simply check if this list has enough capacity to fit the provided amount of elements, and if not - resize itself to fit more"
         if self.capacity()-self.length < amount:
-            self.__resize(self.length+amount)
+            self._resize(self.length+amount)
 
     def is_empty(self) -> bool:
         return self.length == 0
@@ -58,7 +58,7 @@ class NumpyList:
 
     def push(self, element: Any):
         "Add a single element at the end of the array"
-        self.__ensure_can_fit(1)
+        self._ensure_can_fit(1)
         self.array[self.length] = element
         self.length += 1
 
@@ -71,7 +71,7 @@ class NumpyList:
         elements_len = len(elements)
         assert elements_len > 0, "Can't append an empty numpy array"
         
-        self.__ensure_can_fit(elements_len)
+        self._ensure_can_fit(elements_len)
         
         self.array[self.length:self.length+elements_len] = elements
         self.length += elements_len

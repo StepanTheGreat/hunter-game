@@ -17,5 +17,5 @@ class GraphicsPlugin(Plugin):
             SpriteRendererPlugin(),
             Renderer2DPlugin(),
             TelemetryMenuPlugin(),
-            PostProcessingPlugin()
+            PostProcessingPlugin(),
         )

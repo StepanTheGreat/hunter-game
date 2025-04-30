@@ -9,7 +9,7 @@ class TypedDataclassTypeMismatch(Exception):
 
 C = TypeVar("C")
 
-def __get_type_mismatches(cls: Any) -> dict:
+def _get_type_mismatches(cls: Any) -> dict:
     mismatch_dict = {}
     for attr_name, attr_def in cls.__dataclass_fields__.items():
         expected_type = attr_def.type
@@ -18,8 +18,8 @@ def __get_type_mismatches(cls: Any) -> dict:
             mismatch_dict[attr_name] = (expected_type, got_type)
     return mismatch_dict
 
-def __typed_post_init(cls: Any):
-    ty_mismatches = __get_type_mismatches(cls)
+def _typed_post_init(cls: Any):
+    ty_mismatches = _get_type_mismatches(cls)
     if len(ty_mismatches) > 0:
         class_name = type(cls).__name__
         # This is confusing code, but we're constructing here an error message that is understandable to read
@@ -31,7 +31,7 @@ def typed_dataclass(cls: C) -> C:
     Basically a `dataclass` from `dataclasses`, but with additional post processing for strict types.
     This is especially important when deserializing JSON objects.
     """
-    cls.__post_init__ = __typed_post_init
+    cls.__post_init__ = _typed_post_init
     cls.__is_typed_dataclass = True
     cls = dataclasses.dataclass(cls)
     return cls

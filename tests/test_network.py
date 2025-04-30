@@ -2,13 +2,19 @@ from ward import test
 from modules.network import *
 
 DT = 1/60
-IP = "192.168.1.14"
+IP = "127.0.0.1"
 
-ADDR_SERVER = (IP, 500)
-ADDR_CLIENT = (IP, 501)
+ADDR_SERVER = (IP, 1500)
+ADDR_CLIENT = (IP, 1501)
 
-ADDR_CLIENT2 = (IP, 502)
-ADDR_CLIENT3 = (IP, 503)
+ADDR_CLIENT2 = (IP, 1502)
+ADDR_CLIENT3 = (IP, 1503)
+
+PORT_BROADCAST = 1567
+ADDR_BROADCAST = ("0.0.0.0", PORT_BROADCAST) # On linux, broadcasts can't be received on localhost
+
+ADDR_SERVER_DUMMY = (IP, 1499)
+"This address doesn't contain anything"
 
 def make_test_pair() -> tuple[HighUDPServer, HighUDPClient]:
     "-1% of boilerplate!"
@@ -16,13 +22,17 @@ def make_test_pair() -> tuple[HighUDPServer, HighUDPClient]:
 
 def connect_actors(server: HighUDPServer, *clients: HighUDPClient):
     for client in clients:
-        client.connect(server.addr, 2, 0.1)
+        client.connect(server.addr, 2, DT)
         tick_actors(0, client, server, client)
 
 def tick_actors(dt: float, *actors, times: int = 1):
     for _ in range(times):
         for actor in actors:
             actor.tick(dt)
+
+def fetch_listeners(*listeners: BroadcastListener):
+    for listener in listeners:
+        listener.fetch()
 
 def close_actors(*actors):
     "Close sockets of the provided actors (client or server)"
@@ -122,6 +132,7 @@ def _():
 
     close_actors(server, client)
 
+
 @test("Test continuos packet sending/receiving")
 def _():
     server, client = make_test_pair()
@@ -189,8 +200,7 @@ def _():
     client.disconnect()
     assert not client.is_connected()
 
-    # We're going to tick them 2 times for 5 seconds, so that the server doesn't throw away other clients
-    tick_actors(5, server, client, client2, times=2)
+    tick_actors(DT, server, client, client2)
     
     # They shouldn't be present on the server
     assert not server.has_connection_addr(ADDR_CLIENT)
@@ -384,3 +394,182 @@ def _():
     for (message, addr) in ((message1, ADDR_CLIENT), (message2, ADDR_CLIENT2)):
         assert server.recv() == (message, addr)
     assert not server.has_packets()
+
+@test("Use actual socket addresses that are picked up when binding sockets")
+def _():
+    # We would like to use automatic OS address binding. For example, we don't know any available port,
+    # so we're going to put 0 instead
+    auto_addr = ("127.0.0.1", 0)
+
+    client = HighUDPClient(auto_addr)
+    server = HighUDPServer(auto_addr, 1)
+
+    # When bound however, they should have a different port from the one we gave
+    assert client.get_addr() != auto_addr
+    assert server.get_addr() != auto_addr
+    assert client.get_addr() != server.get_addr()
+
+@test("Test broadcasters")
+def _():
+    server, client = make_test_pair()
+
+    # We're going to create 2 listeners, and they should be able to perfectly coexist
+    listener1 = BroadcastListener(ADDR_BROADCAST)
+    listener2 = BroadcastListener(ADDR_BROADCAST)
+
+    message = b"hello"
+
+    # A broadcast is a special method, because it sends packets immediately, without us
+    # needing to tick the server
+    server.broadcast(PORT_BROADCAST, message)
+
+    # We always need to manually fetch all packets on listeners
+    fetch_listeners(listener1, listener2)
+
+    # Now, we only should receive a single packet
+    for listener in (listener1, listener2):
+        assert listener.recv() == (message, ADDR_SERVER)
+        assert not listener.has_packets()
+
+    # Our client on the other hand, not being connected to anything - shouldn't receive anything
+    client.tick(DT)
+    assert not client.has_packets()
+
+    close_actors(server, client, listener1, listener2)
+
+@test("Test immediate disconnection")
+def _():
+    server, client = make_test_pair()
+    connect_actors(server, client)
+
+    # We're going to disconnect them using special `disconnect` method, that also is going to send
+    # a disconnection packet
+    client.disconnect()
+    tick_actors(DT, server, client)
+
+    # This packets has a high chance of immediately terminating the connection in 1 tick!
+
+    assert not server.has_connection_addr(ADDR_CLIENT)
+    assert not client.is_connected()
+
+
+    # Now let's do the same thing, but the other way around
+    connect_actors(server, client)
+    
+    # Again, the connection is terminated in a single tick!
+    server.disconnect(ADDR_CLIENT)
+    tick_actors(DT, server, client)
+
+    assert not server.has_connection_addr(ADDR_CLIENT)
+    assert not client.is_connected()
+
+    close_actors(server, client)
+
+@test("Test connection hooks for connection/disconnection/connection failure")
+def _():
+    server, client = make_test_pair()
+
+    def clear_all(*lists: list):
+        for lst in lists:
+            lst.clear()
+
+    def are_empty(*lists: list) -> bool:
+        return all(len(lst) == 0 for lst in lists)
+
+    # This is an ugly way of doing this, but lambdas don't really support statements
+    server_connections = []
+    server_disconnections = []
+
+    server.on_connection = lambda _: server_connections.append(1)
+    server.on_disconnection = lambda _: server_disconnections.append(1)
+
+    # Now for the client
+
+    client_connections = []
+    client_disconnections = []
+    client_fails = []
+
+    client.on_connection = lambda: client_connections.append(1)
+    client.on_disconnection = lambda: client_disconnections.append(1)
+    client.on_connection_fail = lambda: client_fails.append(1)
+
+    # Let's first tick them
+
+    tick_actors(DT, server, client)
+
+    # Obviously, they should produce ANY events when nothing has happened
+    assert are_empty(
+        server_connections, server_disconnections, 
+        client_connections, client_disconnections, client_fails
+    )
+    
+    # Let's connect them
+    connect_actors(server, client)
+
+    # They both should produce connection events
+    assert not are_empty(server_connections, client_connections)
+
+    # We clear again, but this time we're going to wait them out until they disconnect from heartbeat
+    clear_all(server_connections, client_connections)
+
+    # Tick them exactly 10 seconds
+    tick_actors(10, server, client)
+
+    # They should produce disconnection events
+    assert not are_empty(server_disconnections, client_disconnections)
+    clear_all(server_disconnections, client_disconnections)
+
+
+    # Now, let's try the same, but with direct disconnections
+
+    connect_actors(server, client)
+    clear_all(server_connections, client_connections)
+
+    # Let's disconnect our client and see the result
+    client.disconnect()
+    tick_actors(DT, server, client)
+    assert client_disconnections
+    assert server_disconnections
+    clear_all(server_disconnections, client_disconnections)
+
+    # Connect them back
+    connect_actors(server, client)
+    clear_all(server_connections, client_connections)
+
+    # Re-do the same, but from the server
+    server.disconnect(ADDR_CLIENT)
+    tick_actors(DT, server, client)
+    assert not are_empty(server_disconnections, client_disconnections)
+
+    clear_all(server_connections, client_connections)
+
+    # Now, let's check connection failures
+
+    server.accept_incoming_connections(False)
+    connect_actors(server, client)
+
+    # This should fail
+    assert client_fails
+    client_fails.clear()
+
+    # Now we're going to instead connect our client, but only tick them, without the server.
+    # This is for us to be able to see if it will call our function in case of exhaustion of all attempts
+
+    client.connect(ADDR_SERVER_DUMMY, 4, DT)
+    [client.tick(DT) for _ in range(5)]
+
+    # The client should now exhaust all its attempts and call the function
+    assert client_fails 
+
+    # Finally, we have an option to disable or overwrite hooks
+    client.on_connection = None
+
+    # Clear and connect them again
+    clear_all(server_connections, client_connections)
+    server.accept_incoming_connections(True)
+    connect_actors(server, client)
+
+    assert server_connections
+    assert not client_connections
+
+    close_actors(server, client)

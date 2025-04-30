@@ -77,6 +77,10 @@ class RenderAngle:
     def get_angle(self) -> float:
         return self.interpolated    
     
+    def get_vector(self) -> pg.Vector2:
+        "Return this angle as a directional unit vector"
+        return pg.Vector2(np.cos(self.interpolated), np.sin(self.interpolated))
+    
 @component
 class Velocity:
     "Entity's directional velocity. Used with dynamic colliders to update said entity's velocity"

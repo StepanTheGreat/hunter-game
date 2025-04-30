@@ -141,26 +141,35 @@ def pygame_runner(app: App):
     clock = app.get_resource(Clock)
     should_quit = False
 
+    caught_exception = None
+
     app.startup()
 
-    while not should_quit:
-        clock.update()
+    try:
+        while not should_quit:
+            clock.update()
 
-        for event in pg.event.get():
-            if event.type != pg.QUIT:
-                event_writer.push_event(
-                    event_map.map_event(event)
-                )
-            else:
-                should_quit = True
+            for event in pg.event.get():
+                if event.type != pg.QUIT:
+                    event_writer.push_event(
+                        event_map.map_event(event)
+                    )
+                else:
+                    should_quit = True
 
-        app.update(clock.get_fixed_updates())
-        app.render()
-        
-        pg.display.flip()
+            app.update(clock.get_fixed_updates())
+            app.render()
+            
+            pg.display.flip()
+    except Exception as exception:
+        caught_exception = exception
+        print("The app has caught an exception, finalizing...")
 
     app.finalize()
     pg.quit()
+
+    if caught_exception is not None:
+        raise caught_exception
 
 class PygamePlugin(Plugin):
     def build(self, app):
