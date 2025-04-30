@@ -1,3 +1,74 @@
+"""
+A Texture Atlas is the extension of the Surface Atlas defined in the modules directory (please read it, 
+as it explains its sole purpose of existance).
+
+This atlas automatically manages its own OpenGL texture, with a convenient to use interface.
+This should be preferred over using normal textures in some cases, as it allows optimizing for draw
+calls.
+
+This module also defines a new type of asset - the file atlas. There are 2 types of atlases:
+- Dynamic (those that simply reference image paths and then are constructed at runtime)
+- Static (those that reference an already built atlas image, and just parse its sprites)
+
+Both of these can be loaded directly using the asset manager.
+
+BUT, this is not all... to simplify asset loading and management, this module also includes a convenient
+way of referencing individual textures inside atlases: the `#` separator. Essentially, it's added
+at the end of the path, where the key of the referenced texture goes after the separator. For example:
+`images/blocks.atl#brick`.
+Here, we're referencing the `brick` texture, inside the atlas `blocks.atl`. What this is going to do, is 
+automatically load and build the underlying atlas (in this case `images/blocks.atl`), and then retrieve
+the `brick` texture from it (if present of course)
+
+The asset manager doesn't care about the file extension of your atlases, so `.atl` extension is for
+example only. It simply cares for valid JSON data.
+
+## Formats
+Here are JSON formats for every type of atlas:
+
+### Dynamic
+Dynamic atlases only reference other images on the file system (relative to the directory of the atlas)
+
+Multiple images can be attached to individual sprite keys, making it possible to define animations
+```
+{
+    "dynamic": true,
+    "sources": {
+        "individual_sprite": "sprite.png",
+        "multi_sprites": [
+            "path/to/anim1.png",
+            "path/to/anim2.png",
+            "path/to/anim3.png"
+        ]
+    }
+}
+```
+
+### Static
+A static atlas only defines the source atlas image, and its sprites instead reference the absolute
+regions of said sprite `(x, y, width, height)`.
+
+As with dynamic atlases, multiple regions can be attached to the same key
+```
+{
+    "dynamic": false,
+    "source": "atlas.png",
+    "sprites": {
+        "individual_sprite": [0, 0, 32, 32],
+        "multi_sprites": [
+            [0, 32, 16, 16],
+            [16, 32, 16, 16],
+            [32, 32, 16, 16]
+        ]
+    }
+}
+```
+
+One final property is that the current implementation of static atlases simply... rebuilds them from
+scratch... So one cool thing this allows us to do, is to simply ignore margins in our source atlases
+entirely and let the runtime manage those instead
+"""
+
 import moderngl as gl
 import pygame as pg
 
@@ -156,6 +227,7 @@ def _assert_key(d: dict, key: str, ty: type) -> Any:
 def _load_static_texture_atlas(
     ctx: gl.Context, 
     assets: AssetManager, 
+    atlas_dir: str,
     atlas: dict
 ) -> TextureAtlas:
     # What we're going to do is SUPER stupid, but I really don't want to optimize this.
@@ -163,41 +235,74 @@ def _load_static_texture_atlas(
     # we need power-of-2 textures
 
     atlas_source: str = _assert_key(atlas, "source", str)
-    sprites: dict[str, tuple[int, int, int, int]] = _assert_key(atlas, "sprites", dict)
-    img = pg.image.load(assets.asset_path(atlas_source))
+    sprites: dict[str, Union[tuple[int, int, int, int], tuple[tuple[int, int, int, int]]]] = _assert_key(atlas, "sprites", dict)
+    img = pg.image.load(atlas_dir+atlas_source)
 
     texture_size = _closest_pow2_size(img.get_size())
     new_atlas = TextureAtlas(ctx, texture_size, False, max(texture_size))
 
-    for sprite_key, sprite_region in sprites.items():
-        assert type(sprite_region) is tuple and len(sprite_region) == 4, "Invalid sprite format used in a static texture atlas"
+    for sprite_key, entry in sprites.items():
+        is_list = type(entry[0]) is list
 
-        (x, y, w, h) = sprite_region
+        regions: tuple[tuple[int, int, int, int]] = None
+        # Because a single key can define multiple regions - we're managing this separately
+        if is_list:
+            sprite_regions = entry
+            assert all(
+                (type(sprite_region) is list and len(sprite_region) == 4) 
+                for sprite_region in sprite_regions
+            ), "Invalid sprite format used in a static texture atlas"
+            regions = sprite_regions
+        else:
+            sprite_region = entry
+            assert (
+                type(sprite_region) is list and len(sprite_region) == 4
+            ), "Invalid sprite format used in a static texture atlas"
 
-        new_atlas.push_sprites(sprite_key, (img.subsurface(x, y, w, h), ))
+            regions = (sprite_region, )
+
+        sub_surfaces = tuple(img.subsurface(x, y, w, h) for (x, y, w, h) in regions)
+        new_atlas.push_sprites(sprite_key, sub_surfaces)
     
     return new_atlas
 
 def _load_dynamic_texture_atlas(
     ctx: gl.Context, 
-    assets: AssetManager, 
+    atlas_dir: str,
     atlas: dict
 ) -> TextureAtlas:
-    sources: dict[str, str] = _assert_key(atlas, "sources", dict)
+    sources: dict[str, Union[str, tuple[str]]] = _assert_key(atlas, "sources", dict)
 
     new_atlas = TextureAtlas(ctx, DYNAMIC_ATLAS_MIN_SIZE, True, DYNAMIC_ATLAS_MAX_SIZE)
 
-    for source_key, source_path in sources.items():
-        assert type(source_path) is str, "Invalid sprite format used in a dynamic texture atlas"
+    for source_key, entry in sources.items():
+        is_list = type(entry) is list
 
-        img = pg.image.load(assets.asset_path(source_path))
-        new_atlas.push_sprites(source_key, (img, ))
+        sources: tuple[str] = None
+
+        if is_list:
+            source_paths = entry
+            assert all(
+                (type(source_path) is str)
+                for source_path in source_paths
+            ), "Invalid sprite format used in dynamic texture atlas"
+            sources = source_paths
+        else:
+            source_path = entry
+            assert type(source_path) is str, "Invalid sprite format used in dynamic texture atlas"
+            sources = (source_path, )
+
+        imgs = tuple(pg.image.load(atlas_dir+source_path) for source_path in sources)
+        new_atlas.push_sprites(source_key, imgs)
     
     return new_atlas
+
+# TODO: Make atlas paths relative to the atlas directory
 
 def _load_texture_atlas(
     ctx: gl.Context,
     assets: AssetManager, 
+    atlas_dir: str,
     atlas_data: str
 ) -> TextureAtlas:
     """
@@ -214,16 +319,19 @@ def _load_texture_atlas(
     assert type(dynamic) is bool
 
     if dynamic:
-        return _load_dynamic_texture_atlas(ctx, assets, atlas_obj)
+        return _load_dynamic_texture_atlas(ctx, atlas_dir, atlas_obj)
     else:
-        return _load_static_texture_atlas(ctx, assets, atlas_obj)
+        return _load_static_texture_atlas(ctx, assets, atlas_dir, atlas_obj)
 
 def loader_texture_atlas(resources: Resources, path: str) -> TextureAtlas:
     "A loader for texture atlases"
     atlas_data = load_file_str(path)
+    atlas_dir = path + "/../" # Yup, I know, it's not the best way, but it's a simple one
+
     return _load_texture_atlas(
         resources[GraphicsContext].get_context(),
         resources[AssetManager],
+        atlas_dir,
         atlas_data
     )
 
