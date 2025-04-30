@@ -4,16 +4,16 @@ from modules.network import *
 DT = 1/60
 IP = "127.0.0.1"
 
-ADDR_SERVER = (IP, 500)
-ADDR_CLIENT = (IP, 501)
+ADDR_SERVER = (IP, 1500)
+ADDR_CLIENT = (IP, 1501)
 
-ADDR_CLIENT2 = (IP, 502)
-ADDR_CLIENT3 = (IP, 503)
+ADDR_CLIENT2 = (IP, 1502)
+ADDR_CLIENT3 = (IP, 1503)
 
-PORT_BROADCAST = 567
-ADDR_BROADCAST = (IP, PORT_BROADCAST)
+PORT_BROADCAST = 1567
+ADDR_BROADCAST = ("0.0.0.0", PORT_BROADCAST) # On linux, broadcasts can't be received on localhost
 
-ADDR_SERVER_DUMMY = (IP, 499)
+ADDR_SERVER_DUMMY = (IP, 1499)
 "This address doesn't contain anything"
 
 def make_test_pair() -> tuple[HighUDPServer, HighUDPClient]:
