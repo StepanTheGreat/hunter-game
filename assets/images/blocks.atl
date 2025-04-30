@@ -1,7 +1,8 @@
 {
-    "dynamic": true,
-    "sources": {
-        "cool_texture": "images/cool_texture.png",
-        "window": "images/window.png"
+    "dynamic": false,
+    "source": "blocks.png",
+    "sprites": {
+        "cool_texture": [0, 0, 32, 32],
+        "window": [32, 32, 32, 32]
     }
 }

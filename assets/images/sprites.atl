@@ -1,7 +1,7 @@
 {
     "dynamic": true,
     "sources": {
-        "character": "images/character.png",
-        "meteorite": "images/meteorite.png"
+        "character": "character.png",
+        "meteorite": "meteorite.png"
     }
 }
