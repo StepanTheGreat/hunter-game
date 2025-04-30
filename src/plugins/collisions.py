@@ -10,7 +10,7 @@ from collections import deque
 from .components import Position
 
 # The less - better, but also more unstable. If a collider's total rectangle is larger than GRID_SIZE*2 - this will get unstable quick
-GRID_SIZE = 48
+GRID_SIZE = 24
 
 @component
 class StaticCollider:
@@ -193,7 +193,7 @@ def fill_grid_with_colliders(
                 # AND, if the cell before this one also has a collision - add the collider to the 
                 # cell in between (corner)
                 if main_cross_cells[ind-1]:
-                    grid.setdefault(cross_cells[local_ind-2], []).append((ent, collider))
+                    grid.setdefault(cross_cells[local_ind-1], []).append((ent, collider))
         
         # Finally, add our primary cell to the colliders
         grid.setdefault(pos, []).append((ent, collider))
@@ -218,7 +218,24 @@ def resolve_collisions(resources: Resources):
 
         # Iterate every dynamic collider
         for ent1, collider1 in d_colliders:
-            # Iterate again over all colliders
+            
+            # Resolve dynamic collisions
+            for ent2, collider2 in s_colliders:
+                checks += 1
+                if ((ent1, ent2) in _resolved) or ((ent2, ent1) in _resolved):
+                    # Of course ignore colliders that we already resolved
+                    continue
+            
+                # The same check applies for sensor and static colliders 
+
+                if collider1.sensor and collider1.is_colliding_static(collider2):
+                    events.appendleft(CollisionEvent(ent1, ent2, StaticCollider))
+                else:
+                    collider1.resolve_collision_static(collider2)
+
+                _resolved.add((ent1, ent2))
+
+            # Resolve static collisions
             for ent2, collider2 in d_colliders:
                 checks += 1
                 if collider1 is collider2:
@@ -243,24 +260,6 @@ def resolve_collisions(resources: Resources):
                     collider1.resolve_collision_dynamic(collider2)
 
                 # Don't forget to add it to the resolved set of course
-                _resolved.add((ent1, ent2))
-
-
-            # Now, we resolve static collisions!
-
-            for ent2, collider2 in s_colliders:
-                checks += 1
-                if ((ent1, ent2) in _resolved) or ((ent2, ent1) in _resolved):
-                    # Of course ignore colliders that we already resolved
-                    continue
-            
-                # The same check applies for sensor and static colliders 
-
-                if collider1.sensor and collider1.is_colliding_static(collider2):
-                    events.appendleft(CollisionEvent(ent1, ent2, StaticCollider))
-                else:
-                    collider1.resolve_collision_static(collider2)
-
                 _resolved.add((ent1, ent2))
 
     # print(f"Performing {checks} collision checks on {len(dyn_colliders)} dyn objects")
