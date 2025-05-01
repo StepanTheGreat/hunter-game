@@ -29,6 +29,7 @@ class MainMenuGUI:
             self.resources[SceneManager].insert_scene(IngameScene(self.resources, as_server))
         
         join_btn = (TextButton(font, "Join Game", (0.5, 0.5), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
+            .attached_to(background)
             .with_callback(lambda: insert_ingame_scene(False)))
         
         create_btn = (TextButton(font, "Create Game", (0, 1), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
@@ -44,12 +45,11 @@ class MainMenuGUI:
             .with_callback(go_to_settings)
             .attached_to(create_btn))
         
+        # These 2 lines will measure the tree, and using margin try to align them
         *_, tree_w, tree_h =  join_btn.measure_tree()
         join_btn.set_margin(-tree_w/2, -tree_h/2)
 
-        self.gui.replace_gui([
-            background, join_btn, 
-        ])
+        self.gui.replace_gui([background])
 
     def enter_settings_subscene(self):
         font = self.assets.load(FontGPU, "fonts/font.ttf")
@@ -60,15 +60,14 @@ class MainMenuGUI:
             self.enter_mainmenu_subscene()
 
         back_btn = (TextButton(font, "<<", (0, 0), (64, 64))
+            .attached_to(background)
             .with_callback(go_back))
 
-        resolution_label = Label(font, "Resolution: ", (0.5, 0.5), text_scale=0.5)
+        resolution_label = Label(font, "Resolution: ", (0.5, 0.5), text_scale=0.5).attached_to(background)
         keys_label = Label(font, "Keys: ", (0, 1), text_scale=0.5).attached_to(resolution_label)
         vsync = Label(font, "Vsync: ", (0, 1), text_scale=0.5).attached_to(keys_label)
 
         *_, tree_w, tree_h =  resolution_label.measure_tree()
         resolution_label.set_margin(-tree_w/2, -tree_h/2)
         
-        self.gui.replace_gui([
-            background, back_btn, resolution_label, 
-        ])
+        self.gui.replace_gui([background])

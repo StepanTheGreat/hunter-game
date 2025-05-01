@@ -14,6 +14,7 @@ class TelemetryState:
         self.font = assets.load(FontGPU, "fonts/font.ttf")
         
         self.fps_label = Label(self.font, "FPS: 0", (0, 0), text_scale=0.3)
+        self.fps_label.z = 100
 
         self.draw_calls_label = (Label(self.font, "Draw calls {{}}", (0, 1), text_scale=0.3)
             .attached_to(self.fps_label))
