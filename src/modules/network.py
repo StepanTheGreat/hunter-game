@@ -153,6 +153,10 @@ def fnv1_hash(data: bytes) -> int:
 
     return ret_hash 
 
+def get_current_addr() -> str:
+    "Get the current IP address of this device"
+    return socket.gethostbyname(socket.gethostname())
+
 def make_async_socket(
     addr: tuple[str, int], 
     broadcaster: bool = False,
@@ -681,10 +685,15 @@ class HighUDPClient:
 
         retry = connector.tick(dt)
         if retry:
-            self.sock.sendto(
-                make_connection_request_packet(),
-                connector.addr
-            )
+            try:
+                self.sock.sendto(
+                    make_connection_request_packet(),
+                    connector.addr
+                )
+            except OSError:
+                # If we catch an OS error - we abort. There's a chance we're sending packets
+                # to an incorrect address
+                connector.attempts = 0
         
         if connector.is_exhausted():
             _maybe_fire(self.on_connection_fail)
