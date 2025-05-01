@@ -5,14 +5,10 @@ from plugin import Plugin, Resources, Schedule
 
 from core.ecs import WorldECS, component
 from core.input import InputManager
-from plugins.collisions import DynCollider
-
 from plugins.graphics.lights import Light
-from plugins.perspective import PerspectiveAttachment
 
 from plugins.components import *
 
-from .projectile import ProjectileFactory
 from .weapon import Weapon
 
 class PlayerStats:
@@ -44,57 +40,32 @@ class Player:
     "A tag component that allows filtering out players"
 
 @component
+class MainPlayer:
+    "A tag that allows distinguishing the current client from other clients"
+
+@component
 class PlayerController:
+    """
+    The state of the current player's input. This is used by 
+    """
     def __init__(self):
         self.forward_dir = 0
         self.horizontal_dir = 0
-
-PLAYER_PROJECTILE = ProjectileFactory(
-    False,
-    speed=0,
-    radius=20,
-    damage=75,
-    lifetime=0.1,
-    spawn_offset=30,
-)
-    
-def make_player(pos: tuple[float, float]) -> tuple:
-    return (
-        Position(*pos),
-        RenderPosition(*pos, 24),
-        Velocity(0, 0, 200),
-        Light((1, 1, 1), 20000, 1.2),
-        AngleVelocity(0, 4),
-        Angle(0),
-        RenderAngle(0),
-        DynCollider(12, 30),
-        Weapon(PLAYER_PROJECTILE, 0.1, True),
-        PlayerController(),
-        Team.friend(),
-        Hittable(),
-        Health(200_000, 0.25),
-        PerspectiveAttachment(24, 0),
-        Player()
-    )
+        self.is_shooting = False
 
 def control_player(resources: Resources):
     input = resources[InputManager]
     world = resources[WorldECS]
 
-    for _, (controller, angle_vel, weapon) in world.query_components(PlayerController, AngleVelocity, Weapon):
+    for _, (controller, angle_vel) in world.query_components(PlayerController, AngleVelocity, including=MainPlayer):
         angle_vel.set_velocity(input[InputAction.TurnRight]-input[InputAction.TurnLeft])
         controller.forward_dir = input[InputAction.Forward]-input[InputAction.Backwards]
         controller.horizontal_dir = input[InputAction.Right]-input[InputAction.Left]
 
-        if input[InputAction.Shoot]:
-            weapon.start_shooting()
-        else:
-            weapon.stop_shooting()
-
 def orient_player(resources: Resources):
     world = resources[WorldECS]
 
-    for ent, (controller, vel, angle) in world.query_components(PlayerController, Velocity, Angle):
+    for ent, (controller, vel, angle, weapon) in world.query_components(PlayerController, Velocity, Angle, Weapon):
         forward = controller.forward_dir
         horizontal = controller.horizontal_dir
         
@@ -114,17 +85,10 @@ def orient_player(resources: Resources):
 
         vel.set_velocity(new_vel.x, new_vel.y)
 
-def move_camera(resources: Resources):
-    world = resources[WorldECS]
-
-    players = world.query_component(Player)
-    if players:    
-        player_ent, _ = players[0]
-        health = world.get_component(player_ent, Health)
-
-        resources[PlayerStats].update_health(health.get_percentage())
-    else:
-        resources[PlayerStats].update_health(0)
+        if controller.is_shooting:
+            weapon.start_shooting()
+        else:
+            weapon.stop_shooting()
 
 def make_test_lights(resources: Resources):
     world = resources[WorldECS]
@@ -143,4 +107,3 @@ class PlayerPlugin(Plugin):
         app.add_systems(Schedule.Startup, make_test_lights)
         app.add_systems(Schedule.Update, control_player)
         app.add_systems(Schedule.FixedUpdate, orient_player, priority=-1)
-        app.add_systems(Schedule.PreDraw, move_camera)
