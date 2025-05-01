@@ -10,7 +10,7 @@ import struct
 
 from core.pg import Clock
 
-from modules.network import HighUDPClient, HighUDPServer, BroadcastListener
+from modules.network import HighUDPClient, HighUDPServer, BroadcastListener, get_current_addr
 
 MAX_RPC_FUNC = 256
 DEFAULT_RPC_RELIABILITY = False
@@ -223,10 +223,15 @@ def _attach_rpcs(to: dict[int, Callable], rpcs: tuple[Callable, ...]):
 
 class Client:
     "A client abstractions for managing game clients"
-    def __init__(self, resources: Resources, addr: tuple[str, int]):
+
+    # We'll do 5 seconds in total
+    CONNECTION_ATTEMPTS = 10
+    CONNECTION_ATTEMPT_DELAY = 0.5
+
+    def __init__(self, resources: Resources):
         self.resources = resources
         self.ewriter = resources[EventWriter]
-        self.client = HighUDPClient(addr)
+        self.client = HighUDPClient((get_current_addr(), 0))
         self.rpcs: dict[int, Callable] = {}
 
         self._init_hooks()
@@ -244,6 +249,24 @@ class Client:
         self.client.on_connection = on_client_connection
         self.client.on_disconnection = on_client_disconnection
         self.client.on_connection_fail = on_client_connection_fail
+
+    def get_addr(self) -> tuple[str, int]:
+        return self.client.get_addr()
+    
+    def is_connected(self) -> bool:
+        return self.client.is_connected()
+
+    def try_connect(self, to: tuple[str, int]):
+        """
+        Kickstart client's attemp to connect. This operation can fail, so make sure to listen for
+        connection failure events.
+
+        Furthermore, if the client is already connected - this method will panic. 
+        """
+
+        assert not self.client.is_connected()
+
+        self.client.connect(to, Client.CONNECTION_ATTEMPTS, Client.CONNECTION_ATTEMPT_DELAY)
 
     def attach_rpcs(self, *rpcs: Callable):
         _attach_rpcs(self.rpcs, rpcs)
@@ -267,10 +290,10 @@ class Client:
         self.client.close()
 
 class Server:
-    def __init__(self, resources: Resources, addr: tuple[str, int], max_clients: int):
+    def __init__(self, resources: Resources, max_clients: int):
         self.resources = resources
         self.ewriter = resources[EventWriter]
-        self.server = HighUDPServer(addr, max_clients)
+        self.server = HighUDPServer((get_current_addr(), 0), max_clients)
         self.rpcs: dict[int, Callable] = {}
 
         self._init_event_hooks()
@@ -285,6 +308,9 @@ class Server:
         self.server.on_connection = on_server_connection
         self.server.on_disconnection = on_server_disconnection
 
+    def get_addr(self) -> tuple[str, int]:
+        return self.server.get_addr()
+    
     def attach_rpcs(self, *rpcs: Callable):
         _attach_rpcs(self.rpcs, rpcs)
 
@@ -329,9 +355,9 @@ class Server:
         self.server.close()
 
 class Listener:
-    def __init__(self, resources: Resources, addr: tuple[str, int]):
+    def __init__(self, resources: Resources, port: int):
         self.resources = resources
-        self.listener = BroadcastListener(addr)
+        self.listener = BroadcastListener(("0.0.0.0", port))
         self.rpcs: dict[int, Callable] = {}
 
     def attach_rpcs(self, *rpcs: Callable):
@@ -360,9 +386,17 @@ def update_network_actors(resources: Resources):
 
 def only_server(system: Callable):
     "A conditional system decorator that allows a system get ONLY executed, when it's executed on the server"
-    def conditional_system(resources: Resources):
+    def conditional_system(resources: Resources, *args):
         if Server in resources:
-           system(resources) 
+           system(resources, *args)
+    
+    return conditional_system
+
+def only_client(system: Callable):
+    "A decorator that makes sure that the system will ONLY get executed on exclusively clients (not hosts)"
+    def conditional_system(resources: Resources, *args):
+        if (Client in resources) and (Server not in resources):
+           system(resources, *args)
     
     return conditional_system
 
