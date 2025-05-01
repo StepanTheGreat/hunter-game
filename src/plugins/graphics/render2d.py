@@ -142,6 +142,10 @@ class DrawCall:
         assert self.texture == other.texture
         self.mesh.add_mesh(other.mesh) 
 
+    def __repr__(self) -> str:
+        # V stands for verticies, T stands for texture
+        return f"<DrawCall V:{self.mesh.vertex_elements()}, T:{self.texture.width}x{self.texture.height}>"
+
 class DrawCallBatch:
     "Draw call container and merger"
     def __init__(self, verticies: int, indicies: int):
@@ -187,6 +191,17 @@ class Renderer2D:
 
         self.dc_batches: list[DrawCallBatch] = [DrawCallBatch(vertex_elements, index_elements) for _ in range(self.max_draw_calls)]
         self.dc_ptr = None
+        self.draw_commands: dict[int, list[DrawCall]] = {}
+        """
+        This map maps Z coordinates to lists of draw calls. Before rendering, the drawcalls in the list
+        should also get sorted by their texture
+        """
+
+        self.current_z: int = 0
+        """
+        The current z coordinate of this renderer, used in most 2D operations.
+        This is a public attribute, so do whatever you want with it
+        """
 
         self.pipeline = Pipeline(
             self.ctx, 
@@ -205,18 +220,52 @@ class Renderer2D:
             index_buffer=self.ibo
         )
 
-    def push_draw_call(self, draw_call: DrawCall):
-        if self.dc_ptr is None:
-            self.dc_ptr = 0
-        
-        batch = self.dc_batches[self.dc_ptr]
+    def increment_z(self):
+        "Increment the current Z coordinate by 1. Allows for more explicit APIs"
+        self.current_z += 1
 
-        if batch.can_merge(draw_call):
-            batch.merge_draw_call(draw_call)
-        else:
-            self.dc_ptr += 1
-            assert self.dc_ptr < self.max_draw_calls, f"Reached a 2D draw call limit of {self.max_draw_calls}"
-            self.dc_batches[self.dc_ptr].merge_draw_call(draw_call)
+    def decrement_z(self):
+        "Decrement the current Z coordinate by 1. Allows for more explicit APIs"
+        self.current_z -= 1
+
+    def push_draw_call(self, draw_call: DrawCall, z: int = None):
+        """
+        Push an arbitrary draw call to the renderer. An additional Z coordinate can be provided 
+        to specify the order of the draw call. If `None` - the current renderer's Z coordinate will
+        be used instead.
+        """
+
+        self.draw_commands.setdefault(
+            (self.current_z if z is None else z), 
+            []
+        ).append(draw_call)
+
+    def _batch_draw_calls(self):
+        """
+        When we have collected all our draw calls, it's time to actually batch them. This will
+        first sort all draw call groups based on their Z coordinate, and then based on their 
+        textures inside the group.
+
+        All groups will be cleared out after this operation
+        """
+        for _, draw_calls in sorted(self.draw_commands.items(), key=lambda item: item[0]):
+            for draw_call in sorted(draw_calls, key=lambda dc: id(dc.texture)):
+                if self.dc_ptr is None:
+                    self.dc_ptr = 0
+                
+                batch = self.dc_batches[self.dc_ptr]
+
+                if batch.can_merge(draw_call):
+                    batch.merge_draw_call(draw_call)
+                else:
+                    self.dc_ptr += 1
+                    assert self.dc_ptr < self.max_draw_calls, f"Reached a 2D draw call limit of {self.max_draw_calls}"
+                    self.dc_batches[self.dc_ptr].merge_draw_call(draw_call)
+            
+            draw_calls.clear()
+
+        # Just a design choice ig, but let's resent the current Z
+        self.current_z = 0
 
     def reset_draw_call_batches(self):
         for batch in self.dc_batches[:self.dc_ptr+1]:
@@ -373,6 +422,8 @@ class Renderer2D:
 
     def draw(self, camera: Camera2D) -> int:
         "Render everything with the provided projection matrix, reset the draw batches and return the amount of draw calls"
+        
+        self._batch_draw_calls()
 
         if self.dc_ptr is None:
             # We have nothing to draw
