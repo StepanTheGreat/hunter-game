@@ -11,6 +11,7 @@ from plugins.graphics.lights import Light
 from plugins.perspective import PerspectiveAttachment
 
 from plugins.components import *
+from plugins.session.components import NetEntity, NetSyncronized
 
 from .projectile import ProjectileFactory
 from .weapon import Weapon
@@ -29,7 +30,7 @@ ROBBER_PROJECTILE = ProjectileFactory(
     spawn_offset=30,
 )
     
-def make_robber(pos: tuple[float, float]) -> tuple:
+def make_robber(uid: int, pos: tuple[float, float]) -> tuple:
     return (
         Position(*pos),
         RenderPosition(*pos, 24),
@@ -44,6 +45,8 @@ def make_robber(pos: tuple[float, float]) -> tuple:
         Hittable(),
         Health(2000, 0.25),
         PerspectiveAttachment(24, 0),
+        NetSyncronized(),
+        NetEntity(uid),
         Player()
     )
 
