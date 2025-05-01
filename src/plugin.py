@@ -308,9 +308,9 @@ def run_if(condition_func: Callable[[Resources], bool], *args):
     where `True` means the execution of the underlying system.
     """
     def decorator(func):
-        def conditional_system(resources: Resources):
+        def conditional_system(resources: Resources, *system_args):
             if condition_func(resources, *args):
-                func(resources)
+                func(resources, *system_args)
 
         return conditional_system
 
