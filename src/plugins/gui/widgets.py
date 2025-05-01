@@ -23,7 +23,7 @@ class GUIElement:
         self.children: list[GUIElement] = []
         "The elements that are attached to this element"
 
-        self._rect: pg.Rect = None
+        self._rect: pg.Rect = pg.Rect(0, 0, 0, 0)
         self._size: tuple[float, float] = None
 
         self._margin: tuple[int, int] = (0, 0)
@@ -34,6 +34,15 @@ class GUIElement:
 
         self.hidden: bool = False
         "A hidden element doesn't get drawn, including its children"
+
+        self.parent_contained: bool = False
+
+        self.z: int = None
+        """
+        The explicit Z order of the GUI element. If set to `None` - will automatically pick the 
+        order of its parent, and optionally increment by 1. If set to a number - will define the
+        tree's Z order for this and its child elements.
+        """
 
         self.pivot: tuple[float, float] = pivot
         self.edge: tuple[float, float] = edge
@@ -46,10 +55,21 @@ class GUIElement:
     def with_margin(self, new_x: float, new_y: float):
         self.set_margin(new_x, new_y)
         return self
+    
+    def with_z(self, new_z: int):
+        self.z = new_z
+        return self
         
     def with_position(self, x: float, y: float):
         self.set_position(x, y)
         return self
+
+    def is_parent_contained(self) -> bool:
+        """
+        Is this GUI element contained *inside* it's parent element (i.e. inside its rectangle bounds)?
+        If the element doesn't have a parent - always returns `False`
+        """
+        return self.parent_contained
     
     def attached_to(self, to: "GUIElement"):
         self.attach_to(to)
@@ -69,7 +89,7 @@ class GUIElement:
 
     def get_children(self) -> list["GUIElement"]:
         return self.children
-
+    
     def attach_to(self, parent: Optional["GUIElement"]):
         if self.parent is not None:
             # If we had a parent, we need to remove ourselves from it 
@@ -89,7 +109,8 @@ class GUIElement:
     def _compute_position(self, width: float, height: float) -> tuple[float, float]:
         pivotx, pivoty = self.pivot
         edgex, edgey = self.edge
-        
+
+        tree_margin = (0, 0)
         if self.parent is None:
             assert self.position is not None, "The root element's position must be defined"
 
@@ -99,7 +120,10 @@ class GUIElement:
             rect = self.parent.get_rect()
             mx, my = self._margin
 
-            return (rect.x+rect.w*edgex) - pivotx*width + mx, (rect.y+rect.h*edgey) - pivoty*height + my
+            return (
+                (rect.x+rect.w*edgex) - pivotx*width + mx, 
+                (rect.y+rect.h*edgey) - pivoty*height + my
+            )
             
     def _compute_rect(self, new_width: float, new_height: float) -> pg.Rect:
         return pg.Rect(
@@ -120,10 +144,15 @@ class GUIElement:
     def recompute_position(self):
         "Recursively recompute this element's and its childrens' positions"
         self._rect = self._compute_rect(*self._size)
+        
+        # We need to check if this element is contained inside its parent.
+        # Essentially, it just means checking if their rectangles collide.
+        # If no parent is present - automatically set to False
+        self.parent_contained = False if self.parent is None else self.parent.get_rect().colliderect(self.get_rect())
 
         for child in self.children:
             child.recompute_position()
-
+        
     def get_position(self) -> tuple[float, float]:
         return self._rect.topleft
     
@@ -159,7 +188,7 @@ class GUIElement:
     def on_event(self, event: object):
         "Element's custom logic whenever an input event is dispatched"
     
-    def call_root(self, f: Callable[["GUIElement"], bool]):
+    def call_tree(self, f: Callable[["GUIElement"], bool]):
         """
         Call a user function on the entire tree in breadth-first order. 
         The function must return `True` in order to stop processing further node's children.
@@ -168,8 +197,6 @@ class GUIElement:
         with node A returns `True` - its children will not get processed. If however `False` or `None` is returned - they
         will.
         """
-
-        assert self.is_root(), "A child is not a root GUI element"
 
         queue = deque([self])
 
@@ -198,20 +225,39 @@ class GUIElement:
             if y+h > rect[3]:
                 rect[3] = y+h
             
-        self.call_root(overwrite_func)
+        self.call_tree(overwrite_func)
 
         return (rect[0], rect[1], rect[2]-rect[0], rect[3]-rect[1])
 
     def draw_root(self, renderer: Renderer2D):
-        "Draw the box tree"
-        def draw_element(element: GUIElement):
-            if element.is_hidden():
-                return True
-            
-            element.draw(renderer)
-        
-        self.call_root(draw_element)
+        "Draw the box tree from the root"
 
+        # This code is a dublicate, since we need it to be a bit more customized.
+        # We're going to work with Z sorting. Essentially the idea is simple:
+        # Our GUIManager has a constant Z coordinate, at which all elements start to get drawn.
+        #
+        # For every element, we check if it has a custom Z variable set. If true - we're going to use
+        # it for the current rendering operations, and use it for its children as well
+        # 
+        # If an element doesn't have any custom Z, we check if it's contained inside its parent rectangle
+        # (So we can know if it actually requires any Z sorting). If it does - incrment the Z coordinate.
+        # If an element doesn't have a parent (like the root element for example) - it's not contained,
+        # thus it simply uses the Z of the GUIManager
+
+        assert self.is_root(), "A child is not a root GUI element"
+
+        queue = deque([(self, renderer.current_z)])
+
+        while len(queue) > 0:
+            element, element_z = queue.popleft()
+
+            renderer.current_z = element_z
+            element.draw(renderer)
+            
+            for child in element.get_children():
+                child_z = element_z + child.is_parent_contained() if child.z is None else child.z
+                queue.append((child, child_z))
+        
     def on_event_root(self, event: object):
         "Pass an input event across the box tree"
         def pass_event(element: GUIElement):
@@ -220,7 +266,7 @@ class GUIElement:
             
             element.on_event(event)
 
-        self.call_root(pass_event)
+        self.call_tree(pass_event)
 
 class SizedBox(GUIElement):
     "An empty box element that can be used either for your own custom panels or for the screen itself"
@@ -238,6 +284,7 @@ class FillBox(GUIElement):
     
     def recompute_position(self):
         self.consume_available_space()
+
         super().recompute_position()
 
     def consume_available_space(self):
@@ -412,6 +459,9 @@ class TextButton(BaseButton):
         text_w, text_h = self.text_size
         size_w, size_h = self.size
 
+        # We're going to incrment Z here, as our text then has a high chance of getting batched
+        # with other text buttons on the same level
+        renderer.increment_z()
         renderer.draw_text(
             self.font, 
             self.text, 
@@ -419,6 +469,7 @@ class TextButton(BaseButton):
             (255, 255, 255), 
             self.text_scale
         )
+        renderer.decrement_z()
 
 class TextureButton(BaseButton):
     "A really primitive version of `TextButton`. Simpler and faster for image-only buttons"

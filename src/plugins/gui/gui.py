@@ -63,13 +63,17 @@ INPUT_EVENTS = (
     MouseButtonUpEvent
 )
 
+GUI_Z = 10 # Our GUI starts at Z 10
+
 class GUIManager:
     """
     A GUI manager is simply a globally available SizedBox element, that resizes dynamically based on the screen size.
     Attaching to this element will hook a GUIElement to all rendering/update lifecycles.
     """
-    def __init__(self, width: int, height: int):
+    def __init__(self, width: int, height: int, gui_z: int):
         self.document = SizedBox((0, 0), (0, 0), (width, height))
+        self.z = gui_z
+        "The Z coordinate from which all elements get rendered"
 
     def attach_elements(self, *elements: GUIElement):
         for element in elements:
@@ -90,7 +94,17 @@ class GUIManager:
         self.document.set_size(new_width, new_height)
 
     def draw(self, renderer: Renderer2D):
+        "Draw the entire GUI from the root element"
+        
+        # We will save the Z coordinate, as it we would like to reset it later
+        prev_z = renderer.current_z
+
+        # Set our Z coordinate
+        renderer.current_z = self.z
         self.document.draw_root(renderer)
+
+        # Reset back
+        renderer.current_z = prev_z
     
     def pass_event(self, event: object):
         self.document.on_event_root(event)
@@ -138,7 +152,7 @@ def on_screen_resize(resources: Resources, event: WindowResizeEvent):
 
 class GUIManagerPlugin(Plugin):
     def build(self, app):
-        app.insert_resource(GUIManager(CONFIG.width, CONFIG.height))
+        app.insert_resource(GUIManager(CONFIG.width, CONFIG.height, GUI_Z))
         app.insert_resource(GUIBundleManager(app.get_resource(GUIManager)))
 
         app.add_systems(Schedule.Draw, draw_gui, priority=1)
