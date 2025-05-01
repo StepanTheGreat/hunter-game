@@ -5,6 +5,7 @@ from plugins.network import rpc, get_rpc_caller_addr
 from plugin import Plugin, Resources
 
 MAX_PLAYERS = 5
+LISTENER_PORT = 1524
 
 @rpc("b")
 def notify_available_server(resources: Resources, can_accept: int):

@@ -1,7 +1,8 @@
 from plugin import Plugin
 
 from .player import PlayerPlugin
-from .enemy import EnemyPlugin
+from .robber import RobberPlugin
+from .policeman import PolicemanPlugin
 from .projectile import ProjectilePlugin
 from .weapon import WeaponPlugin
 
@@ -10,7 +11,8 @@ class EntitiesPlugin(Plugin):
     def build(self, app):
         app.add_plugins(
             PlayerPlugin(),
-            EnemyPlugin(),
+            RobberPlugin(),
+            PolicemanPlugin(),
             ProjectilePlugin(),
             WeaponPlugin()
         )

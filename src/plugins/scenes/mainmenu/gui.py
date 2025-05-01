@@ -1,4 +1,4 @@
-from plugin import Resources
+from plugin import Resources, Plugin
 
 from core.assets import AssetManager
 
@@ -6,6 +6,8 @@ from modules.scene import SceneManager
 
 from plugins.graphics import FontGPU
 from plugins.gui import GUIBundleManager, TextButton, ColorRect, Label
+from plugins.network import ServerConnectedEvent
+from plugins.session import try_create_client_session, create_host_session
 
 from ..ingame import IngameScene
 
@@ -25,15 +27,23 @@ class MainMenuGUI:
 
         background = ColorRect((0, 0, 255))
 
-        def insert_ingame_scene(as_server: bool):
-            self.resources[SceneManager].insert_scene(IngameScene(self.resources, as_server))
+        # def insert_ingame_scene(as_server: bool):
+            # self.resources[SceneManager].insert_scene(IngameScene(self.resources, as_server))
+
+        def start_game_session(as_server: bool):
+            if as_server:
+                create_host_session(self.resources)
+            else:
+                addr = input("Address: ")
+                ip, port = addr.split(":")
+                try_create_client_session(self.resources, (ip, int(port)))                
         
         join_btn = (TextButton(font, "Join Game", (0.5, 0.5), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
             .attached_to(background)
-            .with_callback(lambda: insert_ingame_scene(False)))
+            .with_callback(lambda: start_game_session(False)))
         
         create_btn = (TextButton(font, "Create Game", (0, 1), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
-            .with_callback(lambda: insert_ingame_scene(True))
+            .with_callback(lambda: start_game_session(True))
             .with_margin(0, 4)
             .attached_to(join_btn))
 
@@ -71,3 +81,11 @@ class MainMenuGUI:
         resolution_label.set_margin(-tree_w/2, -tree_h/2)
         
         self.gui.replace_gui([background])
+
+def on_connection_accepted(resources: Resources, event: ServerConnectedEvent):
+    if MainMenuGUI in resources:
+        resources[SceneManager].insert_scene(IngameScene(resources))
+
+class MainMenuGUIPlugin(Plugin):
+    def build(self, app):
+        app.add_event_listener(ServerConnectedEvent, on_connection_accepted)

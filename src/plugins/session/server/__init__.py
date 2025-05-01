@@ -4,14 +4,16 @@ and so on.
 """
 
 from plugin import Plugin, Schedule, Resources
-from plugins.network import only_server, ClientConnectedEvent, Server
+from plugins.network import only_server, ClientConnectedEvent, ClientDisconnectedEvent, Server
 
 from core.pg import Clock
-from core.ecs import WorldECS
+from core.ecs import WorldECS, ComponentsRemovedEvent
 
 from modules.utils import Timer
 
 from ..listener import notify_available_server
+
+from .rpcs import SERVER_RPCS
 
 from enum import Enum, auto
 from typing import Optional
@@ -58,9 +60,24 @@ def on_client_connection(resources: Resources, event: ClientConnectedEvent):
     session = resources[ServerSession]
     world = resources[WorldECS]
 
+    if session.has_game_started():
+        return
+    
     print("Client connected to the server: {}")
     # We should create a new 
-    event.addr
+
+def on_client_disconnection(resources: Resources, event: ClientDisconnectedEvent):
+    session = resources[ServerSession]
+    world = resources[WorldECS]
+
+    if event.addr in session.players:
+        ent = session.players[event.addr]
+
+        if ent is not None:
+            with world.command_buffer() as cmd:
+                cmd.remove_entity(ent)
+            # TODO: Delete the entity on all clients as well
+                
 
 @only_server
 def broadcast_server(resources: Resources):

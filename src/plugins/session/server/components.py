@@ -2,7 +2,7 @@
 Server-side components and their behaviour
 """
 
-from core.ecs import WorldECS, component
+from core.ecs import WorldECS, component, ComponentsRemovedEvent
 
 from plugins.network import only_server, Server
 from plugins.components import Position, Velocity

@@ -8,10 +8,7 @@ from modules.scene import SceneBundle
 from modules.tilemap import Tilemap
 
 from plugins.map import WorldMap
-from plugins.network import Server, rpc, only_server, Listener
-
-from plugins.entities.player import make_player
-from plugins.entities.enemy import make_enemy
+from plugins.session import close_sessions
 
 from .render.map import *
 from .render.minimap import *
@@ -52,13 +49,13 @@ def spawn_entities(resources: Resources):
     world = resources[WorldECS]
     assets = resources[AssetManager]
 
-    world.create_entity(*make_player((0, 0)))
+    # world.create_entity(*make_player((0, 0)))
 
-    for i in range(5):
-        world.create_entity(*make_enemy((50*i, 0), assets))
+    # for i in range(5):
+    #     world.create_entity(*make_enemy((50*i, 0), assets))
 
 class IngameScene(SceneBundle):
-    def __init__(self, resources: Resources, is_server: bool):
+    def __init__(self, resources: Resources):
         super().__init__()
 
         self.add_auto_resources(
@@ -72,11 +69,9 @@ class IngameScene(SceneBundle):
         # resources[SoundManager].load_music("sounds/test_sound.ogg")
         # resources[SoundManager].play_music()
 
-    def pre_destroy(self, resources):
+    def post_destroy(self, resources):
         # We need to close our listener and server before leaving
-        resources[Listener].close()
-        if Server in resources:
-            resources[Server].close()
+        close_sessions(resources)
 
 class IngamePlugin(Plugin):
     def build(self, app):

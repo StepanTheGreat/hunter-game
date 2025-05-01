@@ -2,12 +2,13 @@
 
 from plugin import Plugin, Resources
 
-from socket import gethostname, gethostbyname
 from plugins.network import *
 
 from .client import ClientPlugin, CLIENT_ONLY_RPCS, CLIENT_HOST_RPCS
-from .listener import LISTENER_RPCS
-from .server import ServerPlugin, ServerSession
+from .listener import LISTENER_RPCS, LISTENER_PORT
+from .server import ServerPlugin, ServerSession, SERVER_RPCS
+
+from .components import SessionComponentPlugin, NetworkEntityMap
 
 def create_host_session(resources: Resources):
     """
@@ -18,11 +19,11 @@ def create_host_session(resources: Resources):
 
     close_sessions(resources)
 
-    ip = gethostbyname(gethostname())
-    client = Client(resources, (ip, 0))
+    client = Client(resources)
     client.attach_rpcs(*CLIENT_HOST_RPCS)
 
-    server = Server(resources, (ip, 0), 5)
+    server = Server(resources, 5)
+    server.attach_rpcs(*SERVER_RPCS)
     session = ServerSession(client.get_addr())
 
     print("Client address:", client.get_addr())
@@ -43,8 +44,7 @@ def try_create_client_session(resources: Resources, to: tuple[str, int]):
     """
     close_sessions(resources)
 
-    ip = gethostbyname(gethostname())
-    client = Client(resources, (ip, 0))
+    client = Client(resources)
     client.attach_rpcs(*CLIENT_ONLY_RPCS)
     client.try_connect(to)
 
@@ -52,6 +52,10 @@ def try_create_client_session(resources: Resources, to: tuple[str, int]):
 
 def close_sessions(resources: Resources):
     "Close all network sessions, be it from a client, server or so on - will clean everything"
+
+    # This is a highly important step, as it ensures stability when relaunching sessions
+    resources[NetworkEntityMap].reset()
+
     if Client in resources:
         resources[Client].close()
 
@@ -64,7 +68,7 @@ def close_sessions(resources: Resources):
 def attach_listener(resources: Resources):
     detach_listener(resources)
 
-    listener = Listener(resources, ("0.0.0.0", 1524))
+    listener = Listener(resources, LISTENER_PORT)
     listener.attach_rpcs(*LISTENER_RPCS)
 
     resources.insert(listener)
@@ -85,7 +89,8 @@ class SessionPlugin(Plugin):
     def build(self, app):
         app.add_plugins(
             ClientPlugin(),
-            ServerPlugin()
+            ServerPlugin(),
+            SessionComponentPlugin()
         )
 
         app.add_event_listener(ServerDisonnectedEvent, on_server_disconnected)

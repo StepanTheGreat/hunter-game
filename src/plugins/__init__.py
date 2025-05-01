@@ -7,6 +7,7 @@ from .gui import GUIPlugin
 from .collisions import CollisionsPlugin
 from .components import CommonComponentsPlugin
 from .network import NetworkPlugin
+from .session import SessionPlugin
 from .perspective import PerspectivePlugin
 
 class PluginsCollection(Plugin):
@@ -19,5 +20,6 @@ class PluginsCollection(Plugin):
             GUIPlugin(),
             ScenesPlugin(),
             NetworkPlugin(),
+            SessionPlugin(),
             PerspectivePlugin()
         )
