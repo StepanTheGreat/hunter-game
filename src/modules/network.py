@@ -415,16 +415,7 @@ class HighUDPConnection:
                 allowed_bytes -= BASE_UDP_HEADER_SIZE + packet_size
                 allowed_packet_amount -= 1
 
-                for _ in range(2 if should_dublicate() else 1):
-                    packet_to_send = packet
-                    if should_corrupt():
-                        packet_to_send = packet[::-1]
-
-                    if not should_lose_packet():
-                        print(f"{self.label}: Sending {packet_to_send} of ID {seq_id}")
-                        self._send_packet(packet_to_send)
-                    else:
-                        print(f"{self.label}: Lost a packet")
+                self._send_packet(packet)
 
                 if seq_id != 0:
                     # If sequence ID isn't zero - we're going to queue it again
@@ -482,6 +473,20 @@ class HighUDPConnection:
 
         self._send_queued_messages(dt)
 
+class HighUDPConnectionUnstable(HighUDPConnection):
+    "Essentially the same as `HighUDPConnection`, but is used when testing unreliable conditions"
+    def __init__(self, sock, to_addr, label=""):
+        super().__init__(sock, to_addr, label)
+
+    def _send_packet(self, data: bytes):
+        for _ in range(2 if should_dublicate() else 1):
+            packet_to_send = data
+            if should_corrupt():
+                packet_to_send = packet_to_send[::-1]
+
+            if not should_lose_packet():
+                super()._send_packet(data)
+
 def _maybe_fire(
     callback: Union[None, Callable[[tuple[str, int]], None]], 
     *args 
@@ -506,6 +511,8 @@ class HighUDPServer:
         self.sock = make_async_socket(addr, True)
         self.addr = self.sock.getsockname()
 
+        self._connection_cls: HighUDPConnection = HighUDPConnection
+
         self.recv_queue: deque[bytes, tuple[tuple[str, int]]] = deque()
 
         self.on_connection: Callable[[tuple[str, int]], None] = None
@@ -515,6 +522,13 @@ class HighUDPServer:
 
     def get_addr(self) -> tuple[str, int]:
         return self.addr
+    
+    def set_testing_mode(self, to: bool):
+        """
+        Change this server to unstable mode. This will only get applied to future connections, and doesn't
+        affect existing ones. Setting this to `True` will enable unstable connections.
+        """
+        self._connection_cls = HighUDPConnectionUnstable if to else HighUDPConnection
 
     def set_max_connections(self, to: int):
         assert to >= 0, "A number of maximum connections should more than 2"
@@ -529,7 +543,9 @@ class HighUDPServer:
 
         if response:
             print("SERVER: Connection accepted for", addr)
-            self.connections[addr] = HighUDPConnection(self.sock, addr, label="SERVER")
+
+
+            self.connections[addr] = self._connection_cls(self.sock, addr, label="SERVER")
             _maybe_fire(self.on_connection, addr)
         else:
             print("SERVER: Connection refused for", addr)
@@ -654,6 +670,15 @@ class HighUDPClient:
 
         self.recv_queue: deque[bytes] = deque()
 
+        self._connection_cls: HighUDPConnection = HighUDPConnection
+        """
+        To allow easy unreliable environment testing, the simplest solution was to create a simple
+        class placeholder, which can be replaced with an unstable connection class when testing is neccessary.
+        
+        This is to avoid runtime overhead for normal conditions, while also providing *some* way of testing
+        unreliable conditions. Well, a *Pythonic* workaround.
+        """
+
         self.on_connection: Union[None, Callable[[], None]] = None
         "A callback that's fired when the client has connected to the server. A public attribute"
         self.on_disconnection: Union[None, Callable[[], None]] = None
@@ -667,6 +692,13 @@ class HighUDPClient:
     def get_server_addr(self) -> Union[tuple[str, int], None]:
         "Return the connected server's address if connected. Else returns `None`"
         return self.connection_addr if self.is_connected() else None
+
+    def set_testing_mode(self, to: bool):
+        """
+        Change this server to unstable mode. This will only get applied to future connections, and doesn't
+        affect existing ones. Setting this to `True` will enable unstable connections.
+        """
+        self._connection_cls = HighUDPConnectionUnstable if to else HighUDPConnection
 
     def is_connected(self) -> bool:
         return self.connection is not None and self.connection.is_connected()
@@ -711,7 +743,7 @@ class HighUDPClient:
                     print("CLIENT: Connected to", self.active_connector.addr)
                     # Move to an active UDP connection
                     self.connection_addr = self.active_connector.addr
-                    self.connection = HighUDPConnection(self.sock, self.connection_addr, label="CLIENT")
+                    self.connection = self._connection_cls(self.sock, self.connection_addr, label="CLIENT")
                     _maybe_fire(self.on_connection)
                 else:
                     _maybe_fire(self.on_connection_fail)
