@@ -14,11 +14,14 @@ from .camera import *
 CLEAR_COLOR = (0, 0, 0, 1)
 DEFAULT_FILTER = gl.NEAREST
 
+def get_surface_gl_data(surf: pg.Surface) -> bytes:
+    "Get openGL compatible pixel data from a pygame surface"
+    format = "RGBA" if surf.get_bytesize() == 4 else "RGB"
+    return pg.image.tostring(surf, format, False)
+
 def make_texture(ctx: gl.Context, surf: pg.Surface, filter: int = DEFAULT_FILTER) -> gl.Texture:
     "Create a GPU texture from a CPU surface"
-    bytesize = surf.get_bytesize()
-    format = "RGBA" if bytesize == 4 else "RGB"
-    texture = ctx.texture(surf.get_size(), bytesize, pg.image.tostring(surf, format, False))
+    texture = ctx.texture(surf.get_size(), surf.get_bytesize(), get_surface_gl_data(surf))
     texture.filter = (filter, filter)
     return texture
 
@@ -44,17 +47,28 @@ def loader_shader_program(resources: Resources, path: str) -> gl.Program:
 
     return ctx.program(vertex_shader, fragment_shader)
 
-def loader_texture(resources: Resources, path: str, filter: int = DEFAULT_FILTER) -> gl.Program:
-    "A custom GPU texture loader from files"
-    ctx: gl.Context = resources[GraphicsContext].get_context()
-    surface = pg.image.load(path)
-    return make_texture(ctx, surface, filter)
+class Texture:
+    """
+    A texture handle for both GL texture and the texture's region. The purpose of this
+    structure is to just simplify data passing. When referencing texture regions from say 
+    atlases - it's not convenient to always pass around these UV coordinates.
+    For ordinary textures however, we can always set the region to just (0, 0, 1, 1), so it
+    acts absolutely identically.
+
+    Additionally, the user doesn't need to import `Texture` from `moderngl` to access the texture - just
+    `core.graphics`.
+    """
+    def __init__(self, texture: gl.Texture, region: tuple[int, int, int, int] = None):
+        self.texture: gl.Texture = texture
+        "The underlying opengl texture"
+        self.region: tuple[int, int, int, int] = (0, 0, texture.width, texture.height) if region is None else region
+        "The absolute region referenced by this texture. The minimum is 0, and the maximum is 1"
 
 class GraphicsContext:
     "The global ModernGL"
     def __init__(self, ctx: gl.Context):
         self.ctx: gl.Context = ctx
-        self.white_texture: gl.Texture = make_white_texture(self.ctx)
+        self.white_texture: Texture = Texture(make_white_texture(self.ctx), (0, 0, 0, 0))
 
     def update_viewport(self, new_width: int, new_height: int):
         self.ctx.viewport = (0, 0, new_width, new_height)
@@ -62,7 +76,7 @@ class GraphicsContext:
     def get_context(self) -> gl.Context:
         return self.ctx
     
-    def get_white_texture(self) -> gl.Texture:
+    def get_white_texture(self) -> Texture:
         return self.white_texture
         
     def clear(self, color: tuple[int, ...]):
@@ -81,9 +95,8 @@ class GraphicsContextPlugin(Plugin):
 
         app.add_event_listener(WindowResizeEvent, update_viewport)
 
-        # Add asset loaders for textures and shaders
+        # Add asset loader for shaders
         add_loaders(
             app,
-            (gl.Program, loader_shader_program),
-            (gl.Texture, loader_texture) 
+            (gl.Program, loader_shader_program)
         )

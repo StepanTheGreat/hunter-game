@@ -51,8 +51,8 @@ class AssetManager:
                 return asset
             
         return None
-
-    def load(self, ty: Type[A], path: str, **kwargs) -> A:
+    
+    def load_abs(self, ty: Type[A], path: str, **kwargs) -> A: 
         assert ty in self.loaders, "The requested asset type doesn't have a loader"
         
         # If we're able to get this asset from our database, we will return it early.
@@ -60,7 +60,7 @@ class AssetManager:
             return cached_asset
         else:
             # Load the asset using the registered loader function
-            loaded_asset = self.loaders[ty](self.resources, self.asset_path(path), **kwargs)
+            loaded_asset = self.loaders[ty](self.resources, path, **kwargs)
 
             # Initialize a new type map if it doesn't exist
             if ty not in self.database:
@@ -70,6 +70,9 @@ class AssetManager:
             self.database[ty][path] = loaded_asset
 
             return loaded_asset
+
+    def load(self, ty: Type[A], path: str, **kwargs) -> A:
+        return self.load_abs(ty, self.asset_path(path), **kwargs)
     
 class AssetsPlugin(Plugin):
     def __init__(self, assets_dir: str):

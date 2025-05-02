@@ -359,14 +359,12 @@ def update_network_actors(resources: Resources):
             actor.tick(dt)
 
 def only_server(system: Callable):
-    "A conditional system decorator, that allows a system get ONLY executed, when it's executed on the server"
+    "A conditional system decorator that allows a system get ONLY executed, when it's executed on the server"
     def conditional_system(resources: Resources):
         if Server in resources:
            system(resources) 
     
     return conditional_system
-    
-# TODO: Add and dispatch events on connections/disconnections
 
 @event
 class ClientConnectedEvent:

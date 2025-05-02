@@ -1,0 +1,7 @@
+{
+    "dynamic": true,
+    "sources": {
+        "character": "character.png",
+        "meteorite": "meteorite.png"
+    }
+}

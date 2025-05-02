@@ -32,10 +32,10 @@ def make_world_map(resources: Resources, offset: tuple[float, float] = (0, 0)) -
             [1, 3, 0, 0, 0, 0, 3, 3],
         ], dtype=np.uint32)),
         color_map = {
-            1: "images/window.png",
-            2: "images/cool_texture.png",
-            3: (0.8, 0.8, 0.55),
-            4: (0.12, 0.8, 0.6)
+            1: "images/blocks.atl#window",
+            2: "images/blocks.atl#cool_texture",
+            3: (200, 200, 60),
+            4: (30, 200, 170)
         },
         transparent_tiles = set([
             1
@@ -69,8 +69,8 @@ class IngameScene(SceneBundle):
     def post_init(self, resources):
         spawn_entities(resources)
 
-        #resources[SoundManager].load_music("sounds/test_sound.ogg")
-        #resources[SoundManager].play_music()
+        # resources[SoundManager].load_music("sounds/test_sound.ogg")
+        # resources[SoundManager].play_music()
 
     def pre_destroy(self, resources):
         # We need to close our listener and server before leaving

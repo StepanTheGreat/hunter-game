@@ -62,10 +62,9 @@ def sprite_model(ctx: gl.Context, assets: AssetManager) -> tuple[Model, Pipeline
 @component
 class Sprite:
     "A sprite component that allows an entity to be rendered as 2D billboards"
-    def __init__(self, texture: gl.Texture, size: pg.Vector2, uv_rect: tuple):
-        self.texture: gl.Texture = texture
+    def __init__(self, texture: Texture, size: pg.Vector2):
+        self.texture: Texture = texture
         self.size: pg.Vector2 = size
-        self.uv_rect: tuple[float, ...] = uv_rect
 
 class SpriteRenderer:
     "A separate pipeline for rendering 2D sprites in 3D"
@@ -74,16 +73,16 @@ class SpriteRenderer:
             self.amount = 0
             self.sprite_positions = np.zeros((size, 3), dtype=np.int16)
             self.sprite_sizes = np.zeros((size, 2), dtype=np.uint8)
-            self.sprite_uv_rects = np.zeros((size, 4), dtype=np.float32)
+            self.sprite_uv_rects = np.zeros((size, 4), dtype=np.uint16)
 
         def add(self, sprite: Sprite, pos: tuple[float, float], y: float):
             size = sprite.size
-            uv_rect = sprite.uv_rect
+            uvx, uvy, uvw, uvh = sprite.texture.region
             #uv_rect is a tuple of 4 absolute texture coordinates
 
             self.sprite_positions[self.amount] = np.array([pos[0], y, -pos[1]])
             self.sprite_sizes[self.amount] = np.array([size.x, size.y])
-            self.sprite_uv_rects[self.amount] = np.array(uv_rect)
+            self.sprite_uv_rects[self.amount] = (uvx, uvy, uvx+uvw, uvy+uvh)
             self.amount += 1
 
         def get_uniforms(self) -> tuple[np.ndarray]:
@@ -118,11 +117,12 @@ class SpriteRenderer:
         
     def push_sprite(self, sprite: Sprite, pos: tuple[float, float], y: float):  
         texture = sprite.texture
+        gl_texture = texture.texture
 
-        if texture not in self.groups:
-            self.groups[texture] = SpriteRenderer.SpriteGroup(self.sprite_limit)
+        if gl_texture not in self.groups:
+            self.groups[gl_texture] = SpriteRenderer.SpriteGroup(self.sprite_limit)
 
-        self.groups[texture].add(sprite, pos, y)
+        self.groups[gl_texture].add(sprite, pos, y)
 
     def get_sprite_uniform_arrays(self) -> list[tuple[int, gl.Texture, np.ndarray, np.ndarray, np.ndarray]]:
         """Transform this sprite map into a list of tuples of:
@@ -149,7 +149,8 @@ class SpriteRenderer:
             self.pipeline["sprite_positions"] = sprite_positions
             self.pipeline["sprite_sizes"] = sprite_sizes
             self.pipeline["sprite_uv_rects"] = sprite_uv_rects
-
+            
+            self.pipeline["texture_size"] = texture.size
             texture.use()
             self.model.render(instances=amount)
             draw_calls += 1

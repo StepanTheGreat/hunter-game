@@ -1,0 +1,8 @@
+{
+    "dynamic": false,
+    "source": "blocks.png",
+    "sprites": {
+        "cool_texture": [0, 0, 32, 32],
+        "window": [32, 32, 32, 32]
+    }
+}

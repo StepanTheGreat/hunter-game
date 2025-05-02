@@ -3,21 +3,23 @@
 import pygame as pg
 import moderngl as gl
 
-from plugin import Plugin, Schedule, Resources
+from plugin import Plugin, Resources
 from core.assets import add_loaders
-from .ctx import GraphicsContext, DEFAULT_FILTER
-from modules.atlas import SpriteAtlas, SpriteRect
+from .ctx import GraphicsContext, DEFAULT_FILTER, Texture
+from .atlas import TextureAtlas, SpriteRect
 
 DEFAULT_FONT_SIZE = 64
-DEFAULT_CHARACTERS = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890_~=\|-?.,><+@!#$%^&*()"
+# DEFAULT_CHARACTERS = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890_~=\|-?.,><+@!#$%^&*() "
+DEFAULT_CHARACTERS = "=UqJYiNcwEdgxrG4O)vKMofWPSpXy|nC(m^+.%,a7~_6lhQH!Rs8@9#B>-Dez$\\TjtV15<LAkZ2& ?uFb*30I"
+
+FONT_MIN_TEXTURE_SIZE = (256, 256)
+FONT_MAX_TEXTURE_SIZE = 2048
 
 class FontGPU:
-    TEXTURE_LIMIT = 2048 #I'm being conservative
-
     def __init__(self, ctx: gl.Context, font: pg.font.Font, filter: int = DEFAULT_FILTER):
         self.ctx = ctx
         self.font = font
-        self.atlas = SpriteAtlas(ctx, 256, True, FontGPU.TEXTURE_LIMIT, filter)
+        self.atlas = TextureAtlas(ctx, FONT_MIN_TEXTURE_SIZE, True, FONT_MAX_TEXTURE_SIZE, filter)
         
         # Prerender a default character set
         self.load_chars(DEFAULT_CHARACTERS)
@@ -30,12 +32,12 @@ class FontGPU:
         return self.font.get_height()
 
     def get_or_insert_char(self, char: str) -> SpriteRect:
-        if not self.atlas.contains_sprite(char):
+        if not self.atlas.contains_sprites(char):
             assert self.push_char(char), "Couldn't fit a character"
                     
-        return self.atlas.get_sprite(char)
+        return self.atlas.get_sprites(char)[0]
 
-    def get_char_uvs(self, char: str) -> tuple[float, ...]:
+    def get_char_texture(self, char: str) -> Texture:
         """
         Fetch or automatically add a rectangle of this character in the font.
 
@@ -44,13 +46,13 @@ class FontGPU:
         """
         if not self.contains_char(char):
             self.get_or_insert_char(char)
-        return self.atlas.get_local_sprite_rect(char)
+        return self.atlas.get_sprite_texture(char)
     
     def get_char_size(self, char: str) -> tuple[int, int]:
         return self.get_or_insert_char(char).get_size()
     
     def contains_char(self, char: str) -> bool:
-        return self.atlas.contains_sprite(char)
+        return self.atlas.contains_sprites(char)
     
     def push_char(self, char: str) -> bool:
         char_w, char_h = self.measure(char)
@@ -62,7 +64,7 @@ class FontGPU:
         else:
             char_surf = self.font.render(char, True, (255, 255, 255)) 
         
-        return self.atlas.push_sprite(char, char_surf)
+        return self.atlas.push_sprites(char, (char_surf, ))
     
     def load_chars(self, chars: str):
         for char in chars:
