@@ -38,7 +38,7 @@ def syncronize_movables(resources: Resources):
 
         movables_packet += MOVABLE_STRUCT_FORMAT.pack(
             uid,
-            pos.x, pos.y,
+            int(pos.x), int(pos.y),
             vel_angle, vel_length
         )
 
@@ -46,4 +46,4 @@ def syncronize_movables(resources: Resources):
     assert packed_entities <= MOVABLE_ENTITIES_LIMIT, "Reached movable entity limit"
 
     # Now we can call the RPC!
-    server.call_all(move_netsynced_entities, packed_entities)
+    server.call_all(move_netsynced_entities, movables_packet)

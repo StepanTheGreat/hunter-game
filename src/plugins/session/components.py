@@ -5,6 +5,8 @@ from core.ecs import WorldECS, component, ComponentsRemovedEvent, ComponentsAdde
 from plugin import Plugin, Resources, EventWriter, event, run_if, resource_exists
 from typing import Optional
 
+from itertools import count
+
 @component
 class NetEntity:
     """
@@ -25,6 +27,8 @@ class NetSyncronized:
     across network every fixed frame
     """
 
+# TODO: Rename this to something different
+
 class NetworkEntityMap:
     """
     A network map that maps all network entities to ECS entity IDS and in reverse. 
@@ -32,9 +36,13 @@ class NetworkEntityMap:
     It is important to clear this map every time a new session is created, as it can cause
     instability if the map is reused without cleanup in multiple sessions
     """
+    ENTITY_UID_LIMIT = 2**16
+
     def __init__(self):
         self.uid_to_ent: dict[int, int] = {}
         self.ent_to_uid: dict[int, int] = {}
+        
+        self._uid_counter = count(0)
 
     def _push_pair(self, ent: int, uid: int):
         self.uid_to_ent[uid] = ent
@@ -53,13 +61,21 @@ class NetworkEntityMap:
 
         del self.ent_to_uid[ent]
         del self.uid_to_ent[uid]
-    
+
+    def consume_entity_uid(self) -> int:
+        next_uid = next(self._uid_counter)
+        assert next_uid < NetworkEntityMap.ENTITY_UID_LIMIT
+
+        return next_uid
+     
     def reset(self):
         """
         Reset the map. This should be called every time the host is created/closed. 
         """
         self.ent_to_uid.clear()
         self.uid_to_ent.clear()
+        
+        self._uid_counter = count(0)
 
 @event
 class AddedNetworkEntity:
@@ -101,11 +117,14 @@ def on_network_entity_added(resources: Resources, event: ComponentsAddedEvent):
 
         uid_comp = world.get_component(ent, NetEntity)
         uid = uid_comp.get_uid()
+        print("Component's uid:", uid)
 
         netmap._push_pair(ent, uid)
+        print(f"Registering a pair! {ent} to {uid}")
         ewriter.push_event(AddedNetworkEntity(ent, uid))
 
 class SessionComponentPlugin(Plugin):
     def build(self, app):
+        app.insert_resource(NetworkEntityMap())
         app.add_event_listener(ComponentsAddedEvent, on_network_entity_added)
         app.add_event_listener(ComponentsRemovedEvent, on_network_entity_removed)

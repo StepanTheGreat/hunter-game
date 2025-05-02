@@ -6,7 +6,9 @@ from plugins.network import *
 
 from .client import ClientPlugin, CLIENT_ONLY_RPCS, CLIENT_HOST_RPCS
 from .listener import LISTENER_RPCS, LISTENER_PORT
-from .server import ServerPlugin, ServerSession, SERVER_RPCS
+from .server import ServerPlugin
+from .server.session import ServerSession
+from .server.rpcs import SERVER_RPCS
 
 from .components import SessionComponentPlugin, NetworkEntityMap
 

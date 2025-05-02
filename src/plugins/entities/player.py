@@ -1,7 +1,7 @@
 import pygame as pg
 import numpy as np
 
-from plugin import Plugin, Resources, Schedule
+from plugin import Plugin, Resources, Schedule, event, EventWriter
 
 from core.ecs import WorldECS, component
 from core.input import InputManager
@@ -56,11 +56,20 @@ class PlayerController:
 def control_player(resources: Resources):
     input = resources[InputManager]
     world = resources[WorldECS]
+    ewriter = resources[EventWriter]
 
-    for _, (controller, angle_vel) in world.query_components(PlayerController, AngleVelocity, including=MainPlayer):
+    for ent, (controller, angle_vel) in world.query_components(PlayerController, AngleVelocity, including=MainPlayer):
         angle_vel.set_velocity(input[InputAction.TurnRight]-input[InputAction.TurnLeft])
         controller.forward_dir = input[InputAction.Forward]-input[InputAction.Backwards]
         controller.horizontal_dir = input[InputAction.Right]-input[InputAction.Left]
+
+        pos, vel = world.get_components(ent, Position, Velocity)
+
+        ewriter.push_event(
+            PlayerControlRequestEvent(pos.get_position(), vel.get_velocity())
+        )
+
+        break
 
 def orient_player(resources: Resources):
     world = resources[WorldECS]
@@ -99,6 +108,13 @@ def make_test_lights(resources: Resources):
             RenderPosition(x, y, 24),
             Light((0.3, 0.5, 1), 10000, 1)
         )
+
+@event
+class PlayerControlRequestEvent:
+    "A request from the player to move its character"
+    def __init__(self, pos: tuple[int, int], vel: tuple[float, float]):
+        self.pos = pos
+        self.vel = vel
 
 class PlayerPlugin(Plugin):
     def build(self, app):
