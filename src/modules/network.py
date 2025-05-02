@@ -431,7 +431,7 @@ class HighUDPConnection:
     def acknowledge_received_packet(self, seq_id: int):
         "The packet the receiver sent to us was received. This is important to avoid dublicates"
         if seq_id != 0:
-            print(f"{self.label}: Acknowledged {seq_id}, sending this acknowledgement back!")
+            # print(f"{self.label}: Acknowledged {seq_id}, sending this acknowledgement back!")
             self.received_packets.add(seq_id)
             self._queue_message(0, make_acknowledgement_packet(seq_id))
     
@@ -453,14 +453,13 @@ class HighUDPConnection:
             if len(data) == 2:
                 ack_id = int.from_bytes(data, BYTE_ORDER)
                 self.acknowledged_packets.add(ack_id)
-                print(f"{self.label}: Received acknowledgement for {ack_id}")
+                # print(f"{self.label}: Received acknowledgement for {ack_id}")
         elif ty == PacketType.Message:
             if not self.has_packet_been_received(seq_id):
                 ret = data
                 self.acknowledge_received_packet(seq_id)
         elif ty == PacketType.Disconnection:
             self.no_end_heartbeat.zero()
-            print(f"{self.label}: Received a disconnection packet")
 
         return ret
 
@@ -556,7 +555,6 @@ class HighUDPServer:
         if addr in self.connections:
             data = self.connections[addr].process_packet(seq_id, ty, data)
             if data is not None:
-                print("SERVER: Received message", data)
                 # If data is not None - our message is a message packet, thus we can add it to our internal queue
                 self.recv_queue.append((data, addr))
         else:
@@ -576,9 +574,8 @@ class HighUDPServer:
         return self.recv_queue.popleft()
     
     def send_to(self, addr: tuple[str, int], data: bytes, reliable: bool):
-        assert addr in self.connections, "Can't send data to an address to which I'm not connected"
-
-        self.connections[addr].queue_message(data, reliable)
+        if addr in self.connections:
+            self.connections[addr].queue_message(data, reliable)
 
     def broadcast(self, port: int, data: bytes):
         """
@@ -763,9 +760,8 @@ class HighUDPClient:
         return self.recv_queue.popleft()
     
     def send(self, data: bytes, reliable: bool):
-        assert self.connection is not None, "No connection was established"
-
-        self.connection.queue_message(data, reliable)
+        if self.connection is not None:
+            self.connection.queue_message(data, reliable)
 
     def _remove_connection(self, fire_callback: bool):
         "Remove the connection and optionally fire the binded callback"
