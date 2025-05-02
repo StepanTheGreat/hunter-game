@@ -69,8 +69,8 @@ class IngameScene(SceneBundle):
     def post_init(self, resources):
         spawn_entities(resources)
 
-        resources[SoundManager].load_music("sounds/test_sound.ogg")
-        resources[SoundManager].play_music()
+        #resources[SoundManager].load_music("sounds/test_sound.ogg")
+        #resources[SoundManager].play_music()
 
     def pre_destroy(self, resources):
         # We need to close our listener and server before leaving

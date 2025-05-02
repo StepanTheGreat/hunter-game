@@ -29,6 +29,7 @@ class MainMenuGUI:
             self.resources[SceneManager].insert_scene(IngameScene(self.resources, as_server))
         
         join_btn = (TextButton(font, "Join Game", (0.5, 0.5), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
+            #.as_immediate(False)
             .with_callback(lambda: insert_ingame_scene(False)))
         
         create_btn = (TextButton(font, "Create Game", (0, 1), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
