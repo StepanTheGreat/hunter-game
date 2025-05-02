@@ -62,9 +62,9 @@ def sprite_model(ctx: gl.Context, assets: AssetManager) -> tuple[Model, Pipeline
 @component
 class Sprite:
     "A sprite component that allows an entity to be rendered as 2D billboards"
-    def __init__(self, texture: Texture, size: pg.Vector2):
+    def __init__(self, texture: Texture, size: tuple[int, int]):
         self.texture: Texture = texture
-        self.size: pg.Vector2 = size
+        self.size: pg.Vector2 = pg.Vector2(size[0], size[1])
 
 class SpriteRenderer:
     "A separate pipeline for rendering 2D sprites in 3D"
