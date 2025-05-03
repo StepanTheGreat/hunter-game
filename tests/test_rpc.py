@@ -3,7 +3,7 @@ import struct
 
 from plugin import Resources
 
-from plugins.network import rpc, rpc_raw, RPCFormatError, is_rpc_reliable
+from plugins.shared.network import rpc, rpc_raw, RPCFormatError, is_rpc_reliable
 
 RESOURCES = Resources()
 # We're mocking resources here since we don't really care about them when testing RPCs
