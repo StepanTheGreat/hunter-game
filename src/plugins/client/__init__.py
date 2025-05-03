@@ -7,6 +7,8 @@ from .scenes import ScenesPlugin
 from .gui import GUIPlugin
 from .perspective import PerspectivePlugin
 
+from ..server import ServerManagementPlugin
+
 from plugins.shared import SharedPluginCollection
 
 class ClientPluginCollection(Plugin):
@@ -20,3 +22,5 @@ class ClientPluginCollection(Plugin):
             ScenesPlugin(),
             PerspectivePlugin()
         )
+
+        app.add_plugins(ServerManagementPlugin())
