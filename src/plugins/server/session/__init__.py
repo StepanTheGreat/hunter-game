@@ -1,6 +1,6 @@
 from plugin import Plugin, Schedule, Resources
 
-from plugins.shared.network import Server
+from plugins.shared.network import Server, ClientConnectedEvent, ClientDisconnectedEvent
 from plugins.contracts.listener import notify_available_server, LISTENER_PORT
 from plugins.contracts.server import SERVER_RPCS
 
@@ -37,6 +37,11 @@ class GameSession:
         
         return len(self.players)
 
+    def can_accept_new_players(self) -> int:
+        "Can this server accept more players?"
+
+        return len(self.players) < MAX_PLAYERS
+
 def broadcast_server(resources: Resources):
     session = resources[GameSession]
     server = resources[Server]
@@ -55,9 +60,30 @@ def broadcast_server(resources: Resources):
             )
             broadcast_timer.reset()
 
+def on_client_connection(resources: Resources, event: ClientConnectedEvent):
+    session = resources[GameSession]
+
+    client_addr = event.addr
+    if client_addr not in session.players:
+        session.players[client_addr] = None
+    
+    print("A new client connection:", client_addr)
+
+def on_client_disconnection(resources: Resources, event: ClientDisconnectedEvent):
+    session = resources[GameSession]
+
+    client_addr = event.addr
+    if client_addr in session.players:
+        del session.players[client_addr]
+    
+    print("A new client disconnection:", client_addr)
+
 class GameSessionPlugin(Plugin):
     def build(self, app):
         app.insert_resource(GameSession())
         app.insert_resource(Server(app.get_resources(), MAX_PLAYERS, SERVER_RPCS))
         app.add_systems(Schedule.Update, broadcast_server)
+
+        app.add_event_listener(ClientConnectedEvent, on_client_connection)
+        app.add_event_listener(ClientDisconnectedEvent, on_client_disconnection)
 
