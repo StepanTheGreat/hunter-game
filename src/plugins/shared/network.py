@@ -384,6 +384,14 @@ def update_network_actors(resources: Resources):
         if actor is not None:
             actor.tick(dt)
 
+def cleanup_network_actors(resources: Resources):
+    "Clean all network actors when the app gets closed"
+
+    for actor in (Client, Server, Listener):
+        actor = resources.remove(actor)
+        if actor is not None:
+            actor.close()
+
 @event
 class ClientConnectedEvent:
     "A client has connected to the server. It's fired on the host (i.e. when you're the server)"
@@ -411,3 +419,4 @@ class ServerConnectionFailEvent:
 class NetworkPlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.FixedUpdate, update_network_actors)
+        app.add_systems(Schedule.Finalize, cleanup_network_actors)
