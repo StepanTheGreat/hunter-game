@@ -1,10 +1,9 @@
-import pygame as pg
-import numpy as np
+from plugin import Plugin, Resources, Schedule
 
-from plugin import Plugin, Resources, Schedule, event, EventWriter
-
-from core.ecs import WorldECS, component
+from core.ecs import WorldECS
 from core.input import InputManager
+
+from ..actions import ClientActionDispatcher, ControlAction
 
 from plugins.shared.components import *
 from plugins.shared.entities.player import *
@@ -33,14 +32,10 @@ class InputAction:
 
     Shoot = "shoot"
 
-@component
-class MainPlayer:
-    "A tag that allows distinguishing the current client from other clients"
-
 def control_player(resources: Resources):
     input = resources[InputManager]
     world = resources[WorldECS]
-    ewriter = resources[EventWriter]
+    action_dispatcher = resources[ClientActionDispatcher]
 
     for ent, (controller, angle_vel) in world.query_components(PlayerController, AngleVelocity, including=MainPlayer):
         angle_vel.set_velocity(input[InputAction.TurnRight]-input[InputAction.TurnLeft])
@@ -49,15 +44,17 @@ def control_player(resources: Resources):
 
         controller.is_shooting = input[InputAction.Shoot]
 
-        # pos, vel = world.get_components(ent, Position, Velocity)
 
-        # ewriter.push_event(
-        #     PlayerControlRequestEvent(pos.get_position(), vel.get_velocity())
-        # )
+        pos, vel = world.get_components(ent, Position, Velocity)
+        pos = pos.get_position()
+        vel = vel.get_velocity()
+        action_dispatcher.dispatch_action(
+            ControlAction((pos.x, pos.y), (vel.x, vel.y))
+        )
 
         break
 
 class ClientPlayerPlugin(Plugin):
     def build(self, app):
         app.insert_resource(PlayerStats())
-        app.add_systems(Schedule.Update, control_player)
+        app.add_systems(Schedule.FixedUpdate, control_player)

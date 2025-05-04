@@ -34,6 +34,8 @@ def make_robber(uid: int, pos: tuple[float, float]) -> tuple:
         Team.friend(),
         Hittable(),
         Health(2000, 0.25),
+        NetEntity(uid),
+        NetSyncronized(),
         Player()
     )
 

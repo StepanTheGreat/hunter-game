@@ -42,10 +42,6 @@ def quit_close_server(resources: Resources):
     if executor.is_running():
         executor.stop_server()
 
-def kickstart_server(resources: Resources):
-    addr = resources[ServerExecutor].start_server()
-    print("Started server on:", addr)
-
 class ServerManagementPlugin(Plugin):
     def build(self, app):
         app.insert_resource(ServerExecutor())

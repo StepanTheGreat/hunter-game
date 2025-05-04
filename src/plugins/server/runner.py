@@ -7,8 +7,9 @@ from modules.time import Clock
 from plugins.shared.network import Server
 from plugins.shared import SharedPluginCollection
 
-from .uid import UIDManagerPlugin
 from .session import GameSessionPlugin
+from .actions import ServerActionPlugin
+from .components import ServerComponents
 
 from app_config import CONFIG
 
@@ -73,8 +74,9 @@ class ServerPlugins(Plugin):
         app.add_plugins(
             SharedPluginCollection(),
             ServerCoreModulesPlugin(),
-            UIDManagerPlugin(),
-            GameSessionPlugin()
+            GameSessionPlugin(),
+            ServerActionPlugin(),
+            ServerComponents()
         )
         app.insert_resource(self.controller)
         app.insert_resource(Clock(CONFIG.fixed_fps, CONFIG.fixed_fps))

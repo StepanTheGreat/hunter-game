@@ -377,14 +377,14 @@ class Listener:
         "Always close the listener when you're done with it"
         self.listener.close()
 
-def clean_network_actors(resources: Resources):
+def clean_network_actors(resources: Resources, *actors: type):
     """
     A general purpose function for cleaning up network actors (Server/Client/Listener).
     Not to be confused with the system of similar name - it's a system, and it will get called
     immediately when the app closes.
     """
 
-    for actor in (Client, Server, Listener):
+    for actor in actors:
         actor = resources.remove(actor)
         if actor is not None:
             actor.close()
@@ -400,10 +400,24 @@ def update_network_actors(resources: Resources):
         if actor is not None:
             actor.tick(dt)
 
+def insert_network_actor(resources: Resources, actor: Union[Server, Client, Listener]):
+    """
+    Insert a network actor resource, and if it's present - close the existing one. 
+    Please prefer using this function over simply inserting network actors directly, 
+    as overwriting existing network actors without closing them will lead to unclosed sockets.
+    """
+
+    actor_ty = type(actor)
+
+    if actor_ty in resources:
+        resources.remove(actor_ty).close()
+
+    resources.insert(actor)
+
 def cleanup_network_actors(resources: Resources):
     "Clean all network actors when the app gets closed."
 
-    clean_network_actors(resources)
+    clean_network_actors(resources, Listener, Client, Server)
 
 @event
 class ClientConnectedEvent:

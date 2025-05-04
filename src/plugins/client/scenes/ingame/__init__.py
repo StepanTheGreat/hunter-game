@@ -1,7 +1,6 @@
 from plugin import Plugin, Resources
 
 from core.ecs import WorldECS
-from core.sound import SoundManager, Sound
 from core.assets import AssetManager
 
 from modules.scene import SceneBundle
@@ -9,10 +8,11 @@ from modules.tilemap import Tilemap
 
 from plugins.shared.map import WorldMap
 
-from plugins.shared.network import clean_network_actors
+from plugins.shared.network import clean_network_actors, Client
 from plugins.server import ServerExecutor
 
 from plugins.client.entities.policeman import make_client_policeman
+from plugins.shared.components import reset_entity_uid_manager
 
 from .render.map import *
 from .render.minimap import *
@@ -49,18 +49,6 @@ def make_world_map(resources: Resources, offset: tuple[float, float] = (0, 0)) -
 
     return world_map, map_model
 
-def spawn_entities(resources: Resources):
-    world = resources[WorldECS]
-    assets = resources[AssetManager]
-
-    world.create_entity(*make_client_policeman(
-        0,
-        (0, 0),
-        True,
-        assets
-    ))
-    # world.create_entity(*make_player((0, 0)))
-
 class IngameScene(SceneBundle):
     def __init__(self, resources: Resources):
         super().__init__()
@@ -70,20 +58,17 @@ class IngameScene(SceneBundle):
             IngameGUI(resources)
         )
 
-    def post_init(self, resources):
-        spawn_entities(resources)
-
-        # resources[SoundManager].load_music("sounds/test_sound.ogg")
-        # resources[SoundManager].play_music()
-
     def post_destroy(self, resources):
         # We need to close our client before leaving
-        clean_network_actors(resources)
+        clean_network_actors(resources, Client)
 
         # If we're running a server - we're going to stop it as well
         server_executor = resources[ServerExecutor]
         if server_executor.is_running():
             server_executor.stop_server()
+
+        # This is highly important, as reusing the same UID manager will lead to instabilities
+        reset_entity_uid_manager(resources)
 
 class IngamePlugin(Plugin):
     def build(self, app):

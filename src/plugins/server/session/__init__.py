@@ -1,8 +1,14 @@
 from plugin import Plugin, Schedule, Resources
 
 from plugins.shared.network import Server, ClientConnectedEvent, ClientDisconnectedEvent
-from plugins.contracts.listener import notify_available_server, LISTENER_PORT
-from plugins.contracts.server import SERVER_RPCS
+from plugins.rpcs.listener import notify_available_server_rpc, LISTENER_PORT
+from plugins.rpcs.server import SERVER_RPCS
+
+from core.ecs import WorldECS
+from plugins.shared.entities.policeman import make_policeman
+from plugins.shared.components import EntityUIDManager
+
+from ..actions import ServerActionDispatcher, SpawnPlayerAction
 
 from modules.time import Clock, Timer
 
@@ -54,7 +60,7 @@ def broadcast_server(resources: Resources):
         if broadcast_timer.has_finished():
             server.broadcast(
                 LISTENER_PORT, 
-                notify_available_server, 
+                notify_available_server_rpc, 
                 MAX_PLAYERS,
                 session.taken_player_slots()
             )
@@ -62,12 +68,40 @@ def broadcast_server(resources: Resources):
 
 def on_client_connection(resources: Resources, event: ClientConnectedEvent):
     session = resources[GameSession]
+    world = resources[WorldECS]
+    uidman = resources[EntityUIDManager]
+    action_dispatcher = resources[ServerActionDispatcher]
 
-    client_addr = event.addr
-    if client_addr not in session.players:
-        session.players[client_addr] = None
+    new_client_addr = event.addr
+    new_player_uid = uidman.consume_entity_uid()
+    new_player_pos = (0, 0)
+
+    new_player_ent = world.create_entity(
+        *make_policeman(new_player_uid, new_player_pos)
+    )   
+
+    # We'll iterate all our previous clients
+    for old_addr, old_ent in session.players.items():
+        # Send to them our new created player
+        action_dispatcher.dispatch_action(SpawnPlayerAction(
+            old_addr, new_player_uid, new_player_pos, False
+        ))
+
+        # If this old client got an entity - we're going to send it to our new player
+        if old_ent is not None:
+            old_uid = uidman.get_uid(old_ent)
+            action_dispatcher.dispatch_action(SpawnPlayerAction(
+                new_client_addr, old_uid, (0, 0), False
+            ))
     
-    print("A new client connection:", client_addr)
+    action_dispatcher.dispatch_action(SpawnPlayerAction(
+        new_client_addr, new_player_uid, new_player_pos, True
+    ))
+
+    if new_client_addr not in session.players:
+        session.players[new_client_addr] = new_player_ent
+    
+    print("A new client connection:", new_client_addr)
 
 def on_client_disconnection(resources: Resources, event: ClientDisconnectedEvent):
     session = resources[GameSession]

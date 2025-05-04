@@ -13,6 +13,10 @@ class Player:
     "A tag component that allows filtering out players"
 
 @component
+class MainPlayer:
+    "A tag that allows distinguishing the current client from other clients"
+
+@component
 class PlayerController:
     """
     The state of the current player's input. This is used by 

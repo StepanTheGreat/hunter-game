@@ -4,8 +4,10 @@ from core.ecs import WorldECS
 
 from modules.inteprolation import Interpolated, InterpolatedAngle
 
+from plugins.rpcs.client import MoveNetsyncedEntitiesCommand
 from plugins.shared.components import *
 
+from plugins.shared.entities.player import MainPlayer
 
 @component
 class RenderPosition:
@@ -68,7 +70,26 @@ def interpolate_render_components(resources: Resources):
         for _, component in world.query_component(interpolatable):
             component.interpolate(alpha)
 
+def on_move_netsynced_entities_command(resources: Resources, command: MoveNetsyncedEntitiesCommand):
+    "Apply net syncronization on all requested network entities"
+
+    world = resources[WorldECS]
+    uidman = resources[EntityUIDManager]
+
+    for (uid, new_pos, new_vel) in command.entries:
+        ent = uidman.get_ent(uid)
+        if ent is None:
+            continue
+        elif world.has_component(ent, MainPlayer):
+            continue
+            
+        pos, vel = world.get_components(ent, Position, Velocity)
+        pos.set_position(*new_pos)
+        vel.set_velocity(*new_vel)
+
 class ClientCommonComponentsPlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.FixedUpdate, update_render_components, priority=10)
         app.add_systems(Schedule.PostUpdate, interpolate_render_components)
+
+        app.add_event_listener(MoveNetsyncedEntitiesCommand, on_move_netsynced_entities_command)

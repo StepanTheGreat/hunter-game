@@ -203,6 +203,10 @@ def remove_temp_entities(resources: Resources):
 
 class CommonComponentsPlugin(Plugin):
     def build(self, app):
+        app.add_plugins(
+            NetworkComponentsPlugin()
+        )
+        
         app.add_systems(
             Schedule.FixedUpdate, 
             remove_dead_entities, 

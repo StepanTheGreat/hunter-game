@@ -6,8 +6,9 @@ from .components import ClientCommonComponentsPlugin
 from .scenes import ScenesPlugin
 from .gui import GUIPlugin
 from .perspective import PerspectivePlugin
+from .actions import ClientActionPlugin
 
-from ..server import ServerManagementPlugin
+from plugins.server import ServerManagementPlugin
 
 from plugins.shared import SharedPluginCollection
 
@@ -20,7 +21,8 @@ class ClientPluginCollection(Plugin):
             ClientCommonComponentsPlugin(),
             GUIPlugin(),
             ScenesPlugin(),
-            PerspectivePlugin()
+            PerspectivePlugin(),
+            ClientActionPlugin()
         )
 
         app.add_plugins(ServerManagementPlugin())

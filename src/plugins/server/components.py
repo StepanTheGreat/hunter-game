@@ -2,31 +2,26 @@
 Server-side components and their behaviour
 """
 
-from core.ecs import WorldECS, component, ComponentsRemovedEvent
+from core.ecs import WorldECS, component
 
-from plugins.network import only_server, Server
-from plugins.components import Position, Velocity
-from plugins.session.client.rpcs import *
+from plugins.shared.components import *
+from plugins.rpcs.server import ControlPlayerCommand
 
-from ..components import NetEntity, NetSyncronized
-from ..pack import pack_velocity
+from .actions import ServerActionDispatcher, MoveNetsyncedEntitiesAction
+from .session import GameSession
 
 from plugin import Plugin, Resources, Schedule
 
-import numpy as np
-
-@only_server
 def syncronize_movables(resources: Resources):
     """
-    Syncronize all movable entities by updating their velocity/position every frame across the
-    network
+    Syncronize all movable entities by collecting their UIDs, positions and velocities, and sending
+    them over
     """
 
     world = resources[WorldECS]
-    server = resources[Server]
+    action_dispatcher = resources[ServerActionDispatcher]
 
-    movables_packet = bytes()
-    packed_entities = 0
+    moved_entries = []
 
     for _, (ent, pos, vel) in world.query_components(NetEntity, Position, Velocity, including=NetSyncronized):
         uid = ent.get_uid()
@@ -34,16 +29,28 @@ def syncronize_movables(resources: Resources):
         pos = pos.get_position()
         vel = vel.get_velocity()
 
-        vel_angle, vel_length = pack_velocity(vel.x, vel.y)
+        moved_entries.append((
+            uid, (pos.x, pos.y), (vel.x, vel.y)
+        ))
 
-        movables_packet += MOVABLE_STRUCT_FORMAT.pack(
-            uid,
-            int(pos.x), int(pos.y),
-            vel_angle, vel_length
-        )
+    action_dispatcher.dispatch_action(MoveNetsyncedEntitiesAction(
+        tuple(moved_entries)
+    ))
 
-    # This line should be removed in the future, as 127 entities is unlikely to ever get reached
-    assert packed_entities <= MOVABLE_ENTITIES_LIMIT, "Reached movable entity limit"
+def on_control_player_command(resources: Resources, command: ControlPlayerCommand):
+    world = resources[WorldECS]
+    uidman = resources[EntityUIDManager]
+    session = resources[GameSession]
 
-    # Now we can call the RPC!
-    server.call_all(move_netsynced_entities, movables_packet)
+    player_ent = session.players.get(command.addr)
+    if player_ent is None:
+        return
+    
+    pos, vel = world.get_components(player_ent, Position, Velocity)
+    pos.set_position(*command.pos)
+    vel.set_velocity(*command.vel)
+
+class ServerComponents(Plugin):
+    def build(self, app):
+        app.add_systems(Schedule.FixedUpdate, syncronize_movables)
+        app.add_event_listener(ControlPlayerCommand, on_control_player_command)

@@ -1,6 +1,7 @@
 from plugin import Resources, EventWriter, event
 
-from plugins.shared.network import rpc, rpc_raw
+from plugins.shared.network import rpc, rpc_raw, get_rpc_caller_addr
+from .pack import unpack_velocity
 
 @event
 class ControlPlayerCommand:
@@ -14,10 +15,11 @@ class ControlPlayerCommand:
         self.vel = vel
 
 @rpc("2hB?")
-def control_player(
+def control_player_rpc(
     resources: Resources, 
     pos_x: int, pos_y: int, 
-    vel_angle: int, vel_length: bool):
+    vel_angle: int, vel_length: bool
+):
     ewriter = resources[EventWriter]
 
     ewriter.push_event(ControlPlayerCommand(
@@ -27,6 +29,6 @@ def control_player(
     ))
 
 SERVER_RPCS = (
-    control_player,
+    control_player_rpc,
 )
 "The RPCs used by the server"

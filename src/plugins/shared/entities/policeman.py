@@ -35,6 +35,8 @@ def make_policeman(uid: int, pos: tuple[float, float]) -> tuple:
         Team.friend(),
         Hittable(),
         Health(500, 0.25),
+        NetEntity(uid),
+        NetSyncronized(),
         Player(),
     )
     

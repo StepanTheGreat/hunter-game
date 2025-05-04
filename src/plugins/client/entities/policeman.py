@@ -4,6 +4,8 @@ from core.ecs import WorldECS, component
 from core.assets import AssetManager
 from core.graphics import Texture
 
+from plugins.rpcs.client import SpawnPlayerCommand
+
 from plugins.shared.entities.policeman import make_policeman, POLICEMAN_PROJECTILE
 from plugins.shared.entities.projectile import ProjectileFactory
 from plugins.shared.entities.weapon import Weapon
@@ -43,6 +45,18 @@ def make_client_policeman(
     
     return components
 
+def on_player_spawn_command(resources: Resources, command: SpawnPlayerCommand):
+    "React to the spawn command"
+
+    assets = resources[AssetManager]
+    world = resources[WorldECS]
+
+    print("Creating a policeman:", command.uid)
+
+    world.create_entity(
+        *make_client_policeman(command.uid, command.pos, command.is_main, assets)
+    )
+
 class ClientPolicemanPlugin(Plugin):
     def build(self, app):
-        pass
+        app.add_event_listener(SpawnPlayerCommand, on_player_spawn_command)

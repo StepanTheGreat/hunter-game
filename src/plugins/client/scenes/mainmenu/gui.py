@@ -7,9 +7,9 @@ from modules.scene import SceneManager
 from plugins.client.graphics import FontGPU
 from plugins.client.gui import GUIBundleManager, TextButton, ColorRect, Label
 
-from plugins.shared.network import ServerConnectedEvent, Client
+from plugins.shared.network import ServerConnectedEvent, Client, insert_network_actor
 
-from plugins.contracts.client import CLIENT_RPCS
+from plugins.rpcs.client import CLIENT_RPCS
 
 from plugins.server import ServerExecutor
 
@@ -39,14 +39,16 @@ class MainMenuGUI:
             # return
             new_client = Client(self.resources, CLIENT_RPCS)
             if as_server:
+                print("Pressed as the server")
                 addr = self.resources[ServerExecutor].start_server()
             else:
+                print("Pressed as a client")
                 addr = input("Address: ")
                 ip, port = addr.split(":")
                 addr = (ip, int(port))
 
             new_client.try_connect(addr)
-            self.resources.insert(new_client)
+            insert_network_actor(self.resources, new_client)
 
         join_btn = (TextButton(font, "Join Game", (0.5, 0.5), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
             .attached_to(background)
