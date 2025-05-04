@@ -2,26 +2,6 @@
 
 from typing import Sequence, Iterable, TypeVar
 
-class Timer:
-    "A mini timer for time management"
-    def __init__(self, interval: float, is_zero: bool):
-        self.interval = interval
-        self.on_interval = 0 if is_zero else interval
-
-    def tick(self, dt: float):
-        if self.on_interval > 0:
-            self.on_interval -= dt
-
-    def has_finished(self):
-        return self.on_interval <= 0
-    
-    def reset(self):
-        self.on_interval = self.interval
-
-    def zero(self):
-        "Make this clock act immediately. Only usefil in specific cases"
-        self.on_interval = 0
-
 I = TypeVar("I")
 def sliding_window(sequence: Sequence[I], n: int) -> Iterable[I]:
     """
