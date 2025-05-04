@@ -6,6 +6,8 @@ from plugin import Plugin, Schedule, Resources
 from modules.time import Clock
 from core.ecs import WorldECS, component
 
+from .net import *
+
 @component
 class Position:
     "An entity position. If added with Collider component - it will also get automatically overwritten by Collider's interpolated position"
