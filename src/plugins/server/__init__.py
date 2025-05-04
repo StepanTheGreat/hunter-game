@@ -1,17 +1,21 @@
 from plugin import *
 
-from .runner import run_server, ServerController
+from .runner import run_server_process, ServerController
 
 class ServerExecutor:
     def __init__(self):
         self.server_controller = ServerController()
         self.server_process = None
     
-    def start_server(self):
+    def start_server(self) -> tuple[str, int]:
+        "Start a new server process (if not already present) and return its address"
+        
         assert self.server_process is None, "The server is still running, can't start another one"
 
         print("Starting the server!")
-        self.server_process = run_server(self.server_controller)
+        self.server_process, addr = run_server_process(self.server_controller)
+
+        return addr
 
     def stop_server(self):
         assert self.server_process is not None, "The server isn't running, can't stop"
@@ -37,6 +41,10 @@ def quit_close_server(resources: Resources):
 
     if executor.is_running():
         executor.stop_server()
+
+def kickstart_server(resources: Resources):
+    addr = resources[ServerExecutor].start_server()
+    print("Started server on:", addr)
 
 class ServerManagementPlugin(Plugin):
     def build(self, app):

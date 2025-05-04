@@ -8,7 +8,9 @@ from modules.scene import SceneBundle
 from modules.tilemap import Tilemap
 
 from plugins.shared.map import WorldMap
-# from plugins.client.session import close_sessions
+
+from plugins.shared.network import clean_network_actors
+from plugins.server import ServerExecutor
 
 from plugins.client.entities.policeman import make_client_policeman
 
@@ -75,9 +77,13 @@ class IngameScene(SceneBundle):
         # resources[SoundManager].play_music()
 
     def post_destroy(self, resources):
-        # We need to close our listener and server before leaving
-        # close_sessions(resources)
-        pass
+        # We need to close our client before leaving
+        clean_network_actors(resources)
+
+        # If we're running a server - we're going to stop it as well
+        server_executor = resources[ServerExecutor]
+        if server_executor.is_running():
+            server_executor.stop_server()
 
 class IngamePlugin(Plugin):
     def build(self, app):

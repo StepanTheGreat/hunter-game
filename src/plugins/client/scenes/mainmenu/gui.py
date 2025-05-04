@@ -6,7 +6,12 @@ from modules.scene import SceneManager
 
 from plugins.client.graphics import FontGPU
 from plugins.client.gui import GUIBundleManager, TextButton, ColorRect, Label
-from plugins.shared.network import ServerConnectedEvent
+
+from plugins.shared.network import ServerConnectedEvent, Client
+
+from plugins.contracts.client import CLIENT_RPCS
+
+from plugins.server import ServerExecutor
 
 from ..ingame import IngameScene
 
@@ -30,16 +35,19 @@ class MainMenuGUI:
             # self.resources[SceneManager].insert_scene(IngameScene(self.resources, as_server))
 
         def start_game_session(as_server: bool):
-            self.resources[SceneManager].insert_scene(IngameScene(self.resources))
-            return
+            # self.resources[SceneManager].insert_scene(IngameScene(self.resources))
+            # return
+            new_client = Client(self.resources, CLIENT_RPCS)
             if as_server:
-                # create_host_session(self.resources)
-                pass
+                addr = self.resources[ServerExecutor].start_server()
             else:
                 addr = input("Address: ")
                 ip, port = addr.split(":")
-                # try_create_client_session(self.resources, (ip, int(port)))                
-        
+                addr = (ip, int(port))
+
+            new_client.try_connect(addr)
+            self.resources.insert(new_client)
+
         join_btn = (TextButton(font, "Join Game", (0.5, 0.5), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
             .attached_to(background)
             .with_callback(lambda: start_game_session(False)))

@@ -228,13 +228,14 @@ class Client:
     CONNECTION_ATTEMPTS = 10
     CONNECTION_ATTEMPT_DELAY = 0.5
 
-    def __init__(self, resources: Resources):
+    def __init__(self, resources: Resources, rpcs: tuple[Callable, ...] = ()):
         self.resources = resources
         self.ewriter = resources[EventWriter]
         self.client = HighUDPClient((get_current_addr(), 0))
         self.rpcs: dict[int, Callable] = {}
 
         self._init_hooks()
+        self.attach_rpcs(*rpcs)
 
     def _init_hooks(self):
         def on_client_connection():
@@ -290,13 +291,14 @@ class Client:
         self.client.close()
 
 class Server:
-    def __init__(self, resources: Resources, max_clients: int):
+    def __init__(self, resources: Resources, max_clients: int, rpcs: tuple[Callable, ...] = ()):
         self.resources = resources
         self.ewriter = resources[EventWriter]
         self.server = HighUDPServer((get_current_addr(), 0), max_clients)
         self.rpcs: dict[int, Callable] = {}
 
         self._init_event_hooks()
+        self.attach_rpcs(*rpcs)
 
     def _init_event_hooks(self):
         def on_server_connection(addr: tuple[str, int]):
@@ -355,10 +357,12 @@ class Server:
         self.server.close()
 
 class Listener:
-    def __init__(self, resources: Resources, port: int):
+    def __init__(self, resources: Resources, port: int, rpcs: tuple[Callable, ...] = ()):
         self.resources = resources
         self.listener = BroadcastListener(("0.0.0.0", port))
         self.rpcs: dict[int, Callable] = {}
+
+        self.attach_rpcs(*rpcs)
 
     def attach_rpcs(self, *rpcs: Callable):
         _attach_rpcs(self.rpcs, rpcs)
@@ -373,6 +377,18 @@ class Listener:
         "Always close the listener when you're done with it"
         self.listener.close()
 
+def clean_network_actors(resources: Resources):
+    """
+    A general purpose function for cleaning up network actors (Server/Client/Listener).
+    Not to be confused with the system of similar name - it's a system, and it will get called
+    immediately when the app closes.
+    """
+
+    for actor in (Client, Server, Listener):
+        actor = resources.remove(actor)
+        if actor is not None:
+            actor.close()
+
 def update_network_actors(resources: Resources):
     dt = resources[Clock].get_fixed_delta()
 
@@ -385,12 +401,9 @@ def update_network_actors(resources: Resources):
             actor.tick(dt)
 
 def cleanup_network_actors(resources: Resources):
-    "Clean all network actors when the app gets closed"
+    "Clean all network actors when the app gets closed."
 
-    for actor in (Client, Server, Listener):
-        actor = resources.remove(actor)
-        if actor is not None:
-            actor.close()
+    clean_network_actors(resources)
 
 @event
 class ClientConnectedEvent:

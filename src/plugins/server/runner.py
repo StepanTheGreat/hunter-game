@@ -1,14 +1,18 @@
 from plugin import *
 
 from core import ServerCoreModulesPlugin
-from plugins.shared import SharedPluginCollection
-from .uid import UIDManagerPlugin
 
 from modules.time import Clock
 
+from plugins.shared.network import Server
+from plugins.shared import SharedPluginCollection
+
+from .uid import UIDManagerPlugin
+from .session import GameSessionPlugin
+
 from app_config import CONFIG
 
-from multiprocessing import Process, Value
+from multiprocessing import Process, Value, Queue
 
 class ServerController:
     """
@@ -18,6 +22,7 @@ class ServerController:
     """
     def __init__(self):
         self.quit_val = Value("b", False)
+        "This is an inter-process value which tells the player when to stop"
 
     def make_quit(self):
         "Signal the server to terminate"
@@ -28,7 +33,7 @@ class ServerController:
         "Reset this server controller for the next server process"
 
         self.quit_val.value = False
-
+    
     def should_quit(self) -> bool:
         "Should the server process with this controller quit? Used by the server runner"
 
@@ -68,22 +73,38 @@ class ServerPlugins(Plugin):
         app.add_plugins(
             SharedPluginCollection(),
             ServerCoreModulesPlugin(),
-            UIDManagerPlugin()
+            UIDManagerPlugin(),
+            GameSessionPlugin()
         )
         app.insert_resource(self.controller)
         app.insert_resource(Clock(CONFIG.fixed_fps, CONFIG.fixed_fps))
         app.set_runner(server_runner)
 
-def _run_server(controller: ServerController):
+def _run_server_process(controller: ServerController, addr_queue: Queue):
     app = App(
         AppBuilder(ServerPlugins(controller))
     )
+
+    # This is a really simple workaround, but we will send the server's address via this
+    # queue
+    addr_queue.put(app.get_resource(Server).get_addr())
+
     app.run()
 
-def run_server(controller: ServerController) -> Process:
+def run_server_process(controller: ServerController) -> tuple[Process, tuple[str, int]]:
     """
-    Create a separate server process, start it, and return its process handle
+    Create a separate server process, start it, and return its process handle with the server's 
+    address. This process will block
     """
-    process = Process(target=_run_server, args=(controller,))
+    addr_queue = Queue(1)
+
+    # Start our server on a separate process. We'll pass it our controller and address queue
+    process = Process(target=_run_server_process, args=(controller, addr_queue))
     process.start()
-    return process
+
+    # Now we're going to get our address back and close the queue
+    server_addr = addr_queue.get(True)
+    addr_queue.close()
+
+    # Return both the process and our server's address
+    return process, server_addr

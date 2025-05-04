@@ -4,6 +4,8 @@ from modules.utils import sliding_window
 
 from plugins.shared.network import rpc, rpc_raw
 
+import struct
+
 @event
 class MoveNetsyncedEntitiesCommand:
     """

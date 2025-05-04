@@ -2,14 +2,18 @@ from plugin import Resources, Plugin
 
 from modules.scene import SceneBundle
 
-# from plugins.session import attach_listener, detach_listener
+from plugins.shared.network import Listener
+from plugins.contracts.listener import LISTENER_PORT, LISTENER_RPCS
 
 from .gui import MainMenuGUI, MainMenuGUIPlugin
 
 class MainMenuScene(SceneBundle):
     def __init__(self, resources: Resources):
         super().__init__()
-        self.add_auto_resources(MainMenuGUI(resources))
+        self.add_auto_resources(
+            MainMenuGUI(resources),
+            Listener(resources, LISTENER_PORT, LISTENER_RPCS)
+        )
 
     def post_init(self, resources):
         # We're going to listen for server events right when we connect

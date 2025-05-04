@@ -1,10 +1,14 @@
-from plugins.shared.network import rpc
+from plugin import Resources
 
-@rpc("b")
-def notify_available_server(resources: Resources, can_accept: int):
+from plugins.shared.network import rpc, get_rpc_caller_addr
+
+LISTENER_PORT = 1567
+
+@rpc("BB")
+def notify_available_server(resources: Resources, max_players: int, players: int):
     ip, port = get_rpc_caller_addr()
 
-    print(f"Server found at {ip}:{port} with {MAX_PLAYERS-can_accept}/{MAX_PLAYERS} players.")
+    print(f"Server found at {ip}:{port} with {players}/{max_players} players.")
 
 
 LISTENER_RPCS = (
