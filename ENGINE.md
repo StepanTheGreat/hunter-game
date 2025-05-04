@@ -65,3 +65,18 @@ like say entities that would like to get rendered and so on. It does make it a b
 guaranteed to be) in terms of amount of calls, but this tight coupling makes it really difficult to inner components
 to interact with services outside. Unless we pass the resources to everyone and anything of course.
 
+### Naming convetions
+Since networking started being introduced, the whole naming conventions gone to hell. Nothing has any 
+clear naming rules and everything has an arbitrary name. This paragaph will try to introduce and
+standardize some notions around the project:
+- **Action** (a remote action executed on the other end). If a client would like to move its character
+on the server - they're doing an *action*. The same applies vice-versa.
+- **Command** (an action initiated locally by the inner-systems). An RPC receiving a request to spawn
+a player, when executed on the receiving end (in this case the client) gets elevated to a command. It's
+not an action between 2 remotes - it's an action between to inner-system communicating with each other.
+A command is a required action.
+- **Event** (an occurence of something). 2 colliders colliding is an event. It's a description of an
+existing action happening. It's however **is not an action**, only the reaction of said action.
+- **RPC** (a Remote Procedure Call, a direct network port for a message). A server sending "hello" to
+clients will mean that the clients would need a receiving port `hello`, and the server having the sending
+port `hello`. An RPC is a direct transport layer if you would say.
