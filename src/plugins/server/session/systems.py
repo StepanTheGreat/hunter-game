@@ -1,68 +1,50 @@
 from plugin import Plugin, Schedule, Resources
 
-from plugins.shared.network import Server
+from plugins.shared.network import Server, BroadcastWriter
 from plugins.rpcs.listener import notify_available_server_rpc, LISTENER_PORT
 
 from ..actions import SyncTimeAction, ServerActionDispatcher
 
-from core.time import Clock
+from core.time import Clock, SystemScheduler, schedule_systems_seconds
 from modules.utils import Timer
 
 from .session import GameSession, GameState, MAX_PLAYERS
 
-class SyncClientTimeTimer:
-    "This timer simply tracks when the server should notify the clients of its time"
-    NOTIFY_EVERY = 5
-
-    def __init__(self):
-        self.notify_timer = Timer(SyncClientTimeTimer.NOTIFY_EVERY, True)
-
-    def tick(self, dt: float):
-        self.notify_timer.tick(dt)
-
-    def should_notify(self) -> bool:
-        return self.notify_timer.has_finished()
-    
-    def reset(self):
-        self.notify_timer.reset()
+BROADCAST_FREQUENCY = 5
 
 def tick_sync_client_timer(resources: Resources):
     dispatcher = resources[ServerActionDispatcher]
-    sync_timer = resources[SyncClientTimeTimer]
     clock = resources[Clock]
 
-    sync_timer.tick(clock.get_delta())
-
-    if sync_timer.should_notify():
-        dispatcher.dispatch_action(SyncTimeAction(
-            clock.get_execution_time(),
-            clock.get_execution_time()
-        ))
-
-        sync_timer.reset()
+    dispatcher.dispatch_action(SyncTimeAction(
+        clock.get_execution_time(),
+        clock.get_execution_time()
+    ))
 
 def broadcast_server(resources: Resources):
     session = resources[GameSession]
-    server = resources[Server]
-    dt = resources[Clock].get_delta()
+    broadcaster = resources[BroadcastWriter]
 
-    if session.game_state == GameState.WaitingForPlayers:
-        broadcast_timer = session.broadcast_timer
+    if session.game_state != GameState.WaitingForPlayers:
+        # If we're no longer waiting for players - we're going to remove this system
+        resources[SystemScheduler].remove_scheduled(broadcast_server)
+        return
 
-        broadcast_timer.tick(dt)
-        if broadcast_timer.has_finished():
-            server.broadcast(
-                LISTENER_PORT, 
-                notify_available_server_rpc, 
-                MAX_PLAYERS,
-                session.taken_player_slots()
-            )
-            broadcast_timer.reset()
+    server_ip, server_port = resources[Server].get_addr()
+    broadcaster.broadcast_call(
+        LISTENER_PORT, 
+        notify_available_server_rpc, 
+        *(int(ip_component) for ip_component in server_ip.split(".")),
+        server_port,
+        MAX_PLAYERS,
+        session.taken_player_slots()
+    )
 
 class SessionSystemsPlugin(Plugin):
     def build(self, app):
         # In this plugin we're going to initialize the game session resource and the server
-        app.add_systems(Schedule.Update, broadcast_server)
-
-        app.insert_resource(SyncClientTimeTimer())
-        app.add_systems(Schedule.Update, tick_sync_client_timer)
+        schedule_systems_seconds(
+            app,
+            (broadcast_server, BROADCAST_FREQUENCY, True),
+            (tick_sync_client_timer, 5, True)
+        )

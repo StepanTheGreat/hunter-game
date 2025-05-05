@@ -4,6 +4,8 @@ Server-side components and their behaviour
 
 from core.ecs import WorldECS
 
+from core.time import schedule_systems_seconds 
+
 from plugins.shared.components import *
 from plugins.rpcs.server import ControlPlayerCommand
 
@@ -58,6 +60,8 @@ def on_network_entity_removal(resources: Resources, event: RemovedNetworkEntity)
 
 class ServerComponents(Plugin):
     def build(self, app):
-        app.add_systems(Schedule.FixedUpdate, syncronize_movables)
         app.add_event_listener(ControlPlayerCommand, on_control_player_command)
         app.add_event_listener(RemovedNetworkEntity, on_network_entity_removal)
+
+        # We would like to syncronize our movables 20 times a second
+        schedule_systems_seconds(app, (syncronize_movables, 1/20, True))

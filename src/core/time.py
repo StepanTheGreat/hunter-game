@@ -169,23 +169,21 @@ def run_system_scheduler(resources: Resources):
     dt = resources[Clock].get_fixed_delta()
     resources[SystemScheduler].tick(resources, dt)
 
-def schedule_system_seconds(
+def schedule_systems_seconds(
     app: AppBuilder, 
-    system: Callable[[Resources], None], 
-    time: float, 
-    repeat: bool = False
+    *entries: tuple[Callable[[Resources], None], float, bool]
 ):
     "An utility function that allows you to register sheduled systems inside plugin definitions"
-    app.get_resource(SystemScheduler).schedule_seconds(system, time, repeat)
+    for system, time, repeat in entries:
+        app.get_resource(SystemScheduler).schedule_seconds(system, time, repeat)
 
-def schedule_system_tics(
+def schedule_systems_tics(
     app: AppBuilder, 
-    system: Callable[[Resources], None], 
-    ticks: int, 
-    repeat: bool = False
+    *entries: tuple[Callable[[Resources], None], int, bool]
 ):
     "An utility function that allows you to register sheduled systems inside plugin definitions"
-    app.get_resource(SystemScheduler).schedule_ticks(system, ticks, repeat)
+    for system, ticks, repeat in entries:
+        app.get_resource(SystemScheduler).schedule_ticks(system, ticks, repeat)
 
 class TimePlugin(Plugin):
     def build(self, app):

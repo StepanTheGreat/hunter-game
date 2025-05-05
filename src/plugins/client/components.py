@@ -11,11 +11,13 @@ from plugins.client.session import ServerTime
 
 from plugins.shared.entities.player import MainPlayer
 
-INTERPOLATION_TIME_DELAY = 0.1
+INTERPOLATION_TIME_DELAY = 0.05
 """
 This is the time we're going to subtract when interpolating network positions. Why?
 Because it will make our clients move like they're in the past. Ideally we would like to live in
 the past, so that all motion doesn't seem to immediate for us.
+
+We have to play with this constant to see what works best
 """
 
 @component
@@ -78,13 +80,17 @@ class InterpolatedPosition:
     def get_interpolated(self, current_time: float) -> pg.Vector2:
         prelast, last = self.time
 
-        # We're computing the alpha here of our current time
+        # We're computing the alpha here of our current time. Essentially, if we have 2 points in time
+        # A and B, and we have time C in between these time points, we would like to get a value
+        # between 0 and 1, which we could then use as alpha for our position interpolation.
+        #
+        # For this we first need to get the delta time between our current time and A (the oldest point).
+        # Then, we're dividing this by the delta time between A and B.
+        # So if for example A is 1, B is 2 and C is 1.5, then the formula will be:
+        # (C-A)/(B-A) -> (1.5-1)/(2-1) -> 0.5/1 -> 0.5
         alpha = min(
             1, 
-            max(
-                (current_time-prelast)/max((last-prelast), 0.0001), 
-                0
-            )
+            max((current_time-prelast)/(last-prelast+0.0001), 0)
         )
 
         return self.interpolated.get_interpolated(alpha)
@@ -116,7 +122,7 @@ def interpolate_render_components(resources: Resources):
 
 def interpolate_network_positions(resources: Resources):
     world = resources[WorldECS]
-    server_time = resources[ServerTime].get_current_time()
+    server_time = resources[ServerTime].get_current_time() - INTERPOLATION_TIME_DELAY
 
     for _, (pos, interpos) in world.query_components(Position, InterpolatedPosition):
         interpos.get_interpolated(server_time)
@@ -129,7 +135,7 @@ def on_move_netsynced_entities_command(resources: Resources, command: MoveNetsyn
 
     world = resources[WorldECS]
     uidman = resources[EntityUIDManager]
-    server_time = resources[ServerTime].get_current_time() - INTERPOLATION_TIME_DELAY
+    server_time = resources[ServerTime].get_current_time()
 
     for (uid, new_pos) in command.entries:
         ent = uidman.get_ent(uid)
