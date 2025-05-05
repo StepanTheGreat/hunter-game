@@ -32,4 +32,9 @@ class Timer:
 
     def zero(self):
         "Make this clock act immediately. Only usefil in specific cases"
-        self.on_interval = 0
+        self.on_interval = 0.
+
+def clamp(x: int, mn: int, mx: int) -> int:
+    "Clamp a number between a minimum and maximum"
+
+    return max(min(x, mx), mn)
