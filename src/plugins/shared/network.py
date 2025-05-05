@@ -8,7 +8,7 @@ from plugin import Resources, Plugin, Schedule, event, EventWriter
 from itertools import count
 import struct
 
-from modules.time import Clock
+from core.time import Clock
 
 from modules.network import HighUDPClient, HighUDPServer, BroadcastListener, get_current_addr
 
@@ -359,7 +359,7 @@ class Server:
 class Listener:
     def __init__(self, resources: Resources, port: int, rpcs: tuple[Callable, ...] = ()):
         self.resources = resources
-        self.listener = BroadcastListener(("0.0.0.0", port))
+        self.listener = BroadcastListener((get_current_addr(), port))
         self.rpcs: dict[int, Callable] = {}
 
         self.attach_rpcs(*rpcs)

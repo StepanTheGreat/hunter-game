@@ -12,6 +12,7 @@ from .sound import SoundPlugin
 from .input import InputPlugin
 from .assets import AssetsPlugin
 from .ecs import ECSPlugin
+from .time import TimePlugin
 from .telemetry import *
 
 class ServerCoreModulesPlugin(Plugin):
@@ -19,6 +20,7 @@ class ServerCoreModulesPlugin(Plugin):
     def build(self, app):
         app.add_plugins(
             AssetsPlugin(CONFIG.assets_dir),
+            TimePlugin(),
             ECSPlugin()
         )
 

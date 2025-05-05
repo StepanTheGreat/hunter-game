@@ -3,7 +3,7 @@ import numpy as np
 
 from plugin import Plugin, Schedule, Resources
 
-from modules.time import Clock
+from core.time import Clock
 from core.ecs import WorldECS, component
 
 from .net import *

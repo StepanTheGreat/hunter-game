@@ -5,7 +5,8 @@ from plugins.rpcs.listener import notify_available_server_rpc, LISTENER_PORT
 
 from ..actions import SyncTimeAction, ServerActionDispatcher
 
-from modules.time import Clock, Timer
+from core.time import Clock
+from modules.utils import Timer
 
 from .session import GameSession, GameState, MAX_PLAYERS
 

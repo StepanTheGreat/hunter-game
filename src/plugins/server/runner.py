@@ -2,7 +2,7 @@ from plugin import *
 
 from core import ServerCoreModulesPlugin
 
-from modules.time import Clock
+from core.time import Clock
 
 from plugins.shared.network import Server
 from plugins.shared import SharedPluginCollection

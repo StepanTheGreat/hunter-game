@@ -5,7 +5,7 @@ from typing import Union, Any
 from plugin import App, AppBuilder, Resources, Plugin, EventWriter, event
 
 from .events import *
-from modules.time import Clock
+from core.time import Clock
 
 pg.font.init()
 

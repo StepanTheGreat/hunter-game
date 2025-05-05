@@ -1,6 +1,6 @@
 "Session-related code"
 
-from modules.time import Clock
+from core.time import Clock
 
 from plugins.rpcs.client import SyncTimeCommand
 

@@ -1,7 +1,7 @@
 from plugin import Resources, Schedule, Plugin
 
 
-from modules.time import Clock
+from core.time import Clock
 from core.assets import AssetManager
 from core.telemetry import Telemetry
 

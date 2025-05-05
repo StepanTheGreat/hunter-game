@@ -3,7 +3,7 @@ from plugin import Plugin, Schedule, Resources
 from plugins.shared.network import Server
 from plugins.rpcs.server import SERVER_RPCS
 
-from modules.time import Timer
+from modules.utils import Timer
 
 from enum import Enum, auto
 from typing import Optional

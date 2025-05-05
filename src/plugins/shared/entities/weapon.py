@@ -3,7 +3,7 @@ This file contains a general use Weapon component that works for every single en
 """
 from plugin import Plugin, Resources, Schedule
 
-from modules.time import Clock
+from core.time import Clock
 from core.ecs import WorldECS, component
 
 from plugins.shared.components import *
