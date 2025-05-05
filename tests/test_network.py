@@ -437,10 +437,11 @@ def _():
     # Now, we only should receive a single packet
     for receiver in (receiver1, receiver2):
 
-        # Because broadcast senders always use OS assigned ports, we only care about receiving the 
-        # message here
+        # Because broadcast senders always use OS assigned ports, we only care about receiving the message here.
+        # An additional note is that windows has some sort of deduplication, in case of which packets from multiple 
+        # interfaces are only delievered once. This isn't the case for Linux, that's why we're only checking for a single message here
+        # (but this does mean that Linux will receive multiple dublicates, especially when writing to the broadcaster)
         assert receiver.recv()[0] == message 
-        assert not receiver.has_packets()
 
     # Our client on the other hand, not being connected to anything - shouldn't receive anything
     client.tick(DT)
