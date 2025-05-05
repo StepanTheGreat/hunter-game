@@ -10,6 +10,7 @@ from plugins.shared import SharedPluginCollection
 from .session import SessionPlugin
 from .actions import ServerActionPlugin
 from .components import ServerComponents
+from .entities import ServerEntitiesPlugin
 
 from app_config import CONFIG
 
@@ -76,7 +77,8 @@ class ServerPlugins(Plugin):
             ServerCoreModulesPlugin(),
             SessionPlugin(),
             ServerActionPlugin(),
-            ServerComponents()
+            ServerComponents(),
+            ServerEntitiesPlugin()
         )
         app.insert_resource(self.controller)
         app.insert_resource(Clock(CONFIG.fixed_fps, CONFIG.fixed_fps))

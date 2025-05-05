@@ -7,12 +7,28 @@ from core.ecs import WorldECS
 from core.time import schedule_systems_seconds 
 
 from plugins.shared.components import *
+from plugins.shared.entities.weapon import Weapon
 from plugins.rpcs.server import ControlPlayerCommand
 
 from .actions import *
 from .session.session import GameSession
 
 from plugin import Plugin, Resources, Schedule
+
+def update_invincibilities(resources: Resources):
+    world = resources[WorldECS]
+    dt = resources[Clock].get_fixed_delta()
+
+    for ent, health in world.query_component(Health):
+        health.update_invincibility(dt)
+
+def remove_dead_entities(resources: Resources):
+    world = resources[WorldECS]
+    
+    with world.command_buffer() as cmd:
+        for ent, health in world.query_component(Health):
+            if health.is_dead():
+                cmd.remove_entity(ent)
 
 def syncronize_movables(resources: Resources):
     """
@@ -43,10 +59,21 @@ def on_control_player_command(resources: Resources, command: ControlPlayerComman
     player_ent = session.players.get(command.addr)
     if player_ent is None:
         return
-    
-    pos, vel = world.get_components(player_ent, Position, Velocity)
+
+    pos, vel, angle, angle_vel, weapon = world.get_components(
+        player_ent, 
+        Position, 
+        Velocity, 
+        Angle, 
+        AngleVelocity,
+        Weapon
+    )
     pos.set_position(*command.pos)
     vel.set_velocity(*command.vel)
+    angle.set_angle(command.angle)
+    angle_vel.set_velocity(command.angle_vel)
+
+    weapon.start_shooting() if command.is_shooting else weapon.stop_shooting()
 
 def on_network_entity_removal(resources: Resources, event: RemovedNetworkEntity):
     """
@@ -60,6 +87,12 @@ def on_network_entity_removal(resources: Resources, event: RemovedNetworkEntity)
 
 class ServerComponents(Plugin):
     def build(self, app):
+        app.add_systems(
+            Schedule.FixedUpdate, 
+            update_invincibilities, 
+            remove_dead_entities
+        )
+
         app.add_event_listener(ControlPlayerCommand, on_control_player_command)
         app.add_event_listener(RemovedNetworkEntity, on_network_entity_removal)
 

@@ -8,7 +8,7 @@ from plugins.shared.network import Client
 from plugins.shared.actions import ActionDispatcher, Action
 
 from plugins.rpcs.server import *
-from plugins.rpcs.pack import pack_velocity
+from plugins.rpcs.pack import pack_velocity, pack_angle
 
 from typing import Callable, Optional, Any
 
@@ -28,10 +28,20 @@ class ClientAction(Action):
 class ControlAction(ClientAction):
     "Tell the player the position and velocity of your player"
 
-    def __init__(self, pos: tuple[int, int], vel: tuple[float, float]):
+    def __init__(
+        self, 
+        pos: tuple[int, int], 
+        vel: tuple[float, float],
+        angle: float,
+        angle_vel: float,
+        is_shooting: bool 
+    ):
         super().__init__(
             control_player_rpc, 
-            int(pos[0]), int(pos[1]), *pack_velocity(*vel)
+            int(pos[0]), int(pos[1]), *pack_velocity(*vel),
+            pack_angle(angle), 
+            int(angle_vel), 
+            is_shooting
         )
 
 class ClientActionDispatcher(ActionDispatcher):

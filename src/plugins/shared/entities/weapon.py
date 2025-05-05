@@ -56,15 +56,16 @@ def shoot_weapons(resources: Resources):
 
     dt = resources[Clock].get_fixed_delta()
 
-    for ent, (pos, angle, weapon) in world.query_components(Position, Angle, Weapon):
-        weapon.update(dt)
+    with world.command_buffer() as cmd:
+        for ent, (pos, angle, weapon) in world.query_components(Position, Angle, Weapon):
+            weapon.update(dt)
 
-        if weapon.may_shoot():
-            # Safety: projectiles don't contain neither Angle nor Weapon components, thus it is safe
-            # to create them in this iteration 
-            world.create_entity(*
-                weapon.shoot(pos.get_position(), angle.get_vector())
-            )
+            if weapon.may_shoot():
+                # Safety: projectiles don't contain neither Angle nor Weapon components, thus it is safe
+                # to create them in this iteration 
+                cmd.create_entity(*
+                    weapon.shoot(pos.get_position(), angle.get_vector())
+                )
 
 class WeaponPlugin(Plugin):
     def build(self, app):

@@ -177,21 +177,6 @@ def move_entities(resources: Resources):
     for ent, (angle, angle_vel) in world.query_components(Angle, AngleVelocity):
         angle.set_angle(angle.get_angle() + angle_vel.get_velocity() * dt)
 
-def update_invincibilities(resources: Resources):
-    world = resources[WorldECS]
-    dt = resources[Clock].get_fixed_delta()
-
-    for ent, health in world.query_component(Health):
-        health.update_invincibility(dt)
-
-def remove_dead_entities(resources: Resources):
-    world = resources[WorldECS]
-    
-    with world.command_buffer() as cmd:
-        for ent, health in world.query_component(Health):
-            if health.is_dead():
-                cmd.remove_entity(ent)
-
 def remove_temp_entities(resources: Resources):
     world = resources[WorldECS]
     dt = resources[Clock].get_fixed_delta()
@@ -209,8 +194,6 @@ class CommonComponentsPlugin(Plugin):
         
         app.add_systems(
             Schedule.FixedUpdate, 
-            remove_dead_entities, 
             remove_temp_entities,
-            update_invincibilities,
             move_entities,
         )

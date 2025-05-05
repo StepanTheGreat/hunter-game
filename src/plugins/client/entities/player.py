@@ -1,5 +1,6 @@
 from plugin import Plugin, Resources, Schedule
 
+from core.time import schedule_systems_seconds
 from core.ecs import WorldECS
 from core.input import InputManager
 
@@ -45,16 +46,22 @@ def control_player(resources: Resources):
         controller.is_shooting = input[InputAction.Shoot]
 
 
-        pos, vel = world.get_components(ent, Position, Velocity)
+        pos, vel, angle, angle_vel = world.get_components(ent, Position, Velocity, Angle, AngleVelocity)
         pos = pos.get_position()
         vel = vel.get_velocity()
-        action_dispatcher.dispatch_action(
-            ControlAction((pos.x, pos.y), (vel.x, vel.y))
-        )
+
+        action_dispatcher.dispatch_action(ControlAction(
+            (pos.x, pos.y), 
+            (vel.x, vel.y), 
+            angle.get_angle(), 
+            angle_vel.get_velocity(),
+            controller.is_shooting
+        ))
 
         break
 
 class ClientPlayerPlugin(Plugin):
     def build(self, app):
         app.insert_resource(PlayerStats())
-        app.add_systems(Schedule.FixedUpdate, control_player)
+
+        schedule_systems_seconds(app, (control_player, 1/20, True))
