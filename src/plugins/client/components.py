@@ -7,7 +7,16 @@ from modules.inteprolation import Interpolated, InterpolatedAngle
 from plugins.rpcs.client import *
 from plugins.shared.components import *
 
+from plugins.client.session import ServerTime
+
 from plugins.shared.entities.player import MainPlayer
+
+INTERPOLATION_TIME_DELAY = 0.1
+"""
+This is the time we're going to subtract when interpolating network positions. Why?
+Because it will make our clients move like they're in the past. Ideally we would like to live in
+the past, so that all motion doesn't seem to immediate for us.
+"""
 
 @component
 class RenderPosition:
@@ -45,6 +54,41 @@ class RenderAngle:
         "Return this angle as a directional unit vector"
         return pg.Vector2(np.cos(self.interpolated), np.sin(self.interpolated))
 
+@component
+class InterpolatedPosition:
+    """
+    Because movement packets itroduce inherent jitter (as they can be delayed, they're sent way less
+    frequently than the refresh rate or so on), this component is going to fix the problem by
+    interpolating positions. Double interpolation right here! Essentially, when receiving movement
+    packets - they should go directly to this component instead, which is going to interpolate entities.
+    
+    This component however shouldn't be applied to the client, as it controls their own movement
+    without much jitter.
+    """
+    def __init__(self):
+        self.interpolated = Interpolated(pg.Vector2(0, 0))
+
+        self.time: tuple[float, float] = (0, 0)
+        "The time used when interpolating. It gets swapped every time a new position gets introduced."
+
+    def push_position(self, time: float, new_x: float, new_y: float):
+        self.interpolated.push_value(pg.Vector2(new_x, new_y))
+        self.time = (self.time[-1], time)
+
+    def get_interpolated(self, current_time: float) -> pg.Vector2:
+        prelast, last = self.time
+
+        # We're computing the alpha here of our current time
+        alpha = min(
+            1, 
+            max(
+                (current_time-prelast)/max((last-prelast), 0.0001), 
+                0
+            )
+        )
+
+        return self.interpolated.get_interpolated(alpha)
+
 def update_render_components(resources: Resources):
     world = resources[WorldECS]
     
@@ -70,22 +114,34 @@ def interpolate_render_components(resources: Resources):
         for _, component in world.query_component(interpolatable):
             component.interpolate(alpha)
 
+def interpolate_network_positions(resources: Resources):
+    world = resources[WorldECS]
+    server_time = resources[ServerTime].get_current_time()
+
+    for _, (pos, interpos) in world.query_components(Position, InterpolatedPosition):
+        interpos.get_interpolated(server_time)
+        pos.set_position(
+            *interpos.get_interpolated(server_time)
+        )
+
 def on_move_netsynced_entities_command(resources: Resources, command: MoveNetsyncedEntitiesCommand):
     "Apply net syncronization on all requested network entities"
 
     world = resources[WorldECS]
     uidman = resources[EntityUIDManager]
+    server_time = resources[ServerTime].get_current_time() - INTERPOLATION_TIME_DELAY
 
-    for (uid, new_pos, new_vel) in command.entries:
+    for (uid, new_pos) in command.entries:
         ent = uidman.get_ent(uid)
         if ent is None:
             continue
         elif world.has_component(ent, MainPlayer):
             continue
-            
-        pos, vel = world.get_components(ent, Position, Velocity)
-        pos.set_position(*new_pos)
-        vel.set_velocity(*new_vel)
+        elif not world.has_component(ent,  InterpolatedPosition):
+            continue
+
+        pos = world.get_component(ent, InterpolatedPosition)
+        pos.push_position(server_time, *new_pos)
 
 def on_kill_entity_command(resources: Resources, command: KillEntityCommand):
     "When we receive an entity kill command from the server - we should kill said entity"
@@ -103,7 +159,11 @@ def on_kill_entity_command(resources: Resources, command: KillEntityCommand):
 class ClientCommonComponentsPlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.FixedUpdate, update_render_components, priority=10)
-        app.add_systems(Schedule.PostUpdate, interpolate_render_components)
+        app.add_systems(
+            Schedule.PostUpdate, 
+            interpolate_network_positions, 
+            interpolate_render_components
+        )
 
         app.add_event_listener(MoveNetsyncedEntitiesCommand, on_move_netsynced_entities_command)
         app.add_event_listener(KillEntityCommand, on_kill_entity_command)

@@ -12,8 +12,8 @@ class MoveNetsyncedEntitiesCommand:
     A client command send from the server that tells the client to move all specified entities to their
     new position (and update their velocities)
     """
-    def __init__(self, entries: tuple[tuple[int, tuple[int, int], tuple[float, float]]]):
-        self.entries: tuple[tuple[int, tuple[int, int], tuple[float, float]]] = entries
+    def __init__(self, entries: tuple[tuple[int, tuple[int, int]]]):
+        self.entries: tuple[tuple[int, tuple[int, int]]] = entries
 
 @event
 class SpawnPlayerCommand:
@@ -32,16 +32,21 @@ class KillEntityCommand:
     def __init__(self, uid: int):
         self.uid = uid
 
+@event
+class SyncTimeCommand:
+    "The command to syncronize the current client's time with this new one"
+    def __init__(self, timestamp: float, time: float):
+        self.timestamp = timestamp
+        self.time = time
+
 MOVE_NETSYNCED_ENTITIES_LIMIT = 127
 "We can transfer only 127 entities per packet for now"
 
-MOVE_NETSYNCED_ENTITIES_FORMAT = struct.Struct(ENDIAN+"H2hB?")
+MOVE_NETSYNCED_ENTITIES_FORMAT = struct.Struct(ENDIAN+"H2h")
 """
 Components:
 - Entity UID: 2 bytes unsigned int, `H`
 - Entity Position: 2 2-byte signed ints, `2h`
-- Entity Velocity: 1-byte angle (will be then normalized to 360, though with some loss)
-and a boolean value (that tells whether the vector is 0 or 1)
 """
 
 @rpc_raw
@@ -54,11 +59,10 @@ def move_netsynced_entities_rpc(resources: Resources, data: bytes):
 
     moved_entries = []
     try:
-        for (uid, posx, posy, vel_angle, vel_len) in MOVE_NETSYNCED_ENTITIES_FORMAT.iter_unpack(data):
+        for (uid, posx, posy,) in MOVE_NETSYNCED_ENTITIES_FORMAT.iter_unpack(data):
             moved_entries.append((
                 uid, 
                 (posx, posy), 
-                unpack_velocity(vel_angle, vel_len)
             ))
     except struct.error:
         print("Failed to parse the entity movement packet")
@@ -83,9 +87,16 @@ def kill_entity_rpc(resources: Resources, uid: int):
 
     ewriter.push_event(KillEntityCommand(uid))
 
+@rpc("ff")
+def sync_time_rpc(resources: Resources, timestamp: float, time: float):
+    resources[EventWriter].push_event(SyncTimeCommand(
+        timestamp, time
+    ))
+
 CLIENT_RPCS = (
     move_netsynced_entities_rpc,
     spawn_player_rpc,
-    kill_entity_rpc
+    kill_entity_rpc,
+    sync_time_rpc
 )
 "RPCs used by the client"

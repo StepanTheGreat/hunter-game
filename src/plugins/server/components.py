@@ -2,13 +2,13 @@
 Server-side components and their behaviour
 """
 
-from core.ecs import WorldECS, component
+from core.ecs import WorldECS
 
 from plugins.shared.components import *
 from plugins.rpcs.server import ControlPlayerCommand
 
 from .actions import *
-from .session import GameSession
+from .session.session import GameSession
 
 from plugin import Plugin, Resources, Schedule
 
@@ -23,15 +23,12 @@ def syncronize_movables(resources: Resources):
 
     moved_entries = []
 
-    for _, (ent, pos, vel) in world.query_components(NetEntity, Position, Velocity, including=NetSyncronized):
+    for _, (ent, pos) in world.query_components(NetEntity, Position, including=NetSyncronized):
         uid = ent.get_uid()
 
         pos = pos.get_position()
-        vel = vel.get_velocity()
 
-        moved_entries.append((
-            uid, (pos.x, pos.y), (vel.x, vel.y)
-        ))
+        moved_entries.append((uid, (pos.x, pos.y)))
 
     action_dispatcher.dispatch_action(MoveNetsyncedEntitiesAction(
         tuple(moved_entries)
@@ -39,7 +36,6 @@ def syncronize_movables(resources: Resources):
 
 def on_control_player_command(resources: Resources, command: ControlPlayerCommand):
     world = resources[WorldECS]
-    uidman = resources[EntityUIDManager]
     session = resources[GameSession]
 
     player_ent = session.players.get(command.addr)

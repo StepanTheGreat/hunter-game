@@ -14,6 +14,8 @@ from plugins.server import ServerExecutor
 from plugins.client.entities.policeman import make_client_policeman
 from plugins.shared.components import reset_entity_uid_manager
 
+from plugins.client.session import ServerTime
+
 from .render.map import *
 from .render.minimap import *
 from .gui import IngameGUI
@@ -58,6 +60,10 @@ class IngameScene(SceneBundle):
             IngameGUI(resources)
         )
 
+    def post_init(self, resources):
+        # We're going to start the clock when the scene starts
+        resources[ServerTime].start()
+
     def post_destroy(self, resources):
         # We need to close our client before leaving
         clean_network_actors(resources, Client)
@@ -69,6 +75,9 @@ class IngameScene(SceneBundle):
 
         # This is highly important, as reusing the same UID manager will lead to instabilities
         reset_entity_uid_manager(resources)
+
+        # Reset and stop our server time
+        resources[ServerTime].stop_and_reset()
 
 class IngamePlugin(Plugin):
     def build(self, app):

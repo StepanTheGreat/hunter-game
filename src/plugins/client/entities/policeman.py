@@ -38,10 +38,12 @@ def make_client_policeman(
         Sprite(texture, (32, 64)),
         RenderAngle(),
         PerspectiveAttachment(24, 0-ismain),
-        Weapon(CLIENT_POLICEMAN_PROJECTILE, 0.1, True)
+        Weapon(CLIENT_POLICEMAN_PROJECTILE, 0.1, True),
     )
     if ismain:
         components += (MainPlayer(), )
+    else:
+        components += (InterpolatedPosition(), )
     
     return components
 
@@ -50,8 +52,6 @@ def on_player_spawn_command(resources: Resources, command: SpawnPlayerCommand):
 
     assets = resources[AssetManager]
     world = resources[WorldECS]
-
-    print("Creating a policeman:", command.uid)
 
     world.create_entity(
         *make_client_policeman(command.uid, command.pos, command.is_main, assets)

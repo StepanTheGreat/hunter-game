@@ -29,12 +29,8 @@ class ServerAction(Action):
 class MoveNetsyncedEntitiesAction(ServerAction):
     def __init__(self, entries: tuple[tuple[int, tuple[int, int], tuple[float, float]]]):
         data = bytes()
-        for (uid, pos, vel) in entries:
-            data += MOVE_NETSYNCED_ENTITIES_FORMAT.pack(
-                uid,
-                int(pos[0]), int(pos[1]),
-                *pack_velocity(*vel)
-            )
+        for (uid, pos) in entries:
+            data += MOVE_NETSYNCED_ENTITIES_FORMAT.pack(uid, int(pos[0]), int(pos[1]))
 
         super().__init__(
             move_netsynced_entities_rpc, 
@@ -62,6 +58,16 @@ class KillEntityAction(ServerAction):
         super().__init__(
             kill_entity_rpc,
             uid,
+            to=None
+        )
+
+class SyncTimeAction(ServerAction):
+    "An action that gets fired when a network entity gets killed (removed from the ECS world)"
+    def __init__(self, timestamp: float, time: float):
+        super().__init__(
+            sync_time_rpc,
+            timestamp,
+            time,
             to=None
         )
 

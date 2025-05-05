@@ -7,7 +7,7 @@ from modules.time import Clock
 from plugins.shared.network import Server
 from plugins.shared import SharedPluginCollection
 
-from .session import GameSessionPlugin
+from .session import SessionPlugin
 from .actions import ServerActionPlugin
 from .components import ServerComponents
 
@@ -74,7 +74,7 @@ class ServerPlugins(Plugin):
         app.add_plugins(
             SharedPluginCollection(),
             ServerCoreModulesPlugin(),
-            GameSessionPlugin(),
+            SessionPlugin(),
             ServerActionPlugin(),
             ServerComponents()
         )
