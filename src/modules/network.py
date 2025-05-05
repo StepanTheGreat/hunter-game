@@ -630,6 +630,9 @@ class HighUDPServer:
                 self._remove_connection(addr, True)
             
     def close(self):
+        for connection in self.connections.values():
+            connection.disconnect()
+
         self.sock.close()
 
 class HighUDPClient:
@@ -795,6 +798,9 @@ class HighUDPClient:
             self._remove_connection(True)
 
     def close(self):
+        if self.is_connected():
+            self.connection.disconnect()
+
         self.sock.close()
         
 class BroadcastListener:
