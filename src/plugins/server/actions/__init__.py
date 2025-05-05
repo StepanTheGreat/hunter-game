@@ -5,13 +5,14 @@ A collection of "commands" that
 from plugin import Plugin
 
 from plugins.shared.network import Server
+from plugins.shared.actions import ActionDispatcher, Action
 
 from plugins.rpcs.client import *
 from plugins.rpcs.pack import pack_velocity
 
 from typing import Callable, Optional, Any
 
-class ServerAction:
+class ServerAction(Action):
     """
     An action describes a procedure called from systems and addressed to remote receivers.
     Actions can be dispatched using action dispatchers, and by themselves they only represent
@@ -35,7 +36,10 @@ class MoveNetsyncedEntitiesAction(ServerAction):
                 *pack_velocity(*vel)
             )
 
-        super().__init__(move_netsynced_entities_rpc, data)
+        super().__init__(
+            move_netsynced_entities_rpc, 
+            data
+        )
 
 class SpawnPlayerAction(ServerAction):
     "Spawn a player with a specific UID on a specific client (specified by its address)"
@@ -46,16 +50,20 @@ class SpawnPlayerAction(ServerAction):
         pos: tuple[int, int], 
         is_main: bool
     ):
-        super().__init__(spawn_player_rpc, uid, *pos, is_main, to=(client, ))
+        super().__init__(
+            spawn_player_rpc, 
+            uid, *pos, is_main, 
+            to=(client, )
+        )
 
-class ServerActionDispatcher:
+class ServerActionDispatcher(ActionDispatcher):
     """
     A dispatcher is a command dispatcher for network actions. You push your actions directly here,
     and they will be dispatched on the server.
     """
-    def __init__(self, server: Server):
+    def __init__(self, resources: Resources):
         # The reason we're doing it here is because the Server is ALWAYS available on the server app
-        self.server = server
+        self.server = resources[Server]
 
     def _invoke_rpc(self, rpc: Callable, args: tuple[Any, ...], to: tuple[tuple[str, int]] = None):
         "The internal method for invoking RPCs"
@@ -72,5 +80,5 @@ class ServerActionDispatcher:
 class ServerActionPlugin(Plugin):
     def build(self, app):
         app.insert_resource(
-            ServerActionDispatcher(app.get_resource(Server))
+            ServerActionDispatcher(app.get_resources())
         )

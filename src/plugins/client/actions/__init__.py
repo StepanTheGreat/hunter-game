@@ -5,13 +5,14 @@ A collection of "commands" that
 from plugin import Plugin
 
 from plugins.shared.network import Client
+from plugins.shared.actions import ActionDispatcher, Action
 
 from plugins.rpcs.server import *
 from plugins.rpcs.pack import pack_velocity
 
 from typing import Callable, Optional, Any
 
-class ClientAction:
+class ClientAction(Action):
     """
     An action describes a procedure called from systems and addressed to remote receivers.
     Actions can be dispatched using action dispatchers, and by themselves they only represent
@@ -28,10 +29,12 @@ class ControlAction(ClientAction):
     "Tell the player the position and velocity of your player"
 
     def __init__(self, pos: tuple[int, int], vel: tuple[float, float]):
-        self.rpc = control_player_rpc
-        self.args = (int(pos[0]), int(pos[1]), *pack_velocity(*vel))
+        super().__init__(
+            control_player_rpc, 
+            int(pos[0]), int(pos[1]), *pack_velocity(*vel)
+        )
 
-class ClientActionDispatcher:
+class ClientActionDispatcher(ActionDispatcher):
     """
     A dispatcher is a command dispatcher for network actions. You push your actions directly here,
     and they will be dispatched on the server.
