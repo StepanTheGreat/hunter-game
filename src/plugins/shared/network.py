@@ -10,7 +10,7 @@ import struct
 
 from core.time import Clock
 
-from modules.network import HighUDPClient, HighUDPServer, BroadcastListener, get_current_addr
+from modules.network import HighUDPClient, HighUDPServer, BroadcastReceiver, BroadcastSender, get_current_ip
 
 MAX_RPC_FUNC = 256
 DEFAULT_RPC_RELIABILITY = False
@@ -231,7 +231,7 @@ class Client:
     def __init__(self, resources: Resources, rpcs: tuple[Callable, ...] = ()):
         self.resources = resources
         self.ewriter = resources[EventWriter]
-        self.client = HighUDPClient((get_current_addr(), 0))
+        self.client = HighUDPClient((get_current_ip(), 0))
         self.rpcs: dict[int, Callable] = {}
 
         self._init_hooks()
@@ -294,7 +294,7 @@ class Server:
     def __init__(self, resources: Resources, max_clients: int, rpcs: tuple[Callable, ...] = ()):
         self.resources = resources
         self.ewriter = resources[EventWriter]
-        self.server = HighUDPServer((get_current_addr(), 0), max_clients)
+        self.server = HighUDPServer((get_current_ip(), 0), max_clients)
         self.rpcs: dict[int, Callable] = {}
 
         self._init_event_hooks()
@@ -338,28 +338,36 @@ class Server:
         for addr in self.server.get_connection_addresses():
             self.server.send_to(addr, rpc_call, reliability)
 
-    def broadcast(self, port: int, rpc_func: Callable, *args):
+    def close(self):
+        "Always close the server when you're done with it"
+        self.server.close()
+
+class BroadcastWriter:
+    def __init__(self):
+        self.writer = BroadcastSender(get_current_ip())
+
+    def broadcast_call(self, port: int, rpc_func: Callable, *args):
         """
         Broadcast the RPC function on the provided port. 
-        This is different from calling all connected clients.
         
         An additional important fact is that all broadcast RPC calls are unreliable, as there's
         no connection established. So, it's not possible to use reliable features when broadcasting.
         """
 
-        self.server.broadcast(
+        self.writer.broadcast(
             port,
             serialize_call(rpc_func, args), 
         )
 
     def close(self):
-        "Always close the server when you're done with it"
-        self.server.close()
+        "Always close the writer when you're done with it"
 
-class Listener:
+        self.writer.close()
+
+class BroadcastListener:
     def __init__(self, resources: Resources, port: int, rpcs: tuple[Callable, ...] = ()):
         self.resources = resources
-        self.listener = BroadcastListener((get_current_addr(), port))
+        self.listener = BroadcastReceiver(("0.0.0.0", port))
         self.rpcs: dict[int, Callable] = {}
 
         self.attach_rpcs(*rpcs)
@@ -377,15 +385,15 @@ class Listener:
         "Always close the listener when you're done with it"
         self.listener.close()
 
-def clean_network_actors(resources: Resources, *actors: type):
+def clean_network_actors(resources: Resources, *actors: Union[Server, Client, BroadcastListener, BroadcastWriter]):
     """
-    A general purpose function for cleaning up network actors (Server/Client/Listener).
+    A general purpose function for cleaning up network actors (Server/Client/BroadcastListener).
     Not to be confused with the system of similar name - it's a system, and it will get called
     immediately when the app closes.
     """
 
-    for actor in actors:
-        actor = resources.remove(actor)
+    for actor_ty in actors:
+        actor = resources.remove(actor_ty)
         if actor is not None:
             actor.close()
 
@@ -396,11 +404,12 @@ def update_network_actors(resources: Resources):
     # Then, the server should receive this message, and notify both the client and the listener
     # Finally, the listener can act on server's action.
     # On the next tick the Client would be able to receive Server's message
-    for actor in (resources.get(Client), resources.get(Server), resources.get(Listener)):
+    for actor_ty in (Client, Server, BroadcastListener):
+        actor = resources.get(actor_ty)
         if actor is not None:
             actor.tick(dt)
 
-def insert_network_actor(resources: Resources, actor: Union[Server, Client, Listener]):
+def insert_network_actor(resources: Resources, actor: Union[Server, Client, BroadcastListener, BroadcastWriter]):
     """
     Insert a network actor resource, and if it's present - close the existing one. 
     Please prefer using this function over simply inserting network actors directly, 
@@ -417,7 +426,7 @@ def insert_network_actor(resources: Resources, actor: Union[Server, Client, List
 def cleanup_network_actors(resources: Resources):
     "Clean all network actors when the app gets closed."
 
-    clean_network_actors(resources, Listener, Client, Server)
+    clean_network_actors(resources, BroadcastWriter, BroadcastListener, Client, Server)
 
 @event
 class ClientConnectedEvent:
