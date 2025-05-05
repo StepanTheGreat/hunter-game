@@ -83,6 +83,9 @@ from typing import Optional, Callable, Iterable, Union
 from .circleset import CircleSet
 from collections import deque
 
+from platform import system as device_system
+from subprocess import run as run_process
+
 from enum import Enum, auto
 
 import socket
@@ -154,8 +157,24 @@ def fnv1_hash(data: bytes) -> int:
     return ret_hash 
 
 def get_current_ip() -> str:
-    "Get the current IP address of this network"
-    return socket.gethostbyname(socket.gethostname())
+    "Get the non-loopback host name of this device"
+
+    if device_system() == "Linux":
+        # Well, this is a really awkward workaround, but Linux for me only returns the localhost host
+        # when using `gethostname`. 
+        #
+        # We're executing here the linux `hostname` command, which usually displays our localhost hostname (like with the `socket.gethostname`),
+        # so we need to add the `-I` parameter, which will show all network hostnames. Usually the LAN hostname is the first one.
+        hosts = run_process(["hostname", "-I"], capture_output=True, text=True).stdout
+
+        # Split by empty spaces, then get us the first address.
+        host = hosts.split(" ")[0]
+
+        # Now, one possible issue which is unclear for me is... can this command return an empty string? No hostnames? I think it is possible, though
+        # I also don't think that the localhost can ever be absent on Linux. Some experts might help me here.
+        return host
+    else:
+        return socket.gethostbyname(socket.gethostname())
 
 def make_async_socket(
     addr: tuple[str, int], 
