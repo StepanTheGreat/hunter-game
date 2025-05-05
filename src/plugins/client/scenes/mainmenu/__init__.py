@@ -2,7 +2,7 @@ from plugin import Resources, Plugin
 
 from modules.scene import SceneBundle
 
-from plugins.shared.network import Listener, insert_network_actor, clean_network_actors
+from plugins.shared.network import BroadcastListener, insert_network_actor, clean_network_actors
 from plugins.rpcs.listener import LISTENER_PORT, LISTENER_RPCS
 from plugins.shared.components import reset_entity_uid_manager
 
@@ -18,12 +18,12 @@ class MainMenuScene(SceneBundle):
     def post_init(self, resources):
         # We're going to listen for server events right when we connect
         # attach_listener(resources)
-        insert_network_actor(resources, Listener(resources, LISTENER_PORT, LISTENER_RPCS))
+        insert_network_actor(resources, BroadcastListener(resources, LISTENER_PORT, LISTENER_RPCS))
 
     def post_destroy(self, resources):
         # And of course, when we either quit the game or join a game - we close this listener
         # detach_listener(resources)
-        clean_network_actors(resources, Listener)
+        clean_network_actors(resources, BroadcastListener)
 
 class MainMenuPlugin(Plugin):
     def build(self, app):
