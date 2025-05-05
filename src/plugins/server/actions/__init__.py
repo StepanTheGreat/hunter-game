@@ -56,6 +56,15 @@ class SpawnPlayerAction(ServerAction):
             to=(client, )
         )
 
+class KillEntityAction(ServerAction):
+    "An action that gets fired when a network entity gets killed (removed from the ECS world)"
+    def __init__(self, uid: int):
+        super().__init__(
+            kill_entity_rpc,
+            uid,
+            to=None
+        )
+
 class ServerActionDispatcher(ActionDispatcher):
     """
     A dispatcher is a command dispatcher for network actions. You push your actions directly here,

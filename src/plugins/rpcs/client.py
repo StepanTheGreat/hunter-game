@@ -26,6 +26,12 @@ class SpawnPlayerCommand:
         self.pos = pos
         self.is_main = is_main
 
+@event
+class KillEntityCommand:
+    "The command to kill a network entity under the provided UID"
+    def __init__(self, uid: int):
+        self.uid = uid
+
 MOVE_NETSYNCED_ENTITIES_LIMIT = 127
 "We can transfer only 127 entities per packet for now"
 
@@ -71,8 +77,15 @@ def spawn_player_rpc(resources: Resources, uid: int, posx: int, posy: int, is_ma
         uid, (posx, posy), is_main
     ))
 
+@rpc("H", reliable=True)
+def kill_entity_rpc(resources: Resources, uid: int):
+    ewriter = resources[EventWriter]
+
+    ewriter.push_event(KillEntityCommand(uid))
+
 CLIENT_RPCS = (
     move_netsynced_entities_rpc,
-    spawn_player_rpc
+    spawn_player_rpc,
+    kill_entity_rpc
 )
 "RPCs used by the client"

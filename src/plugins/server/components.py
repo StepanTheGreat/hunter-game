@@ -7,7 +7,7 @@ from core.ecs import WorldECS, component
 from plugins.shared.components import *
 from plugins.rpcs.server import ControlPlayerCommand
 
-from .actions import ServerActionDispatcher, MoveNetsyncedEntitiesAction
+from .actions import *
 from .session import GameSession
 
 from plugin import Plugin, Resources, Schedule
@@ -50,7 +50,18 @@ def on_control_player_command(resources: Resources, command: ControlPlayerComman
     pos.set_position(*command.pos)
     vel.set_velocity(*command.vel)
 
+def on_network_entity_removal(resources: Resources, event: RemovedNetworkEntity):
+    """
+    When a network entity gets removed from the ECS world, we would like to push an
+    action notifying all other clients of this removal.
+    """
+
+    action = resources[ServerActionDispatcher]
+    
+    action.dispatch_action(KillEntityAction(event.uid))
+
 class ServerComponents(Plugin):
     def build(self, app):
         app.add_systems(Schedule.FixedUpdate, syncronize_movables)
         app.add_event_listener(ControlPlayerCommand, on_control_player_command)
+        app.add_event_listener(RemovedNetworkEntity, on_network_entity_removal)

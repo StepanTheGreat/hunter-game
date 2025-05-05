@@ -104,10 +104,19 @@ def on_client_connection(resources: Resources, event: ClientConnectedEvent):
     print("A new client connection:", new_client_addr)
 
 def on_client_disconnection(resources: Resources, event: ClientDisconnectedEvent):
+    world = resources[WorldECS]
     session = resources[GameSession]
 
     client_addr = event.addr
     if client_addr in session.players:
+        client_ent = session.players[client_addr]
+
+        # If this client got an entity - we would like to remove it from the world
+        if client_ent is not None:
+            with world.command_buffer() as cmd:
+                cmd.remove_entity(client_ent)
+        
+        # While also deleting it from the client list
         del session.players[client_addr]
     
     print("A new client disconnection:", client_addr)

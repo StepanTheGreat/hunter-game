@@ -4,7 +4,7 @@ from core.ecs import WorldECS
 
 from modules.inteprolation import Interpolated, InterpolatedAngle
 
-from plugins.rpcs.client import MoveNetsyncedEntitiesCommand
+from plugins.rpcs.client import *
 from plugins.shared.components import *
 
 from plugins.shared.entities.player import MainPlayer
@@ -87,9 +87,23 @@ def on_move_netsynced_entities_command(resources: Resources, command: MoveNetsyn
         pos.set_position(*new_pos)
         vel.set_velocity(*new_vel)
 
+def on_kill_entity_command(resources: Resources, command: KillEntityCommand):
+    "When we receive an entity kill command from the server - we should kill said entity"
+
+    world = resources[WorldECS]
+    uidman = resources[EntityUIDManager]
+
+    target_uid = command.uid
+    target_ent = uidman.get_ent(target_uid)
+
+    if target_ent is not None and world.contains_entity(target_ent):
+        with world.command_buffer() as cmd:
+            cmd.remove_entity(target_ent)
+
 class ClientCommonComponentsPlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.FixedUpdate, update_render_components, priority=10)
         app.add_systems(Schedule.PostUpdate, interpolate_render_components)
 
         app.add_event_listener(MoveNetsyncedEntitiesCommand, on_move_netsynced_entities_command)
+        app.add_event_listener(KillEntityCommand, on_kill_entity_command)
