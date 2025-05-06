@@ -116,6 +116,13 @@ class Health:
 
     def get_health(self) -> float:
         return self.health
+    
+    def set_percentage(self, percentage: float):
+        "Set this health to a percentage of the maximum health"
+
+        assert 0 <= percentage <= 1
+
+        self.health = percentage * self.max_health
 
     def get_percentage(self) -> float:
         "Return the fraction of health to the max health. This can be useful for rendering health bars"

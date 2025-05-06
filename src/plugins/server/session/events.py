@@ -4,7 +4,7 @@ from plugins.shared.network import ClientConnectedEvent, ClientDisconnectedEvent
 
 from core.time import SystemScheduler
 from core.ecs import WorldECS
-from plugins.shared.entities.policeman import make_policeman
+from plugins.server.entities.policeman import make_server_policeman
 from plugins.shared.components import EntityUIDManager
 
 from ..actions import ServerActionDispatcher, SpawnPlayerAction
@@ -22,7 +22,7 @@ def on_client_connection(resources: Resources, event: ClientConnectedEvent):
     new_player_pos = (0, 0)
 
     new_player_ent = world.create_entity(
-        *make_policeman(new_player_uid, new_player_pos)
+        *make_server_policeman(new_client_addr, new_player_uid, new_player_pos)
     )   
 
     action_dispatcher.dispatch_action(SpawnPlayerAction(

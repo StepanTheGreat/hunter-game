@@ -4,6 +4,8 @@ from core.time import schedule_systems_seconds
 from core.ecs import WorldECS
 from core.input import InputManager
 
+from plugins.rpcs.client import SyncHealthCommand
+
 from ..actions import ClientActionDispatcher, ControlAction
 
 from plugins.shared.components import *
@@ -60,8 +62,32 @@ def control_player(resources: Resources):
 
         break
 
+def on_new_main_player(resources: Resources, event: ComponentsAddedEvent):
+    """
+    This system runs every time a new main player is spawned, and its only purpose is to 
+    reset the `HealthStats` global resource to 1.
+    """
+    
+    if MainPlayer in event.components:
+        resources[PlayerStats].update_health(1)
+
+def on_sync_health_command(resources: Resources, command: SyncHealthCommand):
+    world = resources[WorldECS]
+
+    print("Got health sync command!")
+    # When we receive this command, we would like to syncronize our health
+    for _, health in world.query_component(Health, including=MainPlayer):
+        health.set_percentage(command.health)
+
+    # We're also going to update the `PlayerStats`, though I think this should probably
+    # be done from a separate event listener instead
+    resources[PlayerStats].update_health(command.health)
+
 class ClientPlayerPlugin(Plugin):
     def build(self, app):
         app.insert_resource(PlayerStats())
+
+        app.add_event_listener(ComponentsAddedEvent, on_new_main_player)
+        app.add_event_listener(SyncHealthCommand, on_sync_health_command)
 
         schedule_systems_seconds(app, (control_player, 1/20, True))

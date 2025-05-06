@@ -74,6 +74,16 @@ class SyncTimeAction(ServerAction):
             to=None
         )
 
+class SyncHealthAction(ServerAction):
+    "An action that allows the hit player to know how much health they got left"
+    
+    def __init__(self, client: tuple[str, int], health: float):
+        super().__init__(
+            sync_player_health, 
+            (health, ),
+            to = (client, )
+        )
+
 class ServerActionDispatcher(ActionDispatcher):
     """
     A dispatcher is a command dispatcher for network actions. You push your actions directly here,

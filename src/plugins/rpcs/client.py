@@ -38,6 +38,12 @@ class SyncTimeCommand:
     def __init__(self, time: float):
         self.time = time
 
+@event
+class SyncHealthCommand:
+    "The command to syncronize the current player's health percentage to the one provided"
+    def __init__(self, health: float):
+        self.health = health
+
 MOVE_NETSYNCED_ENTITIES_LIMIT = 127
 "We can transfer only 127 entities per packet for now"
 
@@ -90,10 +96,15 @@ def kill_entity_rpc(resources: Resources, uid: int):
 def sync_time_rpc(resources: Resources, time: float):
     resources[EventWriter].push_event(SyncTimeCommand(time))
 
+@rpc("f")
+def sync_player_health(resources: Resources, health: float):
+    resources[EventWriter].push_event(SyncHealthCommand(health))
+
 CLIENT_RPCS = (
     move_netsynced_entities_rpc,
     spawn_player_rpc,
     kill_entity_rpc,
-    sync_time_rpc
+    sync_time_rpc,
+    sync_player_health
 )
 "RPCs used by the client"
