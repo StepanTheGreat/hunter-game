@@ -62,7 +62,7 @@ def on_client_disconnection(resources: Resources, event: ClientDisconnectedEvent
         client_ent = session.players[client_addr]
 
         # If this client got an entity - we would like to remove it from the world
-        if client_ent is not None:
+        if client_ent is not None and world.contains_entity(client_ent):
             with world.command_buffer() as cmd:
                 cmd.remove_entity(client_ent)
         
