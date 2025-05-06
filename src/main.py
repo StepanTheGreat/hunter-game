@@ -1,13 +1,14 @@
-import plugin, core
+import plugin
 
-from plugins import PluginsCollection
+from core import ClientCoreModulesPlugin
+from plugins.client import ClientPluginCollection
 
 def make_app() -> plugin.App:
     "Construct the main application"
 
     return plugin.App(plugin.AppBuilder(
-        core.CoreModulesPlugin(),
-        PluginsCollection()
+        ClientCoreModulesPlugin(),
+        ClientPluginCollection()
     ))
 
 def main():

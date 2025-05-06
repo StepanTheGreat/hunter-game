@@ -219,6 +219,12 @@ def _():
     # Now it's spooky time. We're going to play in an unstable, random environment
 
     server, client = make_test_pair()
+
+    # To enable unstable environment, we're going to set testing mode True on both the server
+    # and client
+    server.set_testing_mode(True)
+    client.set_testing_mode(True)
+
     connect_actors(server, client)
 
     # Let's first enable corruption, so our packets can actually get corrupted. (This simply reverses them)

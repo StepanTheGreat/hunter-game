@@ -14,15 +14,22 @@ from .assets import AssetsPlugin
 from .ecs import ECSPlugin
 from .telemetry import *
 
-class CoreModulesPlugin(Plugin):
-    "The core application modules"
+class ServerCoreModulesPlugin(Plugin):
+    "Core modules used by the server"
     def build(self, app):
         app.add_plugins(
             AssetsPlugin(CONFIG.assets_dir),
+            ECSPlugin()
+        )
+
+class ClientCoreModulesPlugin(Plugin):
+    "The core application modules used solely by the client"
+    def build(self, app):
+        app.add_plugins(
+            ServerCoreModulesPlugin(),
             PygamePlugin(),
             SoundPlugin(),
             InputPlugin(),
             GraphicsPlugin(),
-            ECSPlugin(),
-            TelemetryPlugin()
+            TelemetryPlugin(),
         )

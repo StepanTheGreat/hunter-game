@@ -153,6 +153,10 @@ def fnv1_hash(data: bytes) -> int:
 
     return ret_hash 
 
+def get_current_addr() -> str:
+    "Get the current IP address of this device"
+    return socket.gethostbyname(socket.gethostname())
+
 def make_async_socket(
     addr: tuple[str, int], 
     broadcaster: bool = False,
@@ -411,16 +415,7 @@ class HighUDPConnection:
                 allowed_bytes -= BASE_UDP_HEADER_SIZE + packet_size
                 allowed_packet_amount -= 1
 
-                for _ in range(2 if should_dublicate() else 1):
-                    packet_to_send = packet
-                    if should_corrupt():
-                        packet_to_send = packet[::-1]
-
-                    if not should_lose_packet():
-                        print(f"{self.label}: Sending {packet_to_send} of ID {seq_id}")
-                        self._send_packet(packet_to_send)
-                    else:
-                        print(f"{self.label}: Lost a packet")
+                self._send_packet(packet)
 
                 if seq_id != 0:
                     # If sequence ID isn't zero - we're going to queue it again
@@ -436,7 +431,7 @@ class HighUDPConnection:
     def acknowledge_received_packet(self, seq_id: int):
         "The packet the receiver sent to us was received. This is important to avoid dublicates"
         if seq_id != 0:
-            print(f"{self.label}: Acknowledged {seq_id}, sending this acknowledgement back!")
+            # print(f"{self.label}: Acknowledged {seq_id}, sending this acknowledgement back!")
             self.received_packets.add(seq_id)
             self._queue_message(0, make_acknowledgement_packet(seq_id))
     
@@ -458,14 +453,13 @@ class HighUDPConnection:
             if len(data) == 2:
                 ack_id = int.from_bytes(data, BYTE_ORDER)
                 self.acknowledged_packets.add(ack_id)
-                print(f"{self.label}: Received acknowledgement for {ack_id}")
+                # print(f"{self.label}: Received acknowledgement for {ack_id}")
         elif ty == PacketType.Message:
             if not self.has_packet_been_received(seq_id):
                 ret = data
                 self.acknowledge_received_packet(seq_id)
         elif ty == PacketType.Disconnection:
             self.no_end_heartbeat.zero()
-            print(f"{self.label}: Received a disconnection packet")
 
         return ret
 
@@ -477,6 +471,20 @@ class HighUDPConnection:
             self._queue_heartbeat()
 
         self._send_queued_messages(dt)
+
+class HighUDPConnectionUnstable(HighUDPConnection):
+    "Essentially the same as `HighUDPConnection`, but is used when testing unreliable conditions"
+    def __init__(self, sock, to_addr, label=""):
+        super().__init__(sock, to_addr, label)
+
+    def _send_packet(self, data: bytes):
+        for _ in range(2 if should_dublicate() else 1):
+            packet_to_send = data
+            if should_corrupt():
+                packet_to_send = packet_to_send[::-1]
+
+            if not should_lose_packet():
+                super()._send_packet(data)
 
 def _maybe_fire(
     callback: Union[None, Callable[[tuple[str, int]], None]], 
@@ -502,6 +510,8 @@ class HighUDPServer:
         self.sock = make_async_socket(addr, True)
         self.addr = self.sock.getsockname()
 
+        self._connection_cls: HighUDPConnection = HighUDPConnection
+
         self.recv_queue: deque[bytes, tuple[tuple[str, int]]] = deque()
 
         self.on_connection: Callable[[tuple[str, int]], None] = None
@@ -511,6 +521,13 @@ class HighUDPServer:
 
     def get_addr(self) -> tuple[str, int]:
         return self.addr
+    
+    def set_testing_mode(self, to: bool):
+        """
+        Change this server to unstable mode. This will only get applied to future connections, and doesn't
+        affect existing ones. Setting this to `True` will enable unstable connections.
+        """
+        self._connection_cls = HighUDPConnectionUnstable if to else HighUDPConnection
 
     def set_max_connections(self, to: int):
         assert to >= 0, "A number of maximum connections should more than 2"
@@ -525,7 +542,9 @@ class HighUDPServer:
 
         if response:
             print("SERVER: Connection accepted for", addr)
-            self.connections[addr] = HighUDPConnection(self.sock, addr, label="SERVER")
+
+
+            self.connections[addr] = self._connection_cls(self.sock, addr, label="SERVER")
             _maybe_fire(self.on_connection, addr)
         else:
             print("SERVER: Connection refused for", addr)
@@ -536,7 +555,6 @@ class HighUDPServer:
         if addr in self.connections:
             data = self.connections[addr].process_packet(seq_id, ty, data)
             if data is not None:
-                print("SERVER: Received message", data)
                 # If data is not None - our message is a message packet, thus we can add it to our internal queue
                 self.recv_queue.append((data, addr))
         else:
@@ -556,9 +574,8 @@ class HighUDPServer:
         return self.recv_queue.popleft()
     
     def send_to(self, addr: tuple[str, int], data: bytes, reliable: bool):
-        assert addr in self.connections, "Can't send data to an address to which I'm not connected"
-
-        self.connections[addr].queue_message(data, reliable)
+        if addr in self.connections:
+            self.connections[addr].queue_message(data, reliable)
 
     def broadcast(self, port: int, data: bytes):
         """
@@ -613,6 +630,9 @@ class HighUDPServer:
                 self._remove_connection(addr, True)
             
     def close(self):
+        for connection in self.connections.values():
+            connection.disconnect()
+
         self.sock.close()
 
 class HighUDPClient:
@@ -650,6 +670,15 @@ class HighUDPClient:
 
         self.recv_queue: deque[bytes] = deque()
 
+        self._connection_cls: HighUDPConnection = HighUDPConnection
+        """
+        To allow easy unreliable environment testing, the simplest solution was to create a simple
+        class placeholder, which can be replaced with an unstable connection class when testing is neccessary.
+        
+        This is to avoid runtime overhead for normal conditions, while also providing *some* way of testing
+        unreliable conditions. Well, a *Pythonic* workaround.
+        """
+
         self.on_connection: Union[None, Callable[[], None]] = None
         "A callback that's fired when the client has connected to the server. A public attribute"
         self.on_disconnection: Union[None, Callable[[], None]] = None
@@ -663,6 +692,13 @@ class HighUDPClient:
     def get_server_addr(self) -> Union[tuple[str, int], None]:
         "Return the connected server's address if connected. Else returns `None`"
         return self.connection_addr if self.is_connected() else None
+
+    def set_testing_mode(self, to: bool):
+        """
+        Change this server to unstable mode. This will only get applied to future connections, and doesn't
+        affect existing ones. Setting this to `True` will enable unstable connections.
+        """
+        self._connection_cls = HighUDPConnectionUnstable if to else HighUDPConnection
 
     def is_connected(self) -> bool:
         return self.connection is not None and self.connection.is_connected()
@@ -681,10 +717,15 @@ class HighUDPClient:
 
         retry = connector.tick(dt)
         if retry:
-            self.sock.sendto(
-                make_connection_request_packet(),
-                connector.addr
-            )
+            try:
+                self.sock.sendto(
+                    make_connection_request_packet(),
+                    connector.addr
+                )
+            except OSError:
+                # If we catch an OS error - we abort. There's a chance we're sending packets
+                # to an incorrect address
+                connector.attempts = 0
         
         if connector.is_exhausted():
             _maybe_fire(self.on_connection_fail)
@@ -702,7 +743,7 @@ class HighUDPClient:
                     print("CLIENT: Connected to", self.active_connector.addr)
                     # Move to an active UDP connection
                     self.connection_addr = self.active_connector.addr
-                    self.connection = HighUDPConnection(self.sock, self.connection_addr, label="CLIENT")
+                    self.connection = self._connection_cls(self.sock, self.connection_addr, label="CLIENT")
                     _maybe_fire(self.on_connection)
                 else:
                     _maybe_fire(self.on_connection_fail)
@@ -722,9 +763,8 @@ class HighUDPClient:
         return self.recv_queue.popleft()
     
     def send(self, data: bytes, reliable: bool):
-        assert self.connection is not None, "No connection was established"
-
-        self.connection.queue_message(data, reliable)
+        if self.connection is not None:
+            self.connection.queue_message(data, reliable)
 
     def _remove_connection(self, fire_callback: bool):
         "Remove the connection and optionally fire the binded callback"
@@ -758,6 +798,9 @@ class HighUDPClient:
             self._remove_connection(True)
 
     def close(self):
+        if self.is_connected():
+            self.connection.disconnect()
+
         self.sock.close()
         
 class BroadcastListener:
