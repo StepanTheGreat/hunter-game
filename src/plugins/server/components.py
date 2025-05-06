@@ -7,7 +7,7 @@ from core.ecs import WorldECS
 from core.time import schedule_systems_seconds 
 
 from plugins.shared.components import *
-from plugins.shared.entities.weapon import Weapon
+from plugins.shared.entities.player import PlayerController
 from plugins.rpcs.server import ControlPlayerCommand
 
 from .actions import *
@@ -60,20 +60,20 @@ def on_control_player_command(resources: Resources, command: ControlPlayerComman
     if player_ent is None:
         return
 
-    pos, vel, angle, angle_vel, weapon = world.get_components(
+    pos, vel, angle, angle_vel, controller = world.get_components(
         player_ent, 
         Position, 
         Velocity, 
         Angle, 
         AngleVelocity,
-        Weapon
+        PlayerController
     )
     pos.set_position(*command.pos)
     vel.set_velocity(*command.vel)
     angle.set_angle(command.angle)
     angle_vel.set_velocity(command.angle_vel)
 
-    weapon.start_shooting() if command.is_shooting else weapon.stop_shooting()
+    controller.is_shooting = command.is_shooting
 
 def on_network_entity_removal(resources: Resources, event: RemovedNetworkEntity):
     """
