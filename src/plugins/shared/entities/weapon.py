@@ -10,21 +10,26 @@ from plugins.shared.components import *
 
 from .projectile import ProjectileFactory
 
+class WeaponStats:
+    "This class contains actor-agnostic weapon statistics."
+    def __init__(self, cooldown: float = 1, automatic: bool = False):
+        self.cooldown = cooldown
+        self.automatic = automatic
+
 @component
 class Weapon:
     def __init__(
         self, 
         projectile_factory: ProjectileFactory, 
-        cooldown: float = 1,
-        automatic: bool = False
+        stats: WeaponStats,
     ):
         self.projectile_factory = projectile_factory
-        self.cooldown = cooldown
+        self.cooldown = stats.cooldown
 
         self.on_cooldown = self.cooldown
 
         self.is_shooting = False
-        self.automatic = automatic
+        self.automatic = stats.automatic
         "When `True`, the `is_shooting` variable won't get reset to `False` automatically - only manually"
 
     def update(self, dt: float):

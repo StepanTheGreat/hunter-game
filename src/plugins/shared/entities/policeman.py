@@ -7,7 +7,7 @@ from plugins.shared.collisions import DynCollider
 from plugins.shared.components import *
 
 from .projectile import ProjectileFactory
-from .weapon import Weapon
+from .weapon import Weapon, WeaponStats
 from .player import Player, PlayerController
 
 @component
@@ -15,13 +15,15 @@ class Policeman:
     "The policeman tag"
 
 POLICEMAN_PROJECTILE = ProjectileFactory(
-    False,
+    True,
     speed=10,
     radius=20,
     damage=75,
     lifetime=0.1,
-    spawn_offset=30,
+    spawn_offset=50,
 )
+
+POLICEMAN_WEAPON_STATS = WeaponStats(0.1, True)
     
 def make_policeman(uid: int, pos: tuple[float, float]) -> tuple:
     components = (
@@ -30,7 +32,7 @@ def make_policeman(uid: int, pos: tuple[float, float]) -> tuple:
         AngleVelocity(0, 4),
         Angle(0),
         DynCollider(12, 30),
-        Weapon(POLICEMAN_PROJECTILE, 0.1, True),
+        Weapon(POLICEMAN_PROJECTILE, POLICEMAN_WEAPON_STATS),
         PlayerController(),
         Team.friend(),
         Hittable(),

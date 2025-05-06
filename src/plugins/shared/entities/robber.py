@@ -6,7 +6,7 @@ from ..collisions import DynCollider
 from ..components import *
 
 from .projectile import ProjectileFactory
-from .weapon import Weapon
+from .weapon import Weapon, WeaponStats
 from .player import Player, PlayerController
 
 @component
@@ -21,6 +21,8 @@ ROBBER_PROJECTILE = ProjectileFactory(
     lifetime=0.1,
     spawn_offset=30,
 )
+
+ROBBER_WEAPON_STATS = WeaponStats(0.1, True)
     
 def make_robber(uid: int, pos: tuple[float, float]) -> tuple:
     return (
@@ -29,7 +31,7 @@ def make_robber(uid: int, pos: tuple[float, float]) -> tuple:
         AngleVelocity(0, 4),
         Angle(0),
         DynCollider(18, 30),
-        Weapon(ROBBER_PROJECTILE, 0.1, True),
+        Weapon(ROBBER_PROJECTILE, ROBBER_WEAPON_STATS),
         PlayerController(),
         Team.friend(),
         Hittable(),

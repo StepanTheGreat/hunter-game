@@ -6,8 +6,7 @@ from core.graphics import Texture
 
 from plugins.rpcs.client import SpawnPlayerCommand
 
-from plugins.shared.entities.policeman import make_policeman, POLICEMAN_PROJECTILE
-from plugins.shared.entities.projectile import ProjectileFactory
+from plugins.shared.entities.policeman import make_policeman, POLICEMAN_PROJECTILE, POLICEMAN_WEAPON_STATS
 from plugins.shared.entities.weapon import Weapon
 
 from plugins.client.graphics.lights import Light
@@ -38,7 +37,7 @@ def make_client_policeman(
         Sprite(texture, (32, 64)),
         RenderAngle(),
         PerspectiveAttachment(24, 0-ismain),
-        Weapon(CLIENT_POLICEMAN_PROJECTILE, 0.1, True),
+        Weapon(CLIENT_POLICEMAN_PROJECTILE, POLICEMAN_WEAPON_STATS),
     )
     if ismain:
         components += (MainPlayer(), )
