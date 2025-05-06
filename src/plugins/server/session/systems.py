@@ -8,7 +8,7 @@ from ..actions import SyncTimeAction, ServerActionDispatcher
 from core.time import Clock, SystemScheduler, schedule_systems_seconds
 from modules.utils import Timer
 
-from .session import GameSession, GameState, MAX_PLAYERS
+from .session import GameSession, GameState, MAX_PLAYERS, GameStartedEvent
 
 BROADCAST_FREQUENCY = 5
 
@@ -38,6 +38,11 @@ def broadcast_server(resources: Resources):
         session.taken_player_slots()
     )
 
+def on_game_started(resources: Resources, _):
+
+    # We will stop broadcasting when the game starts
+    resources[SystemScheduler].remove_scheduled(broadcast_server)
+
 class SessionSystemsPlugin(Plugin):
     def build(self, app):
         # In this plugin we're going to initialize the game session resource and the server
@@ -46,3 +51,5 @@ class SessionSystemsPlugin(Plugin):
             (broadcast_server, BROADCAST_FREQUENCY, True),
             (tick_sync_client_timer, 5, True)
         )
+
+        app.add_event_listener(GameStartedEvent, on_game_started)

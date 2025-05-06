@@ -1,15 +1,28 @@
-from plugin import Plugin, Schedule, Resources
+from plugin import Plugin, Resources, event
 
 from plugins.shared.network import Server, BroadcastWriter
 from plugins.rpcs.server import SERVER_RPCS
-
-from modules.utils import Timer
 
 from enum import Enum, auto
 from typing import Optional
 
 MAX_PLAYERS = 5
 REQUIRES_PLAYERS = MAX_PLAYERS
+
+WAIT_TIME_MAP = {
+    2: 30,
+    3: 60,
+    4: 30,
+    5: 15
+}
+"The amount of time the game must wait to start the game for every player count. If absent - it's infinite."
+
+@event
+class GameStartedEvent:
+    """
+    Gets fired when the game has actually started. At that point the map should be loaded, players
+    notified and so on.
+    """
 
 class GameState(Enum):
     WaitingForPlayers = auto()
@@ -31,11 +44,26 @@ class GameSession:
         "How many player slots are available on this session?"
         
         return len(self.players)
+    
+    def enter_state(self, state: GameState):
+        self.game_state = GameState.InGame
 
     def can_accept_new_players(self) -> int:
         "Can this server accept more players?"
 
         return len(self.players) < MAX_PLAYERS
+    
+    def has_game_started(self) -> bool:
+        return self.game_state != GameState.WaitingForPlayers
+
+def on_game_started(resources: Resources, _):
+    session = resources[GameSession]
+    server = resources[Server]
+
+    # When the game starts, we would like to switch its game state and also close server connections
+    session.enter_state(GameState.InGame)
+    server.accept_incoming_connections(False)
+
     
 class SessionContextPlugin(Plugin):
     def build(self, app):
@@ -43,3 +71,5 @@ class SessionContextPlugin(Plugin):
         app.insert_resource(GameSession())
         app.insert_resource(BroadcastWriter())
         app.insert_resource(Server(app.get_resources(), MAX_PLAYERS, SERVER_RPCS))
+
+        app.add_event_listener(GameStartedEvent, on_game_started)
