@@ -310,6 +310,11 @@ class Server:
         self.server.on_connection = on_server_connection
         self.server.on_disconnection = on_server_disconnection
 
+    def accept_incoming_connections(self, to: bool):
+        "Change whether the server can accept new incoming connections or not"
+
+        self.server.accept_incoming_connections(to)
+
     def get_addr(self) -> tuple[str, int]:
         return self.server.get_addr()
     
