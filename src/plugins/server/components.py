@@ -59,7 +59,10 @@ def on_control_player_command(resources: Resources, command: ControlPlayerComman
     player_ent = session.players.get(command.addr)
     if player_ent is None:
         return
-
+    elif not world.contains_entity(player_ent):
+        # An entity might as well just die in this exact moment
+        return
+    
     pos, vel, angle, angle_vel, controller = world.get_components(
         player_ent, 
         Position, 
@@ -80,8 +83,13 @@ def on_network_entity_removal(resources: Resources, event: RemovedNetworkEntity)
     When a network entity gets removed from the ECS world, we would like to push an
     action notifying all other clients of this removal.
     """
-
+    session = resources[GameSession]
     action = resources[ServerActionDispatcher]
+
+    # If this is a player, we would like to replace its entity with `None`
+    for player_addr, ent in session.players:
+        if ent == event.ent:
+            session.players[player_addr] = None
     
     action.dispatch_action(KillEntityAction(event.uid))
 

@@ -25,6 +25,10 @@ def on_client_connection(resources: Resources, event: ClientConnectedEvent):
         *make_policeman(new_player_uid, new_player_pos)
     )   
 
+    action_dispatcher.dispatch_action(SpawnPlayerAction(
+        new_client_addr, new_player_uid, new_player_pos, True
+    ))
+
     # We'll iterate all our previous clients
     for old_addr, old_ent in session.players.items():
         # Send to them our new created player
@@ -33,15 +37,16 @@ def on_client_connection(resources: Resources, event: ClientConnectedEvent):
         ))
 
         # If this old client got an entity - we're going to send it to our new player
-        if old_ent is not None:
-            old_uid = uidman.get_uid(old_ent)
-            action_dispatcher.dispatch_action(SpawnPlayerAction(
-                new_client_addr, old_uid, (0, 0), False
-            ))
-    
-    action_dispatcher.dispatch_action(SpawnPlayerAction(
-        new_client_addr, new_player_uid, new_player_pos, True
-    ))
+        if old_ent is None:
+            continue
+
+        old_uid = uidman.get_uid(old_ent)
+        if old_uid is None:
+            continue 
+
+        action_dispatcher.dispatch_action(SpawnPlayerAction(
+            new_client_addr, old_uid, (0, 0), False
+        ))
 
     if new_client_addr not in session.players:
         session.players[new_client_addr] = new_player_ent
