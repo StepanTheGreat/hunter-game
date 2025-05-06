@@ -214,13 +214,18 @@ class GUIElement:
 
     def on_event_root(self, event: object):
         "Pass an input event across the box tree"
+
+        to_call = []
         def pass_event(element: GUIElement):
             if element.is_hidden():
                 return True
             
-            element.on_event(event)
+            to_call.append(element)
 
         self.call_root(pass_event)
+
+        for element in to_call:
+            element.on_event(event)
 
 class SizedBox(GUIElement):
     "An empty box element that can be used either for your own custom panels or for the screen itself"
@@ -353,6 +358,7 @@ class BaseButton(GUIElement):
             self.hovering = rect.collidepoint((event.x, event.y))
         elif not self.clicked and type(event) == MouseButtonDownEvent:
             if rect.collidepoint((event.x, event.y)):
+                print(f"Pointer on {event.x},{event.y} touches", rect)
                 if self.immediate:
                     self._call_callback()
                 self.clicked = True
