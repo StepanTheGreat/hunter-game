@@ -16,11 +16,11 @@ class Policeman:
 
 POLICEMAN_PROJECTILE = ProjectileFactory(
     True,
-    speed=10,
-    radius=20,
-    damage=75,
-    lifetime=0.1,
-    spawn_offset=50,
+    speed=500,
+    radius=5,
+    damage=15,
+    lifetime=1,
+    spawn_offset=24,
 )
 
 POLICEMAN_WEAPON_STATS = WeaponStats(0.1, True)

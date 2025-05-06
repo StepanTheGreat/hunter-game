@@ -5,6 +5,8 @@ from plugins.shared.collisions import DynCollider, CollisionEvent, StaticCollide
 
 from plugins.shared.components import *
 
+from typing import Callable
+
 @component
 class Projectile:
     "A general projectile component"
@@ -22,7 +24,11 @@ class Projectile:
         self.pierce -= 1
         
 class ProjectileFactory:
-    "This is more of a builder class used to build different types of projectiles"
+    """
+    This is more of a builder class used to build different types of projectiles.
+    
+    Before you use `user_components` though, please read how it works and how to use it properly
+    """
     def __init__(
         self,
         is_enemy: bool,
@@ -32,7 +38,7 @@ class ProjectileFactory:
         pierce: int = 1,
         lifetime: int = 10,
         spawn_offset: float = 0,
-        user_components: tuple = ()
+        user_components: tuple[Callable, ...] = ()
     ):
         self.is_enemy = is_enemy
         self.speed = speed
@@ -41,7 +47,16 @@ class ProjectileFactory:
         self.lifetime = lifetime
         self.pierce = pierce
 
-        self.user_components = user_components
+        self.user_components: tuple[Callable, ...] = user_components
+        """
+        User components are user-defined components, attached to this projectile factory.
+        Attention - here, you bind not objects, but functions without arguments that return
+        said objects (essentially lambdas: `lambda: MyComp()`).
+        
+        The reasoning is simple - we don't want shared components to be persistent across multiple
+        projectiles, so this workaround is going to "construct" said projectiles every single time
+        instead.
+        """
 
         self.spawn_offset = spawn_offset
         "This attribute describes the offset the projectile is going to move when spawning. Useful for melee weapons for example"
@@ -71,7 +86,9 @@ class ProjectileFactory:
             DynCollider(self.radius, 1, sensor=True),
             Temporary(self.lifetime),
             Team(self.is_enemy),
-            *self.user_components,
+
+            # For every user component function, we're going to call it and collect into our components
+            *(user_comp() for user_comp in self.user_components),
             Projectile(self.damage, self.pierce)
         )
 

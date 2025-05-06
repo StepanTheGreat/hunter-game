@@ -19,7 +19,7 @@ from .player import MainPlayer
 
 CLIENT_POLICEMAN_PROJECTILE = POLICEMAN_PROJECTILE.copy()
 CLIENT_POLICEMAN_PROJECTILE.user_components = (
-    RenderPosition(24),
+    lambda: RenderPosition(24),
 )
     
 def make_client_policeman(
