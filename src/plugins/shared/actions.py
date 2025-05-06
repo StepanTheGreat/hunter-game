@@ -16,7 +16,7 @@ class Action:
     They're the abstraction that allows high-level systems not to touch parsing structures, as actions
     should handle that themselves in their initialisation logic.
     """
-    def __init__(self, rpc: Callable, *args):
+    def __init__(self, rpc: Callable, args: tuple):
         self.rpc: Callable = rpc
         self.args: tuple[Any, ...] = args
 

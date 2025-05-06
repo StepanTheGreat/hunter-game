@@ -21,7 +21,7 @@ class ClientAction(Action):
     They're the abstraction that allows high-level systems not to touch parsing structures, as actions
     should handle that themselves in their initialisation logic.
     """
-    def __init__(self, rpc: Callable, *args):
+    def __init__(self, rpc: Callable, args):
         self.rpc: Callable = rpc
         self.args: tuple[Any, ...] = args
 
@@ -38,10 +38,12 @@ class ControlAction(ClientAction):
     ):
         super().__init__(
             control_player_rpc, 
-            int(pos[0]), int(pos[1]), *pack_velocity(*vel),
-            pack_angle(angle), 
-            int(angle_vel), 
-            is_shooting
+            (
+                int(pos[0]), int(pos[1]), *pack_velocity(*vel),
+                pack_angle(angle), 
+                int(angle_vel), 
+                is_shooting
+            )
         )
 
 class ClientActionDispatcher(ActionDispatcher):

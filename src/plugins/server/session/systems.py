@@ -15,11 +15,9 @@ BROADCAST_FREQUENCY = 5
 def tick_sync_client_timer(resources: Resources):
     dispatcher = resources[ServerActionDispatcher]
     clock = resources[Clock]
-
-    dispatcher.dispatch_action(SyncTimeAction(
-        clock.get_execution_time(),
-        clock.get_execution_time()
-    ))
+    
+    # Once in a while, we're going to syncronize client's clock with ours
+    dispatcher.dispatch_action(SyncTimeAction(clock.get_execution_time()))
 
 def broadcast_server(resources: Resources):
     session = resources[GameSession]

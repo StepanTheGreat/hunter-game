@@ -24,14 +24,14 @@ class ServerTime:
         if self.ticking:
             self.current_time += dt
 
-    def sync_time(self, timestamp: float, new_time: float):
+    def sync_time(self, new_time: float):
         """
         Syncronize this time with the server's. It takes 2 arguments: the timestamp (to know when
         the packet command was issued) and the current server time.
         """
 
         # We're compensating for packet's latency here
-        diff = self.current_time-timestamp
+        diff = self.current_time-new_time
         self.current_time = new_time + diff
 
     def get_current_time(self) -> float:
@@ -44,7 +44,7 @@ def tick_server_time(resources: Resources):
     resources[ServerTime].tick(dt)
 
 def on_sync_time_command(resources: Resources, command: SyncTimeCommand):
-    resources[ServerTime].sync_time(command.timestamp, command.time)
+    resources[ServerTime].sync_time(command.time)
 
 class SessionPlugin(Plugin):
     def build(self, app):

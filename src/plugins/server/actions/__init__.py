@@ -21,7 +21,7 @@ class ServerAction(Action):
     They're the abstraction that allows high-level systems not to touch parsing structures, as actions
     should handle that themselves in their initialisation logic.
     """
-    def __init__(self, rpc: Callable, *args, to: tuple[tuple[str, int]] = None):
+    def __init__(self, rpc: Callable, args: tuple, to: tuple[tuple[str, int]] = None):
         self.rpc: Callable = rpc
         self.args: tuple[Any, ...] = args
         self.to: Optional[tuple[tuple[str, int]]] = to
@@ -34,7 +34,7 @@ class MoveNetsyncedEntitiesAction(ServerAction):
 
         super().__init__(
             move_netsynced_entities_rpc, 
-            data
+            (data, )
         )
 
 class SpawnPlayerAction(ServerAction):
@@ -48,7 +48,11 @@ class SpawnPlayerAction(ServerAction):
     ):
         super().__init__(
             spawn_player_rpc, 
-            uid, *pos, is_main, 
+            (
+                uid, 
+                *pos, 
+                is_main
+            ), 
             to=(client, )
         )
 
@@ -57,17 +61,16 @@ class KillEntityAction(ServerAction):
     def __init__(self, uid: int):
         super().__init__(
             kill_entity_rpc,
-            uid,
+            (uid, ),
             to=None
         )
 
 class SyncTimeAction(ServerAction):
     "An action that gets fired when a network entity gets killed (removed from the ECS world)"
-    def __init__(self, timestamp: float, time: float):
+    def __init__(self, time: float):
         super().__init__(
             sync_time_rpc,
-            timestamp,
-            time,
+            (time, ),
             to=None
         )
 

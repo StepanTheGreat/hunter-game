@@ -35,8 +35,7 @@ class KillEntityCommand:
 @event
 class SyncTimeCommand:
     "The command to syncronize the current client's time with this new one"
-    def __init__(self, timestamp: float, time: float):
-        self.timestamp = timestamp
+    def __init__(self, time: float):
         self.time = time
 
 MOVE_NETSYNCED_ENTITIES_LIMIT = 127
@@ -87,11 +86,9 @@ def kill_entity_rpc(resources: Resources, uid: int):
 
     ewriter.push_event(KillEntityCommand(uid))
 
-@rpc("ff")
-def sync_time_rpc(resources: Resources, timestamp: float, time: float):
-    resources[EventWriter].push_event(SyncTimeCommand(
-        timestamp, time
-    ))
+@rpc("f")
+def sync_time_rpc(resources: Resources, time: float):
+    resources[EventWriter].push_event(SyncTimeCommand(time))
 
 CLIENT_RPCS = (
     move_netsynced_entities_rpc,
