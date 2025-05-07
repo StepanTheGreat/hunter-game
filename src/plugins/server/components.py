@@ -30,7 +30,7 @@ def remove_dead_entities(resources: Resources):
             if health.is_dead():
                 cmd.remove_entity(ent)
 
-def syncronize_movables(resources: Resources):
+def move_players(resources: Resources):
     """
     Syncronize all movable entities by collecting their UIDs, positions and velocities, and sending
     them over
@@ -48,7 +48,7 @@ def syncronize_movables(resources: Resources):
 
         moved_entries.append((uid, (pos.x, pos.y)))
 
-    action_dispatcher.dispatch_action(MoveNetsyncedEntitiesAction(
+    action_dispatcher.dispatch_action(MovePlayersAction(
         tuple(moved_entries)
     ))
 
@@ -105,4 +105,4 @@ class ServerComponents(Plugin):
         app.add_event_listener(RemovedNetworkEntity, on_network_entity_removal)
 
         # We would like to syncronize our movables 20 times a second
-        schedule_systems_seconds(app, (syncronize_movables, 1/20, True))
+        schedule_systems_seconds(app, (move_players, 1/20, True))

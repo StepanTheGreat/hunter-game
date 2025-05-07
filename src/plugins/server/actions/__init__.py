@@ -26,14 +26,14 @@ class ServerAction(Action):
         self.args: tuple[Any, ...] = args
         self.to: Optional[tuple[tuple[str, int]]] = to
 
-class MoveNetsyncedEntitiesAction(ServerAction):
+class MovePlayersAction(ServerAction):
     def __init__(self, entries: tuple[tuple[int, tuple[int, int], tuple[float, float]]]):
         data = bytes()
         for (uid, pos) in entries:
-            data += MOVE_NETSYNCED_ENTITIES_FORMAT.pack(uid, int(pos[0]), int(pos[1]))
+            data += MOVE_PLAYERS_FORMAT.pack(uid, int(pos[0]), int(pos[1]))
 
         super().__init__(
-            move_netsynced_entities_rpc, 
+            move_players_rpc, 
             (data, )
         )
 
@@ -61,7 +61,7 @@ class SpawnDiamondsAction(ServerAction):
     def __init__(self, diamonds: tuple[tuple[int, tuple[int, int]]]):
         data = bytes()
         for (uid, (posx, posy)) in diamonds:
-            data += MOVE_NETSYNCED_ENTITIES_FORMAT.pack(uid, int(posx), int(posy))
+            data += SPAWN_DIAMONDS_FORMAT.pack(uid, int(posx), int(posy))
 
         super().__init__(
             spawn_diamonds_rpc, 
@@ -74,6 +74,15 @@ class KillEntityAction(ServerAction):
     def __init__(self, uid: int):
         super().__init__(
             kill_entity_rpc,
+            (uid, ),
+            to=None
+        )
+
+class MakeRobberAction(ServerAction):
+    "An action that gets fired at the start of the game, making a specific existing player a robber"
+    def __init__(self, uid: int):
+        super().__init__(
+            make_robber_rpc,
             (uid, ),
             to=None
         )

@@ -128,8 +128,8 @@ def interpolate_network_positions(resources: Resources):
             *interpos.get_interpolated(server_time)
         )
 
-def on_move_netsynced_entities_command(resources: Resources, command: MoveNetsyncedEntitiesCommand):
-    "Apply net syncronization on all requested network entities"
+def on_move_players_command(resources: Resources, command: MovePlayersCommand):
+    "Apply net syncronization on all requested players"
 
     world = resources[WorldECS]
     uidman = resources[EntityUIDManager]
@@ -169,5 +169,5 @@ class ClientCommonComponentsPlugin(Plugin):
             interpolate_render_components
         )
 
-        app.add_event_listener(MoveNetsyncedEntitiesCommand, on_move_netsynced_entities_command)
+        app.add_event_listener(MovePlayersCommand, on_move_players_command)
         app.add_event_listener(KillEntityCommand, on_kill_entity_command)
