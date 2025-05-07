@@ -181,7 +181,7 @@ class GUIBundleManager:
 
     def _clear(self):
         while self.gui_elements:
-            self.pop_gui()
+            self._pop_gui()
 
     def clear(self):
         "Clear the entire GUI stack"
