@@ -56,6 +56,19 @@ class SpawnPlayerAction(ServerAction):
             to=(client, )
         )
 
+class SpawnDiamondsAction(ServerAction):
+    "Spawn diamonds on the clients"
+    def __init__(self, diamonds: tuple[tuple[int, tuple[int, int]]]):
+        data = bytes()
+        for (uid, (posx, posy)) in diamonds:
+            data += MOVE_NETSYNCED_ENTITIES_FORMAT.pack(uid, int(posx), int(posy))
+
+        super().__init__(
+            spawn_diamonds_rpc, 
+            (data, ),
+            to = None
+        )
+
 class KillEntityAction(ServerAction):
     "An action that gets fired when a network entity gets killed (removed from the ECS world)"
     def __init__(self, uid: int):

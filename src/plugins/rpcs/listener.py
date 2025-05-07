@@ -1,9 +1,10 @@
-from plugin import Resources, EventWriter
+from plugin import Resources, EventWriter, event
 
 from plugins.shared.network import rpc
 
 LISTENER_PORT = 1567
 
+@event
 class AvailableServerCommand:
     """
     Servers that haven't started the game once in a while broadcast messages of availability

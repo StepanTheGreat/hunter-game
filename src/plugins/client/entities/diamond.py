@@ -24,3 +24,20 @@ def make_client_diamond(uid: int, pos: tuple[int, int], assets: AssetManager):
         Light((1, 1, 1), 2000, 1.2),
         Sprite(texture, (16, 16)),
     )
+
+    return components
+
+def on_spawn_diamonds_command(resources: Resources, command: SpawnDiamondsCommand):
+    "Spawn diamonds"
+
+    world = resources[WorldECS]
+    assets = resources[AssetManager]
+
+    for (uid, pos) in command.diamonds:
+        world.create_entity(
+            *make_client_diamond(uid, pos, assets)
+        )
+
+class ClientDiamondPlugin(Plugin):
+    def build(self, app):
+        app.add_event_listener(SpawnDiamondsCommand, on_spawn_diamonds_command)

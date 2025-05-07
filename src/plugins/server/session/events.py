@@ -1,15 +1,34 @@
 from plugin import Plugin, Schedule, Resources, EventWriter
 
-from plugins.shared.network import ClientConnectedEvent, ClientDisconnectedEvent
 
 from core.time import SystemScheduler
 from core.ecs import WorldECS
+
+from plugins.shared.network import ClientConnectedEvent, ClientDisconnectedEvent
 from plugins.server.entities.policeman import make_server_policeman
+from plugins.shared.entities.diamond import make_diamond
 from plugins.shared.components import EntityUIDManager
 
-from ..actions import ServerActionDispatcher, SpawnPlayerAction
+from ..actions import ServerActionDispatcher, SpawnPlayerAction, SpawnDiamondsAction
 
 from .session import GameSession, GameStartedEvent, WAIT_TIME_MAP
+
+def _spawn_diamonds(resources: Resources):
+    "A function purely for testing purposes"
+    action_dispatcher = resources[ServerActionDispatcher]
+    world = resources[WorldECS]
+    uidman = resources[EntityUIDManager]
+
+    diamond_entries = []
+    for diamond_pos in ((0, 0), (64, 0), (-64, 0), (0, 64), (0, -64)):
+        uid = uidman.consume_entity_uid()
+
+        diamond_entries.append((uid, diamond_pos))
+
+        world.create_entity(*make_diamond(uid, diamond_pos))
+
+    action_dispatcher.dispatch_action(SpawnDiamondsAction(tuple(diamond_entries)))
+
 
 def on_client_connection(resources: Resources, event: ClientConnectedEvent):
     session = resources[GameSession]
@@ -52,6 +71,10 @@ def on_client_connection(resources: Resources, event: ClientConnectedEvent):
         session.players[new_client_addr] = new_player_ent
     
     print("A new client connection:", new_client_addr)
+
+    # This is only test
+    if len(session.players) == 2:
+        _spawn_diamonds(resources)
 
     reschedule_game_start(resources)
 

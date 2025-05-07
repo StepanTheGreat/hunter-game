@@ -27,6 +27,14 @@ class SpawnPlayerCommand:
         self.is_main = is_main
 
 @event
+class SpawnDiamondsCommand:
+    """
+    The command to spawn diamonds. It contains a tuple of tuples: `(uid, (posx, posy))`
+    """
+    def __init__(self, diamonds: tuple[tuple[int, tuple[int, int]]]):
+        self.diamonds = diamonds
+
+@event
 class KillEntityCommand:
     "The command to kill a network entity under the provided UID"
     def __init__(self, uid: int):
@@ -47,7 +55,14 @@ class SyncHealthCommand:
 MOVE_NETSYNCED_ENTITIES_LIMIT = 127
 "We can transfer only 127 entities per packet for now"
 
-MOVE_NETSYNCED_ENTITIES_FORMAT = struct.Struct(ENDIAN+"H2h")
+MOVE_NETSYNCED_ENTITIES_FORMAT = struct.Struct(ENDIAN+"Hhh")
+"""
+Components:
+- Entity UID: 2 bytes unsigned int, `H`
+- Entity Position: 2 2-byte signed ints, `2h`
+"""
+
+SPAWN_DIAMONDS_FORMAT = struct.Struct(ENDIAN+"Hhh")
 """
 Components:
 - Entity UID: 2 bytes unsigned int, `H`
@@ -86,6 +101,22 @@ def spawn_player_rpc(resources: Resources, uid: int, posx: int, posy: int, is_ma
         uid, (posx, posy), is_main
     ))
 
+@rpc_raw(reliable=True)
+def spawn_diamonds_rpc(resources: Resources, data: bytes):
+    ewriter = resources[EventWriter]
+
+    new_diamonds = ()
+    try:
+        new_diamonds = tuple(
+            (uid, (posx, posy)) for uid, posx, posy in SPAWN_DIAMONDS_FORMAT.iter_unpack(data)
+        )
+    except struct.error:
+        print("Failed to parse the entity movement packet")
+        return
+    
+    if len(new_diamonds) > 0:
+        ewriter.push_event(SpawnDiamondsCommand(new_diamonds))
+
 @rpc("H", reliable=True)
 def kill_entity_rpc(resources: Resources, uid: int):
     ewriter = resources[EventWriter]
@@ -103,6 +134,7 @@ def sync_player_health(resources: Resources, health: float):
 CLIENT_RPCS = (
     move_netsynced_entities_rpc,
     spawn_player_rpc,
+    spawn_diamonds_rpc,
     kill_entity_rpc,
     sync_time_rpc,
     sync_player_health

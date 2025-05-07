@@ -74,7 +74,6 @@ def on_new_main_player(resources: Resources, event: ComponentsAddedEvent):
 def on_sync_health_command(resources: Resources, command: SyncHealthCommand):
     world = resources[WorldECS]
 
-    print("Got health sync command!")
     # When we receive this command, we would like to syncronize our health
     for _, health in world.query_component(Health, including=MainPlayer):
         health.set_percentage(command.health)
