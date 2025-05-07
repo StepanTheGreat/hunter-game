@@ -1,8 +1,17 @@
-from plugin import Resources
+from plugin import Resources, EventWriter
 
-from plugins.shared.network import rpc, get_rpc_caller_addr
+from plugins.shared.network import rpc
 
 LISTENER_PORT = 1567
+
+class AvailableServerCommand:
+    """
+    Servers that haven't started the game once in a while broadcast messages of availability
+    """
+    def __init__(self, addr: tuple[str, int], max_players: int, players: int):
+        self.addr = addr
+        self.max_players = max_players
+        self.players = players
 
 @rpc("4BH2B")
 def notify_available_server_rpc(
@@ -14,7 +23,9 @@ def notify_available_server_rpc(
 ):
     ip, port = f"{ip_a}.{ip_b}.{ip_c}.{ip_d}", port
 
-    print(f"Server found at {ip}:{port} with {players}/{max_players} players.")
+    print(f"Found server: {ip}:{port}")
+
+    resources[EventWriter].push_event(AvailableServerCommand((ip, port), max_players, players))
 
 
 LISTENER_RPCS = (
