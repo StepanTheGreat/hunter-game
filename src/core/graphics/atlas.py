@@ -73,6 +73,7 @@ import moderngl as gl
 import pygame as pg
 
 from json import loads
+from jsonschema import validate, ValidationError
 
 from os.path import abspath
 
@@ -215,16 +216,92 @@ def _closest_pow2_size(image_size: tuple[int, int]) -> tuple[int, int]:
     w, h = image_size
     return 2 ** ceil(log2(w)), 2 ** ceil(log2(h))
 
-def _assert_key(d: dict, key: str, ty: type) -> Any:
-    "Assert a key in a dictionary and return it"
+ATLAS_JSON_SCHEMA = {
+    "properties": {
+        # This property tells us of which type this atlas is
+        "dynamic": {"type": "boolean"}
+    },
 
-    assert key in d, f"The key `{key}` isn't present in the object"
+    # Now, we're going to perform a check based on the value of `dynamic`
+    # Depending on the resulting value, we will expect different rules
+    "if": {
 
-    value = d[key]
-    
-    assert type(value) is ty, f"The type of `{key}` should be `{ty}`"
+        # Essentially, `if dynamic == True`
+        "properties": { "dynamic": {"const": True}} 
+    },
+    "then": {
+        # If true, we would like to expect a dictionary `sources`, keys of which are sprite names
+        # and values are image paths. It is however possible to also use an array of images per key.
 
-    return value
+    	"properties": {
+        	"sources": {
+                "type": "object",
+                "additionalProperties": {
+
+                    # Either a single path string or an array of path strings
+                    "anyOf": [
+                        {"type": "string"},
+                        {
+                            "type": "array", 
+                            "items": {"type": "string"},
+                        },
+                    ]
+                }
+            }  
+        },
+
+        # Of course it is required
+        "required": ["sources"]
+    },
+    "else": {
+        # In any other case our schema will source based on an image. Values in this case of dictionary
+        # `sprites` will be rectangles defining areas of the image. As with the previous case, it's
+        # possible to use arrays of image regions as sprite values
+
+    	"properties": {
+            # The source path of the image
+          	"source": {"type": "string"},
+              
+            # The sprite regions of that image
+        	"sprites": {
+                "type": "object",
+                "additionalProperties": {
+
+                    # Either a 4-value int array (a region rectangle), or an unlimited array of 
+                    # said region rectangles
+                    "anyOf": [
+                        {
+                            "type": "array", 
+                            "items": {"type": "number"},
+                            "minItems": 4, 
+                            "maxItems": 4
+                        },
+                        {
+                            "type": "array", 
+                            "items": {
+                            "type": "array",
+                            "items": {"type": "number"},
+                            "minItems": 4, 
+                            "maxItems": 4
+                            },
+                        },
+                    ]
+                }
+            } 
+        },
+
+        # Make both required of course
+        "required": ["source", "sprites"]
+    },
+
+    # And the dynamic attribute as well!
+    "required": ["dynamic"],
+}
+"""
+To explain this monstrosity... This is a JSON schema, and it allows us to validate arbitrary
+JSON objects against a specific schema or ruleset. I'm not going to explain the format here, but it's
+explained 
+"""
 
 def _load_static_texture_atlas(
     ctx: gl.Context, 
@@ -236,8 +313,11 @@ def _load_static_texture_atlas(
     # I think we will just rebuild the entire atlas. Also, we will increase a bit the texture size, since
     # we need power-of-2 textures
 
-    atlas_source: str = _assert_key(atlas, "source", str)
-    sprites: dict[str, Union[tuple[int, int, int, int], tuple[tuple[int, int, int, int]]]] = _assert_key(atlas, "sprites", dict)
+    atlas_source: str = atlas["source"]
+    sprites: dict[str, Union[
+        tuple[int, int, int, int], 
+        tuple[tuple[int, int, int, int]]
+    ]] = atlas["sprites"]
     img = pg.image.load(atlas_dir+atlas_source)
 
     texture_size = _closest_pow2_size(img.get_size())
@@ -250,17 +330,9 @@ def _load_static_texture_atlas(
         # Because a single key can define multiple regions - we're managing this separately
         if is_list:
             sprite_regions = entry
-            assert all(
-                (type(sprite_region) is list and len(sprite_region) == 4) 
-                for sprite_region in sprite_regions
-            ), "Invalid sprite format used in a static texture atlas"
             regions = sprite_regions
         else:
             sprite_region = entry
-            assert (
-                type(sprite_region) is list and len(sprite_region) == 4
-            ), "Invalid sprite format used in a static texture atlas"
-
             regions = (sprite_region, )
 
         sub_surfaces = tuple(img.subsurface(x, y, w, h) for (x, y, w, h) in regions)
@@ -273,33 +345,24 @@ def _load_dynamic_texture_atlas(
     atlas_dir: str,
     atlas: dict
 ) -> TextureAtlas:
-    sources: dict[str, Union[str, tuple[str]]] = _assert_key(atlas, "sources", dict)
+    sources: dict[str, Union[str, tuple[str]]] = atlas["sources"]
 
     new_atlas = TextureAtlas(ctx, DYNAMIC_ATLAS_MIN_SIZE, True, DYNAMIC_ATLAS_MAX_SIZE)
 
     for source_key, entry in sources.items():
         is_list = type(entry) is list
 
-        sources: tuple[str] = None
-
         if is_list:
             source_paths = entry
-            assert all(
-                (type(source_path) is str)
-                for source_path in source_paths
-            ), "Invalid sprite format used in dynamic texture atlas"
             sources = source_paths
         else:
             source_path = entry
-            assert type(source_path) is str, "Invalid sprite format used in dynamic texture atlas"
             sources = (source_path, )
 
         imgs = tuple(pg.image.load(atlas_dir+source_path) for source_path in sources)
         new_atlas.push_sprites(source_key, imgs)
     
     return new_atlas
-
-# TODO: Make atlas paths relative to the atlas directory
 
 def _load_texture_atlas(
     ctx: gl.Context,
@@ -315,12 +378,10 @@ def _load_texture_atlas(
     If the format doesn't match anything - will raise an error.
     """
     atlas_obj = loads(atlas_data)
-    assert "dynamic" in atlas_obj, "The atlas should tell if it's dynamic or not via `dynamic: true/false`"
 
-    dynamic = atlas_obj["dynamic"]
-    assert type(dynamic) is bool
+    validate(atlas_obj, ATLAS_JSON_SCHEMA)
 
-    if dynamic:
+    if atlas_obj["dynamic"]:
         return _load_dynamic_texture_atlas(ctx, atlas_dir, atlas_obj)
     else:
         return _load_static_texture_atlas(ctx, assets, atlas_dir, atlas_obj)
@@ -330,12 +391,16 @@ def loader_texture_atlas(resources: Resources, path: str) -> TextureAtlas:
     atlas_data = load_file_str(path)
     atlas_dir = abspath(path + "/../")+"/" # Yup, I know, it's not the best way, but it's a simple one
 
-    return _load_texture_atlas(
-        resources[GraphicsContext].get_context(),
-        resources[AssetManager],
-        atlas_dir,
-        atlas_data
-    )
+    try:
+        return _load_texture_atlas(
+            resources[GraphicsContext].get_context(),
+            resources[AssetManager],
+            atlas_dir,
+            atlas_data
+        )
+    except ValidationError as e:
+        print(f"Failed to parse atlas at \"{path}\":")
+        raise e
 
 def _get_path_atlas_split(path: str) -> Union[str, None]:
     atlas_texture_split = path.split("#")
