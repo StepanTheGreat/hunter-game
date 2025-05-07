@@ -7,7 +7,7 @@ from plugins.shared.components import *
 
 from .robber import Robber
 
-DIAMOND_PICKUP_DISTANCE = 10
+DIAMOND_PICKUP_DISTANCE = 64
 
 @event
 class DiamondPickedUpEvent:
@@ -21,7 +21,7 @@ class Diamond:
 
 @component
 class PickingUp:
-    NEEDS_TIME: float = 10
+    NEEDS_TIME: float = 5
 
     def __init__(self):
         self.is_picking_up: bool = False
@@ -60,6 +60,7 @@ def make_diamond(uid: int, pos: tuple[int, int]) -> tuple:
     components = (
         Position(*pos),
         NetEntity(uid),
+        PickingUp(),
         Diamond()
     )
     
@@ -96,12 +97,12 @@ def pickup_diamonds(resources: Resources):
             # What this confusing line does is basically saying:
             # if a robber is in a diamond's pick up distance - set it to picking up. In any
             # other case set it to not.
+            
+            is_picking_up = robber_pos.get_position().distance_to(
+                diamond_pos.get_position()
+            ) < DIAMOND_PICKUP_DISTANCE
 
-            picking_up.set_picking_up(
-                robber_pos.get_position().distance_to(
-                    diamond_pos.get_position()
-                ) < DIAMOND_PICKUP_DISTANCE
-            )
+            picking_up.set_picking_up(is_picking_up)
 
 class DiamondPlugin(Plugin):
     def build(self, app):
