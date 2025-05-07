@@ -1,29 +1,27 @@
-from plugin import Plugin, Resources
+import numpy as np
 
-from core.ecs import WorldECS
-from core.assets import AssetManager
+from plugin import Plugin, Resources
 
 from modules.scene import SceneBundle
 from modules.tilemap import Tilemap
 
-from plugins.shared.map import WorldMap
-
-from plugins.shared.network import clean_network_actors, Client
-from plugins.server import ServerExecutor
-
-from plugins.client.entities.policeman import make_client_policeman
+from plugins.shared.map import WorldMap, load_world_map, unload_world_map
 from plugins.shared.components import reset_entity_uid_manager
+from plugins.shared.network import clean_network_actors, Client
+
+from plugins.server import ServerExecutor
 
 from plugins.client.session import ServerTime
 
-from .render.map import *
-from .render.minimap import *
+from .render.map import MapRendererPlugin
+from .render.minimap import MinimapPlugin
+
 from .gui import IngameGUI
 
 TILE_SIZE = 48
 
-def make_world_map(resources: Resources, offset: tuple[float, float] = (0, 0)) -> tuple[WorldMap, MapModel]:
-    world_map = WorldMap(
+def make_world_map() -> WorldMap:
+    return WorldMap(
         Tilemap(8, 8, np.array([
             [0, 0, 0, 0, 0, 0, 2, 2],
             [2, 1, 1, 0, 0, 0, 0, 2],
@@ -43,26 +41,28 @@ def make_world_map(resources: Resources, offset: tuple[float, float] = (0, 0)) -
         transparent_tiles = set([
             1
         ]),
-        world = resources[WorldECS],
         tile_size=TILE_SIZE,
-        offset=offset
     )
-    map_model = MapModel(resources, world_map)
-
-    return world_map, map_model
 
 class IngameScene(SceneBundle):
     def __init__(self, resources: Resources):
         super().__init__()
 
         self.add_auto_resources(
-            *make_world_map(resources, (0, 0)),
             IngameGUI(resources)
         )
+
+    def pre_init(self, resources):
+        # Before we're going to load this scene, we will load our world map first
+        load_world_map(resources, make_world_map())
 
     def post_init(self, resources):
         # We're going to start the clock when the scene starts
         resources[ServerTime].start()
+
+    def pre_destroy(self, resources):
+        # Before destroying the scene, we would like to remove the world map
+        unload_world_map(resources)
 
     def post_destroy(self, resources):
         # We need to close our client before leaving

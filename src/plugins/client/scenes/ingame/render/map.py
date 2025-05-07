@@ -7,14 +7,13 @@ from plugin import Resources, Plugin, Schedule, run_if, resource_exists
 
 from typing import Optional
 
-from plugins.shared.map import WorldMap
+from plugins.shared.map import WorldMap, WorldMapLoadedEvent, WorldMapUnloadedEvent
 from plugins.client.graphics import ModelRenderer, VERTEX_GL_FORMAT, VERTEX_DTYPE
 
 from core.graphics import *
 from core.assets import AssetManager
 
 TILE_SIZE = 48
-# FLOOR_COLOR = (0.1, 0.8, 0.1)
 FLOOR_COLOR = (30, 200, 30)
 CEILING_COLOR = FLOOR_COLOR
 
@@ -136,11 +135,11 @@ def gen_platform_mesh(
     )
 
 def gen_map_models(
-        gfx: GraphicsContext, 
-        assets: AssetManager, 
-        model_renderer: ModelRenderer,
-        worldmap: WorldMap,
-    ) -> list[tuple[Model, gl.Texture]]:
+    gfx: GraphicsContext, 
+    assets: AssetManager, 
+    model_renderer: ModelRenderer,
+    worldmap: WorldMap,
+) -> list[tuple[Model, gl.Texture]]:
     "Generate an array of renderable map models"
 
     def has_neighbour(tile: int, ntile: int, transparent_tiles: set[int]) -> bool:
@@ -167,9 +166,6 @@ def gen_map_models(
     # A mesh group is a dictionary, where keys are textures, and values are meshes
     mesh_group: dict[gl.Texture, DynamicMeshCPU] = {}
 
-    # Our offset position
-    offsetx, offsety = worldmap.get_offset()
-
     for y, row in enumerate(tiles):
         for x, tile in enumerate(row):
             if tile != 0:
@@ -183,7 +179,7 @@ def gen_map_models(
                 texture = assets.load(Texture, material) if type(material) is str else white_texture
 
                 tile_mesh = gen_tile_mesh(
-                    (offsetx+x, -offsety-y), 
+                    (x, -y), 
                     TILE_SIZE,
                     color,
                     texture.region,
@@ -199,7 +195,7 @@ def gen_map_models(
             
             if tile == 0 or (tile in transparent_tiles):
                 floor_mesh = gen_platform_mesh(
-                    (offsetx+x, -offsety-y), 
+                    (x, -y), 
                     TILE_SIZE, 
                     0, 
                     FLOOR_COLOR, 
@@ -210,7 +206,7 @@ def gen_map_models(
                 # Generate the ceiling mesh
                 floor_mesh.add_mesh(
                     gen_platform_mesh(
-                        (offsetx+x, -offsety-y), 
+                        (x, -y), 
                         TILE_SIZE, 
                         TILE_SIZE, 
                         CEILING_COLOR, 
@@ -234,19 +230,23 @@ def gen_map_models(
     
 class MapModel:
     def __init__(
-            self, 
-            resources: Resources,
-            world_map: WorldMap
-        ):
-        self.models = gen_map_models(
-            resources[GraphicsContext], 
-            resources[AssetManager], 
-            resources[ModelRenderer], 
-            world_map
-        )
+        self, 
+        gfx: GraphicsContext, 
+        assets: AssetManager, 
+        renderer: ModelRenderer, 
+        world_map: WorldMap
+    ):
+        self.models = gen_map_models(gfx, assets, renderer, world_map)
 
     def get_models(self) -> list[tuple[Model, gl.Texture]]:
-        return self.models    
+        return self.models  
+
+    def release(self):
+        "Clear this map model from GPU"
+
+        for model, _ in self.models:
+            model.release()
+        self.models.clear()
 
 @run_if(resource_exists, MapModel)
 def render_map(resources: Resources):
@@ -256,6 +256,39 @@ def render_map(resources: Resources):
     for model in map_model.get_models():
         renderer.push_model(*model)
 
+def unload_map_model(resources: Resources):
+    "A helper function that will perform map model clean up if present"
+
+    if MapModel in resources:
+        print("Releasing the old map")
+        resources[MapModel].release()
+        resources.remove(MapModel)
+
+def load_map_model(resources: Resources, wmap: WorldMap):
+    "A helper function that will load a new map model and clean up the old map model if present"
+
+    unload_map_model(resources)
+
+    resources.insert(MapModel(
+        resources[GraphicsContext], 
+        resources[AssetManager], 
+        resources[ModelRenderer], 
+        wmap
+    ))
+
+def on_worldmap_loaded(resources: Resources, _):
+    "When a world map is loaded, we would like to generate a map model for it"
+
+    load_map_model(resources, resources[WorldMap])
+
+def on_worldmap_unloaded(resources: Resources, _):
+    "If a world map is unloaded - we will clean up the map model"
+
+    unload_map_model(resources)
+
 class MapRendererPlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.PostDraw, render_map)
+
+        app.add_event_listener(WorldMapLoadedEvent, on_worldmap_loaded)
+        app.add_event_listener(WorldMapUnloadedEvent, on_worldmap_unloaded)
