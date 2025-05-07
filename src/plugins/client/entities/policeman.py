@@ -19,7 +19,7 @@ from .player import MainPlayer
 
 CLIENT_POLICEMAN_PROJECTILE = POLICEMAN_PROJECTILE.copy()
 CLIENT_POLICEMAN_PROJECTILE.user_components = (
-    lambda: RenderPosition(24),
+    lambda: RenderPosition(),
 )
     
 def make_client_policeman(
@@ -32,9 +32,9 @@ def make_client_policeman(
     texture = assets.load(Texture, "images/sprites.atl#character")
 
     components = make_policeman(uid, pos) + (
-        RenderPosition(24),
-        Light((1, 1, 1), 20000, 1.2),
-        Sprite(texture, (32, 64)),
+        RenderPosition(),
+        Light(32, (1, 1, 1), 20000, 1.2),
+        Sprite(0, texture, (32, 64)),
         RenderAngle(),
         PerspectiveAttachment(24, 0-ismain),
         Weapon(CLIENT_POLICEMAN_PROJECTILE, POLICEMAN_WEAPON_STATS),

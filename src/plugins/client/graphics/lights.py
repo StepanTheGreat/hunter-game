@@ -11,13 +11,14 @@ LIGHTS_LIMIT = 32
 
 @component
 class Light:
-    def __init__(self, color: tuple[float, float, float], radius: float, luminosity: float):
+    def __init__(self, y: float, color: tuple[float, float, float], radius: float, luminosity: float):
         assert luminosity > 0
         assert radius > 0
 
         self.color = color
         self.radius = radius
         self.luminosity = luminosity
+        self.y = y
 
 class LightManager:
     def __init__(self, ambient_color: tuple, max_lights: int):
@@ -35,9 +36,8 @@ class LightManager:
 
     def push_light(self, light: Light, pos: RenderPosition):
         x, y = pos.get_position()
-        height = pos.height
 
-        self.light_positions[self.light_index] = (x, height, -y)
+        self.light_positions[self.light_index] = (x, light.y, -y)
         self.light_colors[self.light_index] = light.color
         self.light_radiuses[self.light_index] = light.radius
         self.light_luminosities[self.light_index] = light.luminosity

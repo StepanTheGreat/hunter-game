@@ -20,9 +20,9 @@ def make_client_diamond(uid: int, pos: tuple[int, int], assets: AssetManager):
 
     components = make_diamond(uid, pos)
     components += (
-        RenderPosition(0),
-        Light((1, 1, 1), 2000, 1.2),
-        Sprite(texture, (16, 16)),
+        RenderPosition(),
+        Light(8, (1, 1, 1), 2000, 1.2),
+        Sprite(0, texture, (16, 16)),
     )
 
     return components

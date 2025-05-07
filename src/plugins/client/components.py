@@ -22,9 +22,7 @@ We have to play with this constant to see what works best
 
 @component
 class RenderPosition:
-    def __init__(self, height: float):
-        self.height = height
-
+    def __init__(self):
         self.positions = Interpolated(pg.Vector2(0, 0))
         self.interpolated = self.positions.get_value()
 

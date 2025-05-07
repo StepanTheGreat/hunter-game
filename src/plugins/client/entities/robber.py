@@ -8,7 +8,7 @@ from plugins.shared.entities.robber import make_robber
     
 def make_client_robber(uid: int, pos: tuple[float, float]) -> tuple:
     return make_robber(uid, pos) + (
-        RenderPosition(24),
+        RenderPosition(),
         RenderAngle(),
         PerspectiveAttachment()
     )
