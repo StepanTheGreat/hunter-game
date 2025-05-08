@@ -2,6 +2,13 @@ import pygame as pg
 from plugin import event
 
 @event
+class PygameEvent:
+    "Basically the same as `pygame.Event`, but registered for all pygame events that don't have a direct mapping"
+    def __init__(self, event: pg.event.Event):
+        self.type = event.type
+        self.dict = event.dict
+
+@event
 class WindowResizeEvent:
     "Fired when window's resolution gets changed"
     def __init__(self, event: pg.event.Event):

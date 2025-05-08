@@ -1,6 +1,8 @@
-from plugin import Plugin, Resources, Schedule, event, EventWriter
-
 "A really minimal ECS module mostly inspired by [esper](https://github.com/benmoran56/esper)"
+
+from plugin import Plugin, Resources, Schedule, EventWriter
+
+from core.events.ecs import *
 
 from typing import TypeVar, Type, Any, overload, Iterable, Optional, Union
 from itertools import count
@@ -510,20 +512,6 @@ class WorldECS:
             del self.entities[entity]
 
         self.dead_entities.clear()
-
-@event
-class ComponentsAddedEvent:
-    "Fired when components are added to an entity, or when a new entity is created"
-    def __init__(self, entity: int, components: tuple[Any, ...]):
-        self.entity = entity
-        self.components = set(components)
-
-@event
-class ComponentsRemovedEvent:
-    "Fired when components were removed from an entity (either through remove_components or entity removal)"
-    def __init__(self, entity: int, components: tuple[Any, ...]):
-        self.entity = entity
-        self.components = set(components)
 
 def clear_dead_entities(resources: Resources):
     resources[WorldECS].clear_dead_entities()

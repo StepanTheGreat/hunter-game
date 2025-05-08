@@ -4,7 +4,7 @@ import pygame as pg
 from typing import Union, Any
 from plugin import App, AppBuilder, Resources, Plugin, EventWriter, event
 
-from .events import *
+from core.events.pg import *
 from core.time import Clock
 
 pg.font.init()
@@ -12,13 +12,6 @@ pg.font.init()
 from app_config import CONFIG
 
 VIDEO_FLAGS = pg.OPENGL | pg.DOUBLEBUF | pg.RESIZABLE
-
-@event
-class PygameEvent:
-    "Basically the same as `pygame.Event`, but registered for all pygame events that don't have a direct mapping"
-    def __init__(self, event: pg.event.Event):
-        self.type = event.type
-        self.dict = event.dict
 
 class PygameEventMap:
     """
