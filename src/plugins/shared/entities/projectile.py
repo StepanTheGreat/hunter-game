@@ -1,9 +1,12 @@
 from plugin import Plugin, Resources
 
 from core.ecs import WorldECS, component
-from plugins.shared.collisions import DynCollider, CollisionEvent, StaticCollider
+
+from plugins.shared.collisions import DynCollider, StaticCollider
 
 from plugins.shared.components import *
+
+from plugins.shared.events import CollisionEvent, ProjectileHitEvent
 
 from typing import Callable
 
@@ -99,13 +102,6 @@ def make_projectile(
 ) -> tuple:
     return factory.make_projectile(pos, direction)
 
-@event
-class ProjectileHitEvent:
-    "Fired whenever a projectile hits a hittable entity of an opposite team"
-
-    def __init__(self, target_ent: int, damage: float):
-        self.target_ent = target_ent
-        self.damage = damage
 
 def collide_projectiles(resources: Resources, event: CollisionEvent):
     world = resources[WorldECS]

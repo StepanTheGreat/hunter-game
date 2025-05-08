@@ -4,7 +4,10 @@ Some common abstractions for networking
 
 from typing import Callable, Union, Optional
 
-from plugin import Resources, Plugin, Schedule, event, EventWriter
+from plugin import Resources, Plugin, Schedule, EventWriter
+
+from plugins.shared.events.network import *
+
 from itertools import count
 import struct
 
@@ -441,33 +444,9 @@ def cleanup_network_actors(resources: Resources):
 
     clean_network_actors(resources, BroadcastWriter, BroadcastListener, Client, Server)
 
-@event
-class ClientConnectedEvent:
-    "A client has connected to the server. It's fired on the host (i.e. when you're the server)"
-    def __init__(self, addr: tuple[str, int]):
-        self.addr = addr
-
-@event
-class ClientDisconnectedEvent:
-    "A client has disconnected from the server. It's fired on the host (i.e. when you're the server)"
-    def __init__(self, addr: tuple[str, int]):
-        self.addr = addr
-
-@event
-class ServerConnectedEvent:
-    "A connection to the server was succesfully established (i.e. when you're the client)"
-
-@event
-class ServerDisonnectedEvent:
-    "Connection was lost with the server (or forcefully disconnected) (i.e. when you're the client)"
-
-@event
-class ServerConnectionFailEvent:
-    "A connection to the server was unsuccesful (i.e. when you're the client)"
-
 class NetworkPlugin(Plugin):
     def build(self, app):
         app.insert_resource(RPCCallerAddress())
-        
+
         app.add_systems(Schedule.FixedUpdate, update_network_actors)
         app.add_systems(Schedule.Finalize, cleanup_network_actors)

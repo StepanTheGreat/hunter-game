@@ -2,7 +2,9 @@
 
 from core.ecs import WorldECS, component, ComponentsRemovedEvent, ComponentsAddedEvent
 
-from plugin import Plugin, Resources, EventWriter, event
+from plugin import Plugin, Resources, EventWriter
+
+from plugins.shared.events import AddedNetworkEntity, RemovedNetworkEntity
 
 from itertools import count
 
@@ -88,20 +90,6 @@ def reset_entity_uid_manager(resources: Resources):
     "Reset the entity UID manager if there's a new session"
 
     resources[EntityUIDManager].reset()
-
-@event
-class AddedNetworkEntity:
-    "Fired when a network entity has been created"
-    def __init__(self, ent: int, uid: int):
-        self.ent = ent
-        self.uid = uid
-
-@event
-class RemovedNetworkEntity:
-    "Fired when a network entity got deleted from the ECS world"
-    def __init__(self, ent: int, uid: int):
-        self.ent = ent
-        self.uid = uid
 
 def on_network_entity_removed(resources: Resources, event: ComponentsRemovedEvent):
     # If an entity with a NetEntity component gets removed - we would like to push an event

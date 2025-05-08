@@ -1,13 +1,16 @@
 import pygame as pg
 
-from typing import Union
-from plugin import Plugin, Schedule, Resources, EventWriter, event
+from plugin import Plugin, Schedule, Resources, EventWriter
 
 from core.ecs import WorldECS, component, ComponentsAddedEvent, ComponentsRemovedEvent
+
+from plugins.shared.events.collisions import *
 
 from collections import deque
 
 from .components import Position
+
+from typing import Union
 
 # The less - better, but also more unstable. If a collider's total rectangle is larger than GRID_SIZE*2 - this will get unstable quick
 GRID_SIZE = 24
@@ -324,21 +327,6 @@ def on_new_static_collider(resources: Resources, event: Union[ComponentsRemovedE
     static_colliders = [(ent, (pos, collider.as_moved(pos.get_position()))) for ent, (pos, collider) in world.query_components(Position, StaticCollider)]
 
     fill_grid_with_colliders(collisions_state.grid_static, static_colliders)
-
-@event
-class CollisionEvent:
-    """
-    Fired whenever a collision between a sensor and an another collider has happened. 
-    
-    Sensor entity is the entity that listens to said collisions.
-    Hit entity is the entity that touched our entity. It's important to note than 2 sensors can absolutely
-    collide, so this event will also affect sensor/sensor collisions
-    """
-    def __init__(self, sensor_entity: int, hit_entity: int, hit_collider_ty: type):
-        self.sensor_entity = sensor_entity
-
-        self.hit_entity = hit_entity
-        self.hit_collider_ty = hit_collider_ty
 
 class CollisionsPlugin(Plugin):
     def build(self, app):

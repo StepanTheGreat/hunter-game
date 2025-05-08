@@ -4,16 +4,11 @@ from core.time import Clock
 from core.ecs import component, WorldECS
 
 from plugins.shared.components import *
+from plugins.shared.events.entities import *
 
 from .characters import Robber
 
 DIAMOND_PICKUP_DISTANCE = 64
-
-@event
-class DiamondPickedUpEvent:
-    "A diamond was picked up!"
-    def __init__(self, ent: int):
-        self.ent = ent
 
 @component
 class Diamond:

@@ -1,6 +1,8 @@
-from plugin import Plugin, Schedule, Resources, event, EventWriter
+from plugin import Resources, EventWriter
 
 from core.ecs import WorldECS
+
+from plugins.shared.events.map import *
 
 from modules.tilemap import Tilemap
 
@@ -66,14 +68,6 @@ class WorldMap:
 
     def get_map(self) -> Tilemap:
         return self.map
-        
-@event
-class WorldMapLoadedEvent:
-    "Fired when a world map gets loaded"
-
-@event
-class WorldMapUnloadedEvent:
-    "Fired whenever a world map get unloaded"
 
 def load_world_map(resources: Resources, wmap: WorldMap):
     """
