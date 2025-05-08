@@ -2,7 +2,7 @@
 Some common abstractions for networking
 """
 
-from typing import Callable, Union
+from typing import Callable, Union, Optional
 
 from plugin import Resources, Plugin, Schedule, event, EventWriter
 from itertools import count
@@ -10,7 +10,7 @@ import struct
 
 from core.time import Clock
 
-from modules.network import HighUDPClient, HighUDPServer, BroadcastReceiver, BroadcastSender, get_current_ip
+from modules.network import *
 
 MAX_RPC_FUNC = 256
 DEFAULT_RPC_RELIABILITY = False
@@ -20,20 +20,6 @@ ENDIAN = "!"
 "Standardized endian value used for all RPC's"
 
 _rpc_id_counter = count(0, step=1)
-_rpc_caller_addr: tuple[str, int] = None
-
-def get_rpc_caller_addr() -> tuple[str, int]:
-    """
-    Get the current RPC caller's IP address. This function can only be called inside RPC functions,
-    in any other case it will throw an error.
-    """
-
-    assert _rpc_caller_addr is not None, "Can't get RPC caller's address outside an RPC function"
-    return _rpc_caller_addr
-
-def _set_rpc_caller_addr(to: Union[tuple[str, int], None]):
-    global _rpc_caller_addr
-    _rpc_caller_addr = to
 
 class RPCFormatError(Exception):
     "The arguments passed to the RPC were malformed, thus the RPC wasn't executed."
@@ -182,8 +168,28 @@ def serialize_call(func: Callable, args: tuple) -> bytes:
 
     return bytes([rpc_id]) + func.serialize_call(*args)
 
-def _parse_rpc_call(call: bytes) -> Union[tuple[int, bytes], None]:
+def _parse_rpc_call(call: bytes) -> Optional[tuple[int, bytes]]:
     return call[0], call[1:] if len(call) > 0 else None
+
+class RPCCallerAddress:
+    """
+    The global RPC caller's address that changes depending on who's calling the RPC.
+    It's important to note that this resource can only be used inside RPC contexts, and in any
+    other case getting the address will raise an exception.
+    """
+
+    def __init__(self):
+        self.addr: Optional[tuple[str, int]] = None
+
+    def get_addr(self) -> tuple[str, int]:
+        "Get the current RPC caller's address. If called outside RPC functions - will raise an exception"
+
+        assert self.addr is not None, "Can't get RPC caller's address outside RPC contexts"
+
+        return self.addr
+    
+    def _set_addr(self, to: Optional[tuple[str, int]]):
+        self.addr = to
 
 def _try_call_rpc(
     rpcs: dict[int, Callable], 
@@ -197,6 +203,8 @@ def _try_call_rpc(
     This function still can crash, since an RPC can throw an `RPCFormatError` due to wrong format, so
     it's important to also catch this error outside.
     """
+    rpc_caller_addr = resources[RPCCallerAddress]
+
     rpc_call = _parse_rpc_call(rpc_call)
     if rpc_call is None:
         return
@@ -205,7 +213,8 @@ def _try_call_rpc(
     if rpc_id not in rpcs:
         return
     
-    _set_rpc_caller_addr(caller_addr) # It's important we set the caller's address before calling it
+    rpc_caller_addr._set_addr(caller_addr)
+    # It's important we set the caller's address before calling it
 
     try:
         rpcs[rpc_id](resources, rpc_args)
@@ -213,7 +222,7 @@ def _try_call_rpc(
         # In the future this should be present on every single actor separately
         print("Malformed input used on RPC {}", rpc_id)
 
-    _set_rpc_caller_addr(None)
+    rpc_caller_addr._set_addr(None)
 
 def _attach_rpcs(to: dict[int, Callable], rpcs: tuple[Callable, ...]):
     for rpc in rpcs:
@@ -458,5 +467,7 @@ class ServerConnectionFailEvent:
 
 class NetworkPlugin(Plugin):
     def build(self, app):
+        app.insert_resource(RPCCallerAddress())
+        
         app.add_systems(Schedule.FixedUpdate, update_network_actors)
         app.add_systems(Schedule.Finalize, cleanup_network_actors)

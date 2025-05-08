@@ -1,6 +1,6 @@
 from plugin import Resources, EventWriter, event
 
-from plugins.shared.network import rpc, rpc_raw, get_rpc_caller_addr
+from plugins.shared.network import rpc, rpc_raw, RPCCallerAddress
 from .pack import unpack_velocity, unpack_angle
 
 from modules.utils import clamp
@@ -37,8 +37,10 @@ def control_player_rpc(
 ):
     ewriter = resources[EventWriter]
 
+    caller_addr = resources[RPCCallerAddress].get_addr()
+
     ewriter.push_event(ControlPlayerCommand(
-        get_rpc_caller_addr(),
+        caller_addr,
         (pos_x, pos_y),
         unpack_velocity(vel_angle, vel_length),
         unpack_angle(angle),
