@@ -5,7 +5,7 @@ from core.ecs import component, WorldECS
 
 from plugins.shared.components import *
 
-from .robber import Robber
+from .characters import Robber
 
 DIAMOND_PICKUP_DISTANCE = 64
 
