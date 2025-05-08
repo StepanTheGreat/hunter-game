@@ -3,7 +3,7 @@ import pygame as pg
 
 from plugin import Plugin, Resources
 
-from core.pg import WindowResizeEvent
+from core.events import WindowResizeEvent
 from app_config import CONFIG
 
 def perspective_matrix(aspect_ratio: float, fov: float, zfar: float, znear: float) -> np.ndarray:

@@ -1,4 +1,4 @@
-from plugin import Plugin, Resources, Schedule
+from plugin import Plugin, Resources
 
 from core.time import schedule_systems_seconds
 from core.ecs import WorldECS

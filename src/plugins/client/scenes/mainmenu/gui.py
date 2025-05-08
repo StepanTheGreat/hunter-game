@@ -7,7 +7,9 @@ from modules.scene import SceneManager
 from plugins.client.graphics import FontGPU
 from plugins.client.gui import GUIBundleManager, TextButton, ColorRect, Label
 
-from plugins.shared.network import ServerConnectedEvent, Client, insert_network_actor
+from plugins.shared.network import Client, insert_network_actor
+
+from plugins.client.events import ServerConnectedEvent
 
 from plugins.rpcs.client import CLIENT_RPCS
 

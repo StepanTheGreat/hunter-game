@@ -55,6 +55,7 @@ even this has some performance cost.
 
 from plugin import Plugin, Schedule, Resources
 
+from core.events.pg import *
 from core.time import SystemScheduler
 
 from .widgets import *

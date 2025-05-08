@@ -9,8 +9,7 @@ from .ctx import GraphicsContext, DEFAULT_FILTER, Texture
 from .atlas import TextureAtlas, SpriteRect
 
 DEFAULT_FONT_SIZE = 64
-# DEFAULT_CHARACTERS = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890_~=\|-?.,><+@!#$%^&*() "
-DEFAULT_CHARACTERS = "=UqJYiNcwEdgxrG4O)vKMofWPSpXy|nC(m^+.%,a7~_6lhQH!Rs8@9#B>-Dez$\\TjtV15<LAkZ2& ?uFb*30I"
+DEFAULT_CHARACTERS = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890_~=\|-?.,><+@!#$%^&*() "
 
 FONT_MIN_TEXTURE_SIZE = (256, 256)
 FONT_MAX_TEXTURE_SIZE = 2048

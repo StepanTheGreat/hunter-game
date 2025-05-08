@@ -4,7 +4,6 @@ from modules.scene import SceneBundle
 
 from plugins.shared.network import BroadcastListener, insert_network_actor, clean_network_actors
 from plugins.rpcs.listener import LISTENER_PORT, LISTENER_RPCS
-from plugins.shared.components import reset_entity_uid_manager
 
 from .gui import MainMenuGUI, MainMenuGUIPlugin
 

@@ -7,7 +7,9 @@ from plugin import Resources, Plugin, Schedule, run_if, resource_exists
 
 from typing import Optional
 
-from plugins.shared.map import WorldMap, WorldMapLoadedEvent, WorldMapUnloadedEvent
+from plugins.shared.map import WorldMap
+from plugins.client.events import WorldMapLoadedEvent, WorldMapUnloadedEvent
+
 from plugins.client.graphics import ModelRenderer, VERTEX_GL_FORMAT, VERTEX_DTYPE
 
 from core.graphics import *

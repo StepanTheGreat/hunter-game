@@ -6,7 +6,9 @@ from app_config import CONFIG
 
 from core.graphics import GraphicsContext, Pipeline, PipelineParams, Model, DynamicMeshCPU
 from core.assets import AssetManager
-from core.pg import WindowResizeEvent, Clock
+from core.pg import Clock
+
+from core.events import WindowResizeEvent
 
 SCREEN_MESH = DynamicMeshCPU(
     np.array([
