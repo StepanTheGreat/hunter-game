@@ -46,6 +46,7 @@ def server_runner(app: App):
 
     clock = app.get_resource(Clock)
     server_controller = app.get_resource(ServerController)
+    ewriter = app.get_resource(EventWriter)
 
     caught_exception = None
 
@@ -57,6 +58,10 @@ def server_runner(app: App):
             clock.update()
             app.update(clock.get_fixed_updates())            
     except Exception as exception:
+
+        # We don't want to handle events when an app has caught an exception - only finalize it
+        ewriter.clear_events()
+        
         caught_exception = exception
         print("The server app has caught an exception, finalizing...")
 

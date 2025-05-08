@@ -102,6 +102,10 @@ def pygame_runner(app: App):
             
             pg.display.flip()
     except Exception as exception:
+        
+        # We don't want to handle events when an app has caught an exception - only finalize it
+        event_writer.clear_events()
+
         caught_exception = exception
         print("The app has caught an exception, finalizing...")
 
