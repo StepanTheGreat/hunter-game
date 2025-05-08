@@ -21,11 +21,16 @@ class ServerAction(Action):
     They're the abstraction that allows high-level systems not to touch parsing structures, as actions
     should handle that themselves in their initialisation logic.
     """
+<<<<<<< HEAD
     def __init__(self, rpc: Callable, *args, to: tuple[tuple[str, int]] = None):
+=======
+    def __init__(self, rpc: Callable, args: tuple, to: tuple[tuple[str, int]] = None):
+>>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
         self.rpc: Callable = rpc
         self.args: tuple[Any, ...] = args
         self.to: Optional[tuple[tuple[str, int]]] = to
 
+<<<<<<< HEAD
 class MoveNetsyncedEntitiesAction(ServerAction):
     def __init__(self, entries: tuple[tuple[int, tuple[int, int], tuple[float, float]]]):
         data = bytes()
@@ -39,6 +44,17 @@ class MoveNetsyncedEntitiesAction(ServerAction):
         super().__init__(
             move_netsynced_entities_rpc, 
             data
+=======
+class MovePlayersAction(ServerAction):
+    def __init__(self, entries: tuple[tuple[int, tuple[int, int], tuple[float, float]]]):
+        data = bytes()
+        for (uid, pos) in entries:
+            data += MOVE_PLAYERS_FORMAT.pack(uid, int(pos[0]), int(pos[1]))
+
+        super().__init__(
+            move_players_rpc, 
+            (data, )
+>>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
         )
 
 class SpawnPlayerAction(ServerAction):
@@ -52,19 +68,78 @@ class SpawnPlayerAction(ServerAction):
     ):
         super().__init__(
             spawn_player_rpc, 
+<<<<<<< HEAD
             uid, *pos, is_main, 
             to=(client, )
         )
 
+=======
+            (
+                uid, 
+                *pos, 
+                is_main
+            ), 
+            to=(client, )
+        )
+
+class SpawnDiamondsAction(ServerAction):
+    "Spawn diamonds on the clients"
+    def __init__(self, diamonds: tuple[tuple[int, tuple[int, int]]]):
+        data = bytes()
+        for (uid, (posx, posy)) in diamonds:
+            data += SPAWN_DIAMONDS_FORMAT.pack(uid, int(posx), int(posy))
+
+        super().__init__(
+            spawn_diamonds_rpc, 
+            (data, ),
+            to = None
+        )
+
+>>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 class KillEntityAction(ServerAction):
     "An action that gets fired when a network entity gets killed (removed from the ECS world)"
     def __init__(self, uid: int):
         super().__init__(
             kill_entity_rpc,
+<<<<<<< HEAD
             uid,
             to=None
         )
 
+=======
+            (uid, ),
+            to=None
+        )
+
+class CrookifyPolicemanAction(ServerAction):
+    "An action that gets fired at the start of the game, making a specific existing player a robber"
+    def __init__(self, uid: int):
+        super().__init__(
+            crookify_policeman_rpc,
+            (uid, ),
+            to=None
+        )
+
+class SyncTimeAction(ServerAction):
+    "An action that gets fired when a network entity gets killed (removed from the ECS world)"
+    def __init__(self, time: float):
+        super().__init__(
+            sync_time_rpc,
+            (time, ),
+            to=None
+        )
+
+class SyncHealthAction(ServerAction):
+    "An action that allows the hit player to know how much health they got left"
+    
+    def __init__(self, client: tuple[str, int], health: float):
+        super().__init__(
+            sync_player_health, 
+            (health, ),
+            to = (client, )
+        )
+
+>>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 class ServerActionDispatcher(ActionDispatcher):
     """
     A dispatcher is a command dispatcher for network actions. You push your actions directly here,

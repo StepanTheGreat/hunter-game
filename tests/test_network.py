@@ -30,9 +30,9 @@ def tick_actors(dt: float, *actors, times: int = 1):
         for actor in actors:
             actor.tick(dt)
 
-def fetch_listeners(*listeners: BroadcastListener):
-    for listener in listeners:
-        listener.fetch()
+def fetch_receivers(*receivers: BroadcastReceiver):
+    for receiver in receivers:
+        receiver.fetch()
 
 def close_actors(*actors):
     "Close sockets of the provided actors (client or server)"
@@ -419,29 +419,35 @@ def _():
 def _():
     server, client = make_test_pair()
 
-    # We're going to create 2 listeners, and they should be able to perfectly coexist
-    listener1 = BroadcastListener(ADDR_BROADCAST)
-    listener2 = BroadcastListener(ADDR_BROADCAST)
+    # We're going to create 2 receivers, and they should be able to perfectly coexist
+    receiver1 = BroadcastReceiver(ADDR_BROADCAST)
+    receiver2 = BroadcastReceiver(ADDR_BROADCAST)
 
     message = b"hello"
 
-    # A broadcast is a special method, because it sends packets immediately, without us
-    # needing to tick the server
-    server.broadcast(PORT_BROADCAST, message)
+    # Create our broadcaster
+    writer = BroadcastSender(ADDR_SERVER[0])
 
-    # We always need to manually fetch all packets on listeners
-    fetch_listeners(listener1, listener2)
+    # Broadcast the packet
+    writer.broadcast(PORT_BROADCAST, message)
+
+    # We always need to manually fetch all packets on receivers
+    fetch_receivers(receiver1, receiver2)
 
     # Now, we only should receive a single packet
-    for listener in (listener1, listener2):
-        assert listener.recv() == (message, ADDR_SERVER)
-        assert not listener.has_packets()
+    for receiver in (receiver1, receiver2):
+
+        # Because broadcast senders always use OS assigned ports, we only care about receiving the message here.
+        # An additional note is that windows has some sort of deduplication, in case of which packets from multiple 
+        # interfaces are only delievered once. This isn't the case for Linux, that's why we're only checking for a single message here
+        # (but this does mean that Linux will receive multiple dublicates, especially when writing to the broadcaster)
+        assert receiver.recv()[0] == message 
 
     # Our client on the other hand, not being connected to anything - shouldn't receive anything
     client.tick(DT)
     assert not client.has_packets()
 
-    close_actors(server, client, listener1, listener2)
+    close_actors(server, client, receiver1, receiver2, writer)
 
 @test("Test immediate disconnection")
 def _():

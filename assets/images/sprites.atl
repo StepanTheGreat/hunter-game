@@ -2,6 +2,7 @@
     "dynamic": true,
     "sources": {
         "character": "character.png",
-        "meteorite": "meteorite.png"
+        "meteorite": "meteorite.png",
+        "diamond": "diamond.png"
     }
 }

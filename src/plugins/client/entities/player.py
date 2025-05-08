@@ -1,8 +1,17 @@
 from plugin import Plugin, Resources, Schedule
 
+<<<<<<< HEAD
 from core.ecs import WorldECS
 from core.input import InputManager
 
+=======
+from core.time import schedule_systems_seconds
+from core.ecs import WorldECS
+from core.input import InputManager
+
+from plugins.rpcs.client import SyncHealthCommand
+
+>>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 from ..actions import ClientActionDispatcher, ControlAction
 
 from plugins.shared.components import *
@@ -45,6 +54,7 @@ def control_player(resources: Resources):
         controller.is_shooting = input[InputAction.Shoot]
 
 
+<<<<<<< HEAD
         pos, vel = world.get_components(ent, Position, Velocity)
         pos = pos.get_position()
         vel = vel.get_velocity()
@@ -58,3 +68,47 @@ class ClientPlayerPlugin(Plugin):
     def build(self, app):
         app.insert_resource(PlayerStats())
         app.add_systems(Schedule.FixedUpdate, control_player)
+=======
+        pos, vel, angle, angle_vel = world.get_components(ent, Position, Velocity, Angle, AngleVelocity)
+        pos = pos.get_position()
+        vel = vel.get_velocity()
+
+        action_dispatcher.dispatch_action(ControlAction(
+            (pos.x, pos.y), 
+            (vel.x, vel.y), 
+            angle.get_angle(), 
+            angle_vel.get_velocity(),
+            controller.is_shooting
+        ))
+
+        break
+
+def on_new_main_player(resources: Resources, event: ComponentsAddedEvent):
+    """
+    This system runs every time a new main player is spawned, and its only purpose is to 
+    reset the `HealthStats` global resource to 1.
+    """
+    
+    if MainPlayer in event.components:
+        resources[PlayerStats].update_health(1)
+
+def on_sync_health_command(resources: Resources, command: SyncHealthCommand):
+    world = resources[WorldECS]
+
+    # When we receive this command, we would like to syncronize our health
+    for _, health in world.query_component(Health, including=MainPlayer):
+        health.set_percentage(command.health)
+
+    # We're also going to update the `PlayerStats`, though I think this should probably
+    # be done from a separate event listener instead
+    resources[PlayerStats].update_health(command.health)
+
+class ClientPlayerPlugin(Plugin):
+    def build(self, app):
+        app.insert_resource(PlayerStats())
+
+        app.add_event_listener(ComponentsAddedEvent, on_new_main_player)
+        app.add_event_listener(SyncHealthCommand, on_sync_health_command)
+
+        schedule_systems_seconds(app, (control_player, 1/20, True))
+>>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75

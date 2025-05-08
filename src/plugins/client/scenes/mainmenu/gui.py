@@ -94,6 +94,7 @@ class MainMenuGUI:
         
         self.gui.replace_gui([background])
 
+<<<<<<< HEAD
 class MainMenuGUI:
     BUTTON_SIZE = (312, 64)
 
@@ -212,6 +213,8 @@ class MainMenuGUI:
         ])
 
 
+=======
+>>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 def on_connection_accepted(resources: Resources, event: ServerConnectedEvent):
     if MainMenuGUI in resources:
         resources[SceneManager].insert_scene(IngameScene(resources))

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 from plugin import Plugin, Schedule, Resources
 
 from plugins.shared.network import Server, ClientConnectedEvent, ClientDisconnectedEvent
@@ -129,4 +130,20 @@ class GameSessionPlugin(Plugin):
 
         app.add_event_listener(ClientConnectedEvent, on_client_connection)
         app.add_event_listener(ClientDisconnectedEvent, on_client_disconnection)
+=======
+from plugin import Plugin
+
+from .session import SessionContextPlugin
+from .events import SessionEventsPlugin
+from .systems import SessionSystemsPlugin
+
+
+class SessionPlugin(Plugin):
+    def build(self, app):
+        app.add_plugins(
+            SessionContextPlugin(),
+            SessionEventsPlugin(),
+            SessionSystemsPlugin()
+        )
+>>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 

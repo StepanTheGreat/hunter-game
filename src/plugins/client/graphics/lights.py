@@ -8,16 +8,18 @@ from core.ecs import WorldECS, component
 from plugins.client.components import RenderPosition
 
 LIGHTS_LIMIT = 32
+DEFAULT_AMBIENT_LIGHT = (0.05, 0.05, 0.1)
 
 @component
 class Light:
-    def __init__(self, color: tuple[float, float, float], radius: float, luminosity: float):
+    def __init__(self, y: float, color: tuple[float, float, float], radius: float, luminosity: float):
         assert luminosity > 0
         assert radius > 0
 
         self.color = color
         self.radius = radius
         self.luminosity = luminosity
+        self.y = y
 
 class LightManager:
     def __init__(self, ambient_color: tuple, max_lights: int):
@@ -33,11 +35,13 @@ class LightManager:
         
         self.light_index = 0
 
+    def set_ambient_color(self, to: tuple[float, float, float]):
+        self.ambient_color = to
+
     def push_light(self, light: Light, pos: RenderPosition):
         x, y = pos.get_position()
-        height = pos.height
 
-        self.light_positions[self.light_index] = (x, height, -y)
+        self.light_positions[self.light_index] = (x, light.y, -y)
         self.light_colors[self.light_index] = light.color
         self.light_radiuses[self.light_index] = light.radius
         self.light_luminosities[self.light_index] = light.luminosity
@@ -77,5 +81,5 @@ def push_lights(resources: Resources):
 
 class LightPlugin(Plugin):
     def build(self, app):
-        app.insert_resource(LightManager((0.05, 0.05, 0.1), LIGHTS_LIMIT))
+        app.insert_resource(LightManager(DEFAULT_AMBIENT_LIGHT, LIGHTS_LIMIT))
         app.add_systems(Schedule.PreDraw, clear_lights, push_lights, priority=-1)

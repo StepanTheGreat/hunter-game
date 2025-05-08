@@ -79,4 +79,38 @@ A command is a required action.
 existing action happening. It's however **is not an action**, only the reaction of said action.
 - **RPC** (a Remote Procedure Call, a direct network port for a message). A server sending "hello" to
 clients will mean that the clients would need a receiving port `hello`, and the server having the sending
+<<<<<<< HEAD
 port `hello`. An RPC is a direct transport layer if you would say.
+=======
+port `hello`. An RPC is a direct transport layer if you would say.
+
+### Network communication
+This simple guide is going to introduce you to how you can register new endpoints, receive network
+commands and so on.
+For this, we will use 3 key concepts from our naming convention: an action, a command and RPC.
+
+#### Sending data
+To invoke a command, we use **actions**. Actions store all required information to execute our RPCs,
+such as RPC function, arguments, to which address (if it's a server action) and so on. Actions
+can be dispatched using `ActionDispatcher` on a respected network actor, and these are then
+immediately dispatched into RPCs.
+
+The reason why we're using actions is because it allows us to abstract parsing and direct
+RPC interactions into a simple "action-based` system. So, if you would like to pass some command/action - 
+first create an appropriate action for it.
+
+#### Receiving data
+Receiving data takes a lot more steps.
+First we need to setup an RPC, the "physical port", to which our data will arrive. Without it
+it will be impossible to receive the data in the first place.
+RPC can handle all the parsing logic.
+
+Then, when setup, we need to create a proper `Command` structure for this same RPC. A command is 
+essentially a transfered `Action`. A command can also be used to inter-communicate between systems
+in a usual workflow, so it suits our usecase here.
+A command should represent the most important data for said action, and be dispatched
+via `EventWriter`, so that systems can listen to it and react.
+
+
+And essentially, that's it.
+>>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75

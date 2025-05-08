@@ -2,14 +2,25 @@ from plugin import *
 
 from core import ServerCoreModulesPlugin
 
+<<<<<<< HEAD
 from modules.time import Clock
+=======
+from core.time import Clock
+>>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 
 from plugins.shared.network import Server
 from plugins.shared import SharedPluginCollection
 
+<<<<<<< HEAD
 from .session import GameSessionPlugin
 from .actions import ServerActionPlugin
 from .components import ServerComponents
+=======
+from .session import SessionPlugin
+from .actions import ServerActionPlugin
+from .components import ServerComponents
+from .entities import ServerEntitiesPlugin
+>>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 
 from app_config import CONFIG
 
@@ -45,6 +56,10 @@ def server_runner(app: App):
 
     clock = app.get_resource(Clock)
     server_controller = app.get_resource(ServerController)
+<<<<<<< HEAD
+=======
+    ewriter = app.get_resource(EventWriter)
+>>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 
     caught_exception = None
 
@@ -56,6 +71,13 @@ def server_runner(app: App):
             clock.update()
             app.update(clock.get_fixed_updates())            
     except Exception as exception:
+<<<<<<< HEAD
+=======
+
+        # We don't want to handle events when an app has caught an exception - only finalize it
+        ewriter.clear_events()
+        
+>>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
         caught_exception = exception
         print("The server app has caught an exception, finalizing...")
 
@@ -74,9 +96,16 @@ class ServerPlugins(Plugin):
         app.add_plugins(
             SharedPluginCollection(),
             ServerCoreModulesPlugin(),
+<<<<<<< HEAD
             GameSessionPlugin(),
             ServerActionPlugin(),
             ServerComponents()
+=======
+            SessionPlugin(),
+            ServerActionPlugin(),
+            ServerComponents(),
+            ServerEntitiesPlugin()
+>>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
         )
         app.insert_resource(self.controller)
         app.insert_resource(Clock(CONFIG.fixed_fps, CONFIG.fixed_fps))
