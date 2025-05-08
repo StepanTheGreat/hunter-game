@@ -33,3 +33,11 @@ for now.
 ### Services
 As mentioned previously, systems are by design extremely coupled, but coupled locally, so they're
 allowed as their own plugins with their own systems/resources and so on. (Except for events or components - nope`)
+
+### Remove all global state!!
+This is self-explanatory. There's some global state in physics and RPC caller address, which actually
+should be implemented as resources instead. There's zero justification for that.
+
+### Consider using scenes on both the server and client
+Scene bundles can be highly useful when managing state transitions, especially both on the client
+and server. Making it a core plugin could be valuable for better state management.
