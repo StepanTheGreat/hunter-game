@@ -2,7 +2,6 @@ from plugin import Plugin
 
 from .graphics import GraphicsPlugin
 from .entities import ClientEntitiesPlugin
-from .components import ClientCommonComponentsPlugin
 from .scenes import ScenesPlugin
 from .gui import GUIPlugin
 from .perspective import PerspectivePlugin
@@ -11,15 +10,14 @@ from .session import SessionPlugin
 
 from plugins.server import ServerManagementPlugin
 
-from plugins.shared import SharedPluginCollection
+from plugins.shared import SharedPluginsCollection
 
 class ClientPluginCollection(Plugin):
     def build(self, app):
         app.add_plugins(
-            SharedPluginCollection(),
+            SharedPluginsCollection(),
             GraphicsPlugin(),
             ClientEntitiesPlugin(),
-            ClientCommonComponentsPlugin(),
             GUIPlugin(),
             ScenesPlugin(),
             PerspectivePlugin(),

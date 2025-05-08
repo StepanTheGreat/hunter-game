@@ -1,18 +1,15 @@
 from plugin import Plugin, Resources, Schedule
 
+from core.ecs import WorldECS
 from core.assets import AssetManager
 from core.graphics import Texture
-
-from plugins.shared.entities.weapon import Weapon
-
-from plugins.client.graphics.lights import Light
-from plugins.client.graphics.sprite import Sprite
-from plugins.client.perspective import PerspectiveAttachment
 
 from core.assets import AssetManager
 
 from plugins.shared.entities.diamond import *
 from plugins.client.components import *
+
+from plugins.rpcs.client import SpawnDiamondsCommand
 
 def make_client_diamond(uid: int, pos: tuple[int, int], assets: AssetManager):
 

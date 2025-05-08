@@ -25,15 +25,17 @@ class ServerConnectionFailEvent:
     "A connection to the server was unsuccesful (i.e. when you're the client)"
 
 @event
-class AddedNetworkEntity:
+class AddedNetworkEntityEvent:
     "Fired when a network entity has been created"
-    def __init__(self, ent: int, uid: int):
+    def __init__(self, ent: int, uid: int, comps: set):
         self.ent = ent
         self.uid = uid
+        self.comps: set = comps
 
 @event
-class RemovedNetworkEntity:
+class RemovedNetworkEntityEvent:
     "Fired when a network entity got deleted from the ECS world"
-    def __init__(self, ent: int, uid: int):
+    def __init__(self, ent: int, uid: int, comps: set):
         self.ent = ent
         self.uid = uid
+        self.comps: set = comps

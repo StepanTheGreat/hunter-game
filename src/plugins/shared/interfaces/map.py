@@ -1,13 +1,10 @@
-from plugin import Resources, EventWriter
-
 from core.ecs import WorldECS
 
 from plugins.shared.events.map import *
 
 from modules.tilemap import Tilemap
 
-from .collisions import StaticCollider
-from .components import Position
+from plugins.shared.components import Position, StaticCollider
 
 from typing import Union
 
@@ -68,30 +65,3 @@ class WorldMap:
 
     def get_map(self) -> Tilemap:
         return self.map
-
-def load_world_map(resources: Resources, wmap: WorldMap):
-    """
-    Load a new world map, and if a map is already present - clean it up and overwrite with the new one.
-    This function will automatically create map colliders and push appropriate events.
-    """
-
-    unload_world_map(resources)
-
-    # First we're going to insert all map's colliders
-    wmap.create_map_colliders(resources[WorldECS])
-
-    resources.insert(wmap)
-
-    resources[EventWriter].push_event(WorldMapLoadedEvent())
-
-def unload_world_map(resources: Resources):
-    """
-    Unload the current world map if present. This will automatically remove its 
-    colliders and push appropriate events.
-    """
-
-    if WorldMap in resources:
-        wmap = resources[WorldMap]
-        wmap.destroy_map_colliders(resources[WorldECS])
-
-        resources[EventWriter].push_event(WorldMapUnloadedEvent())

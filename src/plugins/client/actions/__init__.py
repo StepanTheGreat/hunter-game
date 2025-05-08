@@ -4,7 +4,7 @@ A collection of "commands" that
 
 from plugin import Plugin
 
-from plugins.shared.network import Client
+from plugins.shared.services.network import Client
 from plugins.shared.actions import ActionDispatcher, Action
 
 from plugins.rpcs.server import *

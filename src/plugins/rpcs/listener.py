@@ -1,6 +1,6 @@
 from plugin import Resources, EventWriter, event
 
-from plugins.shared.network import rpc
+from plugins.shared.services.network import rpc
 
 LISTENER_PORT = 1567
 

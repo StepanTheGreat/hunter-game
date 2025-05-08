@@ -3,11 +3,8 @@ from plugin import Resources, Schedule, Plugin
 from core.ecs import WorldECS
 from core.pg import Screen
 
-from plugins.client.components import Position, RenderPosition
-from plugins.shared.collisions import StaticCollider, DynCollider
-
+from plugins.client.components import Position, RenderPosition, Player, StaticCollider, DynCollider
 from plugins.client.graphics import Renderer2D
-from plugins.shared.entities.player import Player
 
 # Remove this constant. A minimap should be a GUI element, not a standalone plugin
 MINIMAP_SCALE = 0.5

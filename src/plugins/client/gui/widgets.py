@@ -6,7 +6,7 @@ from collections import deque
 from plugins.client.graphics.render2d import Renderer2D
 
 from core.graphics import FontGPU
-from core.pg.events import *
+from core.events import *
 
 class GUIElement:
     """

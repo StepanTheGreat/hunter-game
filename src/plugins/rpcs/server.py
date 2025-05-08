@@ -1,6 +1,6 @@
 from plugin import Resources, EventWriter, event
 
-from plugins.shared.network import rpc, rpc_raw, RPCCallerAddress
+from plugins.shared.services.network import rpc, rpc_raw, RPCCallerAddress
 from .pack import unpack_velocity, unpack_angle
 
 from modules.utils import clamp

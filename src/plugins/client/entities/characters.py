@@ -4,14 +4,10 @@ from core.ecs import WorldECS, component
 from core.assets import AssetManager
 from core.graphics import Texture
 
-from plugins.rpcs.client import SpawnPlayerCommand
+from plugins.rpcs.client import SpawnPlayerCommand, CrookifyPolicemanCommand
 
 from plugins.shared.entities.characters import *
-from plugins.shared.entities.weapon import Weapon
-
-from plugins.client.graphics.lights import Light
-from plugins.client.graphics.sprite import Sprite
-from plugins.client.perspective import PerspectiveAttachment
+from plugins.shared.services.uidman import EntityUIDManager
 
 from plugins.client.components import *
 

@@ -7,20 +7,9 @@ from plugin import Resources, Schedule, Plugin
 
 from core.graphics.camera import Camera3D
 from core.sound import SoundManager
-from core.ecs import component, WorldECS
+from core.ecs import WorldECS
 
-from plugins.client.components import RenderPosition, RenderAngle
-
-@component
-class PerspectiveAttachment:
-    """
-    A perspective is a combination of both character's visual and audio perception. 
-    It's both their camera and ears. The perspective attachment allows an entity to both 
-    perceive and hear the surrounding around it. 
-    """
-    def __init__(self, height: float, priority: int):
-        self.height = height
-        self.priority = priority
+from plugins.client.components import RenderPosition, RenderAngle, PerspectiveAttachment
 
 class CurrentPerspectiveAttached:
     "To which entity is the current perspective attached? Useful for ignoring sprites whose pespective is currently active"

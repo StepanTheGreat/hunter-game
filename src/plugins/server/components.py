@@ -1,108 +1,42 @@
-"""
-Server-side components and their behaviour
-"""
-
-from core.ecs import WorldECS
-
-from core.time import schedule_systems_seconds 
-
 from plugins.shared.components import *
-from plugins.shared.entities.player import PlayerController
-from plugins.rpcs.server import ControlPlayerCommand
 
-from .actions import *
-from .session.session import GameSession
+from core.ecs import component
 
-from plugin import Plugin, Resources, Schedule
+@component
+class Client:
+    """
+    A component representing a network client. A server client can be simply modelled as an entity:
+    they can have components like `dead`, it's extremely easy to fetch clients based on their roles
+    using components, and it's also extremely easy to bind to them physical entities.
+    """
+    def __init__(self, addr: tuple[str, int]):
+        self.addr = addr
 
-def update_invincibilities(resources: Resources):
-    world = resources[WorldECS]
-    dt = resources[Clock].get_fixed_delta()
+    def get_addr(self) -> tuple[str, int]:
+        return self.addr
 
-    for ent, health in world.query_component(Health):
-        health.update_invincibility(dt)
+@component
+class OwnsEntity:
+    """
+    A component attached to clients that essentially points to a physical player entity.
+    An absence on this component for example, signals that the client is dead or just joined
+    (so they're going to get their first entity)
+    """
+    def __init__(self, ent: int):
+        self.ent: int = ent
 
-def remove_dead_entities(resources: Resources):
-    world = resources[WorldECS]
+    def get_ent(self) -> int:
+        return self.ent
     
-    with world.command_buffer() as cmd:
-        for ent, health in world.query_component(Health):
-            if health.is_dead():
-                cmd.remove_entity(ent)
+@component
+class OwnedByClient:
+    "A component attached to physical entities that points to a client entity"
+    def __init__(self, client_ent: int):
+        self.client_ent: int = client_ent
 
-def move_players(resources: Resources):
-    """
-    Syncronize all movable entities by collecting their UIDs, positions and velocities, and sending
-    them over
-    """
+    def get_client_ent(self) -> int:
+        return self.client_ent
 
-    world = resources[WorldECS]
-    action_dispatcher = resources[ServerActionDispatcher]
-
-    moved_entries = []
-
-    for _, (ent, pos) in world.query_components(NetEntity, Position, including=NetSyncronized):
-        uid = ent.get_uid()
-
-        pos = pos.get_position()
-
-        moved_entries.append((uid, (pos.x, pos.y)))
-
-    action_dispatcher.dispatch_action(MovePlayersAction(
-        tuple(moved_entries)
-    ))
-
-def on_control_player_command(resources: Resources, command: ControlPlayerCommand):
-    world = resources[WorldECS]
-    session = resources[GameSession]
-
-    player_ent = session.players.get(command.addr)
-    if player_ent is None:
-        return
-    elif not world.contains_entity(player_ent):
-        # An entity might as well just die in this exact moment
-        return
-    
-    pos, vel, angle, angle_vel, controller = world.get_components(
-        player_ent, 
-        Position, 
-        Velocity, 
-        Angle, 
-        AngleVelocity,
-        PlayerController
-    )
-    pos.set_position(*command.pos)
-    vel.set_velocity(*command.vel)
-    angle.set_angle(command.angle)
-    angle_vel.set_velocity(command.angle_vel)
-
-    controller.is_shooting = command.is_shooting
-
-def on_network_entity_removal(resources: Resources, event: RemovedNetworkEntity):
-    """
-    When a network entity gets removed from the ECS world, we would like to push an
-    action notifying all other clients of this removal.
-    """
-    session = resources[GameSession]
-    action = resources[ServerActionDispatcher]
-
-    # If this is a player, we would like to replace its entity with `None`
-    for player_addr, ent in session.players:
-        if ent == event.ent:
-            session.players[player_addr] = None
-    
-    action.dispatch_action(KillEntityAction(event.uid))
-
-class ServerComponents(Plugin):
-    def build(self, app):
-        app.add_systems(
-            Schedule.FixedUpdate, 
-            update_invincibilities, 
-            remove_dead_entities
-        )
-
-        app.add_event_listener(ControlPlayerCommand, on_control_player_command)
-        app.add_event_listener(RemovedNetworkEntity, on_network_entity_removal)
-
-        # We would like to syncronize our movables 20 times a second
-        schedule_systems_seconds(app, (move_players, 1/20, True))
+@component
+class RobberClient:
+    "The client that was chosen to be the robber"

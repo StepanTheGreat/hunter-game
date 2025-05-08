@@ -1,16 +1,13 @@
 from plugin import Plugin
 
-from .entities import EntitiesPlugin
-from .collisions import CollisionsPlugin
-from .network import NetworkPlugin
-from .components import CommonComponentsPlugin
+from .services import SharedServicesPlugin
+from .systems import SharedSystemsPlugin
 
-class SharedPluginCollection(Plugin):
-    "Plugins shared between both the server and the client"
+class SharedPluginsCollection(Plugin):
+    "Systems shared between both the server and the client"
+
     def build(self, app):
         app.add_plugins(
-            CommonComponentsPlugin(),
-            CollisionsPlugin(),
-            NetworkPlugin(),
-            EntitiesPlugin()
+            SharedServicesPlugin(),
+            SharedSystemsPlugin()
         )

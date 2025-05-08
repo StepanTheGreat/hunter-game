@@ -1,6 +1,6 @@
 from plugin import Resources, event, EventWriter
 
-from plugins.shared.network import ENDIAN, rpc, rpc_raw
+from plugins.shared.services.network import ENDIAN, rpc, rpc_raw
 
 from .pack import unpack_velocity
 

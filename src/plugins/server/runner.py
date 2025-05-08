@@ -4,13 +4,13 @@ from core import ServerCoreModulesPlugin
 
 from core.time import Clock
 
-from plugins.shared.network import Server
-from plugins.shared import SharedPluginCollection
+from plugins.shared.services.network import Server
+from plugins.shared import SharedPluginsCollection
 
-from .session import SessionPlugin
 from .actions import ServerActionPlugin
-from .components import ServerComponents
-from .entities import ServerEntitiesPlugin
+from .systems import ServerSystemsPlugin
+from .handlers import ServerHandlersPlugin
+from .services import ServerServicesPlugin
 
 from app_config import CONFIG
 
@@ -78,12 +78,12 @@ class ServerPlugins(Plugin):
 
     def build(self, app):
         app.add_plugins(
-            SharedPluginCollection(),
+            SharedPluginsCollection(),
             ServerCoreModulesPlugin(),
-            SessionPlugin(),
+            ServerServicesPlugin(),
+            ServerSystemsPlugin(),
             ServerActionPlugin(),
-            ServerComponents(),
-            ServerEntitiesPlugin()
+            ServerHandlersPlugin(),
         )
         app.insert_resource(self.controller)
         app.insert_resource(Clock(CONFIG.fixed_fps, CONFIG.fixed_fps))

@@ -3,23 +3,12 @@ import numpy as np
 from plugin import Plugin, Schedule, Resources
 
 from core.graphics import Pipeline
-from core.ecs import WorldECS, component
+from core.ecs import WorldECS
 
-from plugins.client.components import RenderPosition
+from plugins.client.components import RenderPosition, Light
 
 LIGHTS_LIMIT = 32
 DEFAULT_AMBIENT_LIGHT = (0.05, 0.05, 0.1)
-
-@component
-class Light:
-    def __init__(self, y: float, color: tuple[float, float, float], radius: float, luminosity: float):
-        assert luminosity > 0
-        assert radius > 0
-
-        self.color = color
-        self.radius = radius
-        self.luminosity = luminosity
-        self.y = y
 
 class LightManager:
     def __init__(self, ambient_color: tuple, max_lights: int):

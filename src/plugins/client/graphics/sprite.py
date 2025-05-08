@@ -9,11 +9,11 @@ from plugin import Plugin, Schedule, Resources
 from core.graphics import *
 from core.telemetry import Telemetry
 from core.assets import AssetManager
-from core.ecs import WorldECS, component
+from core.ecs import WorldECS
 
 from .lights import LightManager
 from plugins.client.perspective import CurrentPerspectiveAttached
-from plugins.client.components import RenderPosition
+from plugins.client.components import RenderPosition, Sprite
 
 SPRITE_LIMIT = 64
 
@@ -58,14 +58,6 @@ def sprite_model(ctx: gl.Context, assets: AssetManager) -> tuple[Model, Pipeline
         pipeline
     )
     return model, pipeline
-
-@component
-class Sprite:
-    "A sprite component that allows an entity to be rendered as 2D billboards"
-    def __init__(self, y: float, texture: Texture, size: tuple[int, int]):
-        self.y: float = y
-        self.texture: Texture = texture
-        self.size: pg.Vector2 = pg.Vector2(size[0], size[1])
 
 class SpriteRenderer:
     "A separate pipeline for rendering 2D sprites in 3D"

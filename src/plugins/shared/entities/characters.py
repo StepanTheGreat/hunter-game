@@ -1,16 +1,6 @@
-from core.ecs import component
-
-from plugins.shared.collisions import DynCollider
+from core.ecs import WorldECS
 
 from plugins.shared.components import *
-
-from .projectile import ProjectileFactory
-from .weapon import Weapon, WeaponStats
-from .player import Player, PlayerController
-
-@component
-class Robber:
-    "A robber tag"
 
 ROBBER_HEALTH = 2500
 ROBBER_SPEED = 230
@@ -25,10 +15,6 @@ ROBBER_PROJECTILE = ProjectileFactory(
 )
 
 ROBBER_WEAPON_STATS = WeaponStats(0.2, True)
-
-@component
-class Policeman:
-    "The policeman tag"
 
 POLICEMAN_HEALTH = 500
 POLICEMAN_SPEED = 200

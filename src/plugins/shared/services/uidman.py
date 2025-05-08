@@ -1,38 +1,14 @@
-"Network components"
-
-from core.ecs import WorldECS, component, ComponentsRemovedEvent, ComponentsAddedEvent
-
 from plugin import Plugin, Resources, EventWriter
 
-from plugins.shared.events import AddedNetworkEntity, RemovedNetworkEntity
+from core.ecs import WorldECS
+from core.events import ComponentsRemovedEvent, ComponentsAddedEvent
+
+from plugins.shared.commands import ResetEntityUIDManagerCommand
+from plugins.shared.events import AddedNetworkEntityEvent, RemovedNetworkEntityEvent
+from plugins.shared.components.network import NetEntity, UID_LIMIT
 
 from itertools import count
-
 from typing import Optional
-
-UID_LIMIT = 2**16
-"The UID limit for an entity"
-
-@component
-class NetEntity:
-    """
-    A shared entity across the network. This entity has a unique identifier, which makes it possible
-    from the server to communicate commands and its precise targets
-    """
-    def __init__(self, uid: int):
-        assert 0 <= uid < UID_LIMIT, f"Net UID is only valid in ranges between 0 and {UID_LIMIT}"
-
-        self.uid = uid
-
-    def get_uid(self) -> int:
-        return self.uid
-    
-@component
-class NetSyncronized:
-    """
-    This component tells the server that the entity with this component should get syncronized
-    across network every fixed frame
-    """
 
 class EntityUIDManager:
     """
@@ -86,7 +62,7 @@ class EntityUIDManager:
 
         return next_uid
 
-def reset_entity_uid_manager(resources: Resources):
+def on_reset_manager_command(resources: Resources, _):
     "Reset the entity UID manager if there's a new session"
 
     resources[EntityUIDManager].reset()
@@ -103,7 +79,7 @@ def on_network_entity_removed(resources: Resources, event: ComponentsRemovedEven
         uid = netman.get_uid(ent)
 
         netman._remove_entry_by_ent(ent)
-        ewriter.push_event(RemovedNetworkEntity(ent, uid))
+        ewriter.push_event(RemovedNetworkEntityEvent(ent, uid, event.components))
 
 def on_network_entity_added(resources: Resources, event: ComponentsAddedEvent):
     netman = resources[EntityUIDManager]
@@ -117,10 +93,12 @@ def on_network_entity_added(resources: Resources, event: ComponentsAddedEvent):
         uid = uid_comp.get_uid()
 
         netman._push_pair(ent, uid)
-        ewriter.push_event(AddedNetworkEntity(ent, uid))
+        ewriter.push_event(AddedNetworkEntityEvent(ent, uid, event.components))
 
-class NetworkComponentsPlugin(Plugin):
+class EntityUIDManagerPlugin(Plugin):
     def build(self, app):
         app.insert_resource(EntityUIDManager())
         app.add_event_listener(ComponentsAddedEvent, on_network_entity_added)
         app.add_event_listener(ComponentsRemovedEvent, on_network_entity_removed)
+
+        app.add_event_listener(ResetEntityUIDManagerCommand, on_reset_manager_command)

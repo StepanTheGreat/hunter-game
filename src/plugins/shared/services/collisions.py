@@ -8,112 +8,12 @@ from plugins.shared.events.collisions import *
 
 from collections import deque
 
-from .components import Position
+from ..components import Position, DynCollider, StaticCollider
 
 from typing import Union
 
 # The less - better, but also more unstable. If a collider's total rectangle is larger than GRID_SIZE*2 - this will get unstable quick
 GRID_SIZE = 24
-
-@component
-class StaticCollider:
-    "A static collider is a simple rectangle that doesn't move"
-    def __init__(self, w: int, h: int):
-        self.rect = pg.Rect(0, 0, w, h)
-
-    def as_moved(self, pos: pg.Vector2) -> "StaticCollider":
-        "This method is only used for calculations, colliders usually use positions from components"
-        self.rect.topleft = (pos.x, pos.y)
-        return self
-    
-    def get_rect(self) -> pg.Rect:
-        return self.rect
-
-@component
-class DynCollider:
-    "A dynamic, circular collider that's useful for characters. They have mass properties"
-    def __init__(self, radius: float, mass: float = 1, sensor: bool = False):
-        assert radius > 0, "A collider's radius can't be negative or 0"
-        assert mass > 0, "A dynamic collider's mass can't be negative or 0"
-        
-        self.pos = pg.Vector2(0, 0)
-        self._rect = pg.Rect(0, 0, radius*2, radius*2)
-
-        self.radius = radius
-        self.mass = mass
-
-        self.sensor = sensor
-        "A public attribute. A sensor object doesn't get resolved - it only checks for collisions"
-
-    def as_moved(self, pos: pg.Vector2) -> "DynCollider":
-        "This method is only used for calculations, colliders usually use positions from components"
-        self.pos = pos
-        self._rect.center = (pos.x, pos.y)
-        return self
-    
-    def get_rect(self) -> pg.Rect:
-        return self._rect
-    
-    def is_sensor(self) -> bool:
-        return self.sensor
-    
-    def get_position(self) -> pg.Vector2:
-        "Use this to retrieve resolved position vectors"
-        return self.pos
-        
-    def is_colliding_dynamic(self, other: "DynCollider") -> bool:
-        "Check if this dynamic collider collides with another dynamic collider"
-        return self.pos.distance_squared_to(other.pos) < (self.radius+other.radius)**2
-    
-    def resolve_collision_dynamic(self, other: "DynCollider"):
-        if self.sensor or other.sensor:
-            return
-
-        r1, r2 = self.radius, other.radius
-        p1, p2 = self.pos, other.pos
-        mass1, mass2 = self.mass, other.mass
-
-        mass_sum = mass1+mass2
-
-        distance = p1.distance_to(p2)
-        if 0 < distance <= (r1+r2):
-            resolution_direction = (p2-p1).normalize()
-            move_by = abs((r1+r2)-distance)
-            p1 -= resolution_direction * move_by*mass2/mass_sum
-            p2 += resolution_direction * move_by*mass1/mass_sum
-
-    def is_colliding_static(self, other: StaticCollider) -> bool:
-        rect = other.rect
-        pos, radius = self.pos, self.radius
-
-        # Imagine it like a sliding point across our rectangle. If a circle is in the corners - only rectangle's
-        # corners can touch with it. Buf if the circle's point is inside the box axis - we can "slide" this
-        # point to the closest point to the circle
-        point = (
-            max(rect.x, min(pos.x, rect.x+rect.w)),
-            max(rect.y, min(pos.y, rect.y+rect.h))
-        )
-
-        return rect.collidepoint(pos) or pos.distance_to(point) <= radius
-
-    def resolve_collision_static(self, other: StaticCollider):
-        if self.sensor:
-            return
-
-        rect = other.rect
-        pos, radius = self.pos, self.radius
-
-        point = pg.Vector2(
-            max(rect.x, min(pos.x, rect.x+rect.w)),
-            max(rect.y, min(pos.y, rect.y+rect.h))
-        )
-
-        if not rect.collidepoint(pos):
-            distance = pos.distance_to(point)
-            # This method doesn't resolve collisions inside the box, so this could be a future
-            # addition. Hope no one will get stuck (but if they do - they can easily leave)
-            if 0 < distance <= radius:
-                pos += (pos-point).normalize() * (radius-distance)
 
 class _CollisionsState:
     """
@@ -230,7 +130,7 @@ def fill_grid_with_colliders(
         # Finally, add our primary cell to the colliders
         grid.setdefault(pos, []).append((ent, collider))
 
-def resolve_collisions(resources: Resources):
+def resolve_collisions_system(resources: Resources):
     world = resources[WorldECS]
     ewriter = resources[EventWriter]
 
@@ -332,7 +232,7 @@ class CollisionsPlugin(Plugin):
     def build(self, app):
         app.insert_resource(_CollisionsState())
 
-        app.add_systems(Schedule.FixedUpdate, resolve_collisions, priority=1)
+        app.add_systems(Schedule.FixedUpdate, resolve_collisions_system, priority=1)
 
         app.add_event_listener(ComponentsAddedEvent, on_new_static_collider)
         app.add_event_listener(ComponentsRemovedEvent, on_new_static_collider)

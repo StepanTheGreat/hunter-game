@@ -4,8 +4,10 @@ A collection of "commands" that
 
 from plugin import Plugin
 
-from plugins.shared.network import Server
+from plugins.shared.services.network import Server
 from plugins.shared.actions import ActionDispatcher, Action
+
+from plugins.server.services.clientlist import ClientList
 
 from plugins.rpcs.client import *
 from plugins.rpcs.pack import pack_velocity
@@ -21,10 +23,10 @@ class ServerAction(Action):
     They're the abstraction that allows high-level systems not to touch parsing structures, as actions
     should handle that themselves in their initialisation logic.
     """
-    def __init__(self, rpc: Callable, args: tuple, to: tuple[tuple[str, int]] = None):
+    def __init__(self, rpc: Callable, args: tuple, to: tuple[int] = None):
         self.rpc: Callable = rpc
         self.args: tuple[Any, ...] = args
-        self.to: Optional[tuple[tuple[str, int]]] = to
+        self.to: Optional[tuple[int]] = to
 
 class MovePlayersAction(ServerAction):
     def __init__(self, entries: tuple[tuple[int, tuple[int, int], tuple[float, float]]]):
@@ -41,7 +43,7 @@ class SpawnPlayerAction(ServerAction):
     "Spawn a player with a specific UID on a specific client (specified by its address)"
     def __init__(
         self, 
-        client: tuple[str, int], 
+        client: int, 
         uid: int, 
         pos: tuple[int, int], 
         is_main: bool
@@ -99,7 +101,7 @@ class SyncTimeAction(ServerAction):
 class SyncHealthAction(ServerAction):
     "An action that allows the hit player to know how much health they got left"
     
-    def __init__(self, client: tuple[str, int], health: float):
+    def __init__(self, client: int, health: float):
         super().__init__(
             sync_player_health, 
             (health, ),
@@ -114,14 +116,19 @@ class ServerActionDispatcher(ActionDispatcher):
     def __init__(self, resources: Resources):
         # The reason we're doing it here is because the Server is ALWAYS available on the server app
         self.server = resources[Server]
+        self.clientlist = resources[ClientList]
 
-    def _invoke_rpc(self, rpc: Callable, args: tuple[Any, ...], to: tuple[tuple[str, int]] = None):
+    def _invoke_rpc(self, rpc: Callable, args: tuple[Any, ...], to: tuple[int] = None):
         "The internal method for invoking RPCs"
 
         if to is None:
             self.server.call_all(rpc, *args)
         else:
-            for addr in to:
+            for client_ent in to:
+                if not self.clientlist.contains_client_ent(client_ent):
+                    continue
+
+                addr = self.clientlist.get_client_addr(client_ent)
                 self.server.call(addr, rpc, *args)
 
     def dispatch_action(self, action: ServerAction):

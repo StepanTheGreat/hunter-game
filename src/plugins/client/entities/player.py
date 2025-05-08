@@ -4,12 +4,14 @@ from core.time import schedule_systems_seconds
 from core.ecs import WorldECS
 from core.input import InputManager
 
+from core.events import ComponentsAddedEvent, ComponentsRemovedEvent
+
 from plugins.rpcs.client import SyncHealthCommand
 
 from ..actions import ClientActionDispatcher, ControlAction
 
 from plugins.shared.components import *
-from plugins.shared.entities.player import *
+# from plugins.shared.entities.player import *
 
 class PlayerStats:
     "Stores global player related information. Useful for GUI and visualisations, since its a shared resource"

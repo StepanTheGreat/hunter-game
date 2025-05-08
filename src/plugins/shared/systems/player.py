@@ -3,33 +3,13 @@ import numpy as np
 
 from plugin import Plugin, Resources, Schedule
 
-from core.ecs import WorldECS, component
+from core.ecs import WorldECS
 from plugins.shared.components import *
 
-from .weapon import Weapon
-
-@component
-class Player:
-    "A tag component that allows filtering out players"
-
-@component
-class MainPlayer:
-    "A tag that allows distinguishing the current client from other clients"
-
-@component
-class PlayerController:
-    """
-    The state of the current player's input. This is used by 
-    """
-    def __init__(self):
-        self.forward_dir = 0
-        self.horizontal_dir = 0
-        self.is_shooting = False
-
-def orient_player(resources: Resources):
+def orient_player_system(resources: Resources):
     world = resources[WorldECS]
 
-    for ent, (controller, vel, angle, weapon) in world.query_components(PlayerController, Velocity, Angle, Weapon):
+    for _, (controller, vel, angle, weapon) in world.query_components(PlayerController, Velocity, Angle, Weapon):
         forward = controller.forward_dir
         horizontal = controller.horizontal_dir
         
@@ -54,6 +34,6 @@ def orient_player(resources: Resources):
         else:
             weapon.stop_shooting()
 
-class PlayerPlugin(Plugin):
+class PlayerSystemsPlugin(Plugin):
     def build(self, app):
-        app.add_systems(Schedule.FixedUpdate, orient_player, priority=-1)
+        app.add_systems(Schedule.FixedUpdate, orient_player_system, priority=-1)
