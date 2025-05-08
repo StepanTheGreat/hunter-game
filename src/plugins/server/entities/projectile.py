@@ -2,7 +2,7 @@ from plugin import Plugin, Resources
 
 from core.ecs import WorldECS
 
-from plugins.shared.entities.projectile import ProjectileHitEvent
+from plugins.shared.events import ProjectileHitEvent
 from plugins.shared.components import *
 
 from plugins.server.actions import ServerActionDispatcher, SyncHealthAction

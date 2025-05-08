@@ -1,6 +1,9 @@
-from plugin import Plugin, Resources, event
+from plugin import Plugin, Resources
 
 from plugins.shared.network import Server, BroadcastWriter
+
+from plugins.server.events import GameStartedEvent
+
 from plugins.rpcs.server import SERVER_RPCS
 
 from enum import Enum, auto
@@ -16,13 +19,6 @@ WAIT_TIME_MAP = {
     5: 15
 }
 "The amount of time the game must wait to start the game for every player count. If absent - it's infinite."
-
-@event
-class GameStartedEvent:
-    """
-    Gets fired when the game has actually started. At that point the map should be loaded, players
-    notified and so on.
-    """
 
 class GameState(Enum):
     WaitingForPlayers = auto()

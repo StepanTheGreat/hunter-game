@@ -2,7 +2,7 @@ from plugin import Plugin, Schedule, Resources
 
 from core.ecs import WorldECS
 
-from plugins.shared.entities.diamond import DiamondPickedUpEvent
+from plugins.shared.events import DiamondPickedUpEvent
 
 def on_diamond_pickup(resources: Resources, event: DiamondPickedUpEvent):
     world = resources[WorldECS]
