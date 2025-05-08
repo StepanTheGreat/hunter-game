@@ -10,7 +10,7 @@ MAX_PLAYERS = 5
 REQUIRES_PLAYERS = MAX_PLAYERS
 
 WAIT_TIME_MAP = {
-    2: 30,
+    2: 10,
     3: 60,
     4: 30,
     5: 15
@@ -63,7 +63,6 @@ def on_game_started(resources: Resources, _):
     # When the game starts, we would like to switch its game state and also close server connections
     session.enter_state(GameState.InGame)
     server.accept_incoming_connections(False)
-
     
 class SessionContextPlugin(Plugin):
     def build(self, app):

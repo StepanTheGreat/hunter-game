@@ -423,8 +423,7 @@ def insert_network_actor(resources: Resources, actor: Union[Server, Client, Broa
 
     actor_ty = type(actor)
 
-    if actor_ty in resources:
-        resources.remove(actor_ty).close()
+    clean_network_actors(resources, actor_ty)
 
     resources.insert(actor)
 

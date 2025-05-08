@@ -41,7 +41,7 @@ class KillEntityCommand:
         self.uid = uid
 
 @event
-class MakeRobberCommand:
+class CrookifyPolicemanCommand:
     "A command that turns an existing player (policeman) into a robber player"
     def __init__(self, uid: int):
         self.uid = uid
@@ -129,10 +129,10 @@ def kill_entity_rpc(resources: Resources, uid: int):
     ewriter.push_event(KillEntityCommand(uid))
 
 @rpc("H", reliable=True)
-def make_robber_rpc(resources: Resources, uid: int):
+def crookify_policeman_rpc(resources: Resources, uid: int):
     ewriter = resources[EventWriter]
 
-    ewriter.push_event(MakeRobberCommand(uid))
+    ewriter.push_event(CrookifyPolicemanCommand(uid))
 
 @rpc("f")
 def sync_time_rpc(resources: Resources, time: float):
@@ -147,7 +147,7 @@ CLIENT_RPCS = (
     spawn_player_rpc,
     spawn_diamonds_rpc,
     kill_entity_rpc,
-    make_robber_rpc,
+    crookify_policeman_rpc,
     sync_time_rpc,
     sync_player_health
 )

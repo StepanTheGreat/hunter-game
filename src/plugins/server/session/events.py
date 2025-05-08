@@ -4,8 +4,8 @@ from plugin import Plugin, Schedule, Resources, EventWriter
 from core.time import SystemScheduler
 from core.ecs import WorldECS
 
-from plugins.shared.network import ClientConnectedEvent, ClientDisconnectedEvent
-from plugins.server.entities.policeman import make_server_policeman
+from plugins.shared.network import ClientConnectedEvent, ClientDisconnectedEvent, Server
+from plugins.server.entities.characters import make_server_policeman, crookify_random_policeman
 from plugins.shared.entities.diamond import make_diamond
 from plugins.shared.components import EntityUIDManager
 
@@ -122,6 +122,8 @@ def start_game(resources: Resources):
 
     print(f"The game has started!")
     resources[EventWriter].push_event(GameStartedEvent())
+
+    crookify_random_policeman(resources)
 
 class SessionEventsPlugin(Plugin):
     def build(self, app):

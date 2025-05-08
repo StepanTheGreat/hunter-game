@@ -78,11 +78,11 @@ class KillEntityAction(ServerAction):
             to=None
         )
 
-class MakeRobberAction(ServerAction):
+class CrookifyPolicemanAction(ServerAction):
     "An action that gets fired at the start of the game, making a specific existing player a robber"
     def __init__(self, uid: int):
         super().__init__(
-            make_robber_rpc,
+            crookify_policeman_rpc,
             (uid, ),
             to=None
         )
