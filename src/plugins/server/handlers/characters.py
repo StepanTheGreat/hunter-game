@@ -1,6 +1,7 @@
 from plugin import Plugin, Resources
 
 from core.ecs import WorldECS
+from core.events import ComponentsRemovedEvent
 
 from plugins.server.actions import ServerActionDispatcher, CrookifyPolicemanAction
 from plugins.server.components import *
@@ -33,6 +34,12 @@ def on_crookify_player_command(resources: Resources, _):
 
     dispatcher.dispatch_action(CrookifyPolicemanAction(net_ent.get_uid()))
 
+def on_robber_death(resources: Resources, event: ComponentsRemovedEvent):
+    if Robber in event.components:
+        # A robber has died. The game should essentially end
+        print("Policemen won!")
+
 class CharactersHandlersPlugin(Plugin):
     def build(self, app):
         app.add_event_listener(CrookifyRandomPlayerCommand, on_crookify_player_command)
+        app.add_event_listener(ComponentsRemovedEvent, on_robber_death)
