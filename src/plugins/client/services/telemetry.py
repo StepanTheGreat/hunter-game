@@ -1,13 +1,13 @@
 from plugin import Resources, Schedule, Plugin
 
-
 from core.time import Clock
 from core.assets import AssetManager
 from core.telemetry import Telemetry
 
 from core.graphics import FontGPU
 
-from plugins.client.services.gui import GUIManager, Label
+from plugins.client.interfaces.gui import Label
+from plugins.client.services.gui import GUIManager
 
 class TelemetryState:
     def __init__(self, assets: AssetManager, gui: GUIManager):

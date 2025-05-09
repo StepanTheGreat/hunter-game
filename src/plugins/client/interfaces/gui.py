@@ -1,11 +1,9 @@
-import moderngl as gl
-
 from typing import Optional, Callable
 from collections import deque
 
 from plugins.client.services.graphics.render2d import Renderer2D
 
-from core.graphics import FontGPU
+from core.graphics import FontGPU, Texture
 from core.events import *
 
 class GUIElement:
@@ -307,7 +305,7 @@ class ColorRect(FillBox):
 
 class TextureRect(FillBox):
     "A texture element"
-    def __init__(self, texture: gl.Texture):
+    def __init__(self, texture: Texture):
         super().__init__()
 
         self.texture = texture
@@ -475,7 +473,7 @@ class TextureButton(BaseButton):
     "A really primitive version of `TextButton`. Simpler and faster for image-only buttons"
     def __init__(
             self, 
-            texture: gl.Texture,
+            texture: Texture,
             edge: tuple[float, float], 
             size: tuple[float, float],
             pivot: tuple[float, float] = (0, 0),

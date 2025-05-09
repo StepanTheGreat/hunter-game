@@ -1,9 +1,11 @@
-from plugin import Resources
+from plugin import Resources, EventWriter
 
 from core.assets import AssetManager
 
-from plugins.client.services.gui import GUIBundleManager, GUIElement
+from plugins.client.interfaces.gui import GUIElement
 from plugins.client.services.playerstats import PlayerStats
+
+from plugins.client.commands import ClearGUICommand, ReplaceGUICommand
 
 class PlayerHealthbar(GUIElement):
     BG_COLOR = (40, 40, 40)
@@ -48,14 +50,14 @@ class IngameGUI:
 
     def __init__(self, resources: Resources):
         self.resources = resources
-        self.gui = resources[GUIBundleManager]
+        self.ewriter = resources[EventWriter]
         self.assets = resources[AssetManager]
-        
-        self.gui.clear()
+
+        self.ewriter.push_event(ClearGUICommand())
         self.enter_ingame()
 
     def enter_ingame(self):
         
         healthbar = PlayerHealthbar((1, 0), (1, 0), (260, 32), 6, self.resources[PlayerStats])
 
-        self.gui.replace_gui([healthbar])
+        self.ewriter.push_event(ReplaceGUICommand([healthbar]))

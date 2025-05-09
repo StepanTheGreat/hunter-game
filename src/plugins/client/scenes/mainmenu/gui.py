@@ -1,15 +1,16 @@
-from plugin import Resources, Plugin
+from plugin import Resources, Plugin, EventWriter
 
 from core.assets import AssetManager
 
 from modules.scene import SceneManager
 
 from plugins.client.services.graphics import FontGPU
-from plugins.client.services.gui import GUIBundleManager, TextButton, ColorRect, Label
+from plugins.client.interfaces.gui import TextButton, ColorRect, Label
 
 from plugins.shared.services.network import Client, insert_network_actor
 
 from plugins.client.events import ServerConnectedEvent
+from plugins.client.commands import *
 
 from plugins.rpcs.client import CLIENT_RPCS
 
@@ -22,10 +23,10 @@ class MainMenuGUI:
 
     def __init__(self, resources: Resources):
         self.resources = resources
-        self.gui = resources[GUIBundleManager]
+        self.ewriter = resources[EventWriter]
         self.assets = resources[AssetManager]
 
-        self.gui.clear()
+        self.ewriter.push_event(ClearGUICommand())
         self.enter_mainmenu_subscene()
 
     def enter_mainmenu_subscene(self):
@@ -73,7 +74,7 @@ class MainMenuGUI:
         *_, tree_w, tree_h =  join_btn.measure_tree()
         join_btn.set_margin(-tree_w/2, -tree_h/2)
 
-        self.gui.replace_gui([background])
+        self.ewriter.push_event(ReplaceGUICommand([background]))
 
     def enter_settings_subscene(self):
         font = self.assets.load(FontGPU, "fonts/font.ttf")
@@ -94,9 +95,9 @@ class MainMenuGUI:
         *_, tree_w, tree_h =  resolution_label.measure_tree()
         resolution_label.set_margin(-tree_w/2, -tree_h/2)
         
-        self.gui.replace_gui([background])
+        self.ewriter.push_event(ReplaceGUICommand([background]))
 
-def on_connection_accepted(resources: Resources, event: ServerConnectedEvent):
+def on_connection_accepted(resources: Resources, _: ServerConnectedEvent):
     if MainMenuGUI in resources:
         resources[SceneManager].insert_scene(IngameScene(resources))
 

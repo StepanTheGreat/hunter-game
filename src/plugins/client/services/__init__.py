@@ -5,6 +5,7 @@ from .session import SessionPlugin
 from .graphics import GraphicsPlugin
 from .gui import GUIPlugin
 from .perspective import PerspectivePlugin
+from .telemetry import TelemetryMenuPlugin
 
 class ClientServicesPlugin(Plugin):
     def build(self, app):
@@ -13,5 +14,6 @@ class ClientServicesPlugin(Plugin):
             GUIPlugin(),
             PlayerStatsPlugin(),
             SessionPlugin(),
-            PerspectivePlugin()
+            PerspectivePlugin(),
+            TelemetryMenuPlugin()
         )

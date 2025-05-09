@@ -2,7 +2,6 @@
 
 from plugin import Plugin
 
-from .telemetry import *
 from .render2d import *
 from .render3d import *
 from .sprite import *
@@ -16,6 +15,5 @@ class GraphicsPlugin(Plugin):
             Renderer3DPlugin(),
             SpriteRendererPlugin(),
             Renderer2DPlugin(),
-            TelemetryMenuPlugin(),
             PostProcessingPlugin(),
         )
