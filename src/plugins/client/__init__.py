@@ -1,12 +1,7 @@
 from plugin import Plugin
 
-from .graphics import GraphicsPlugin
-from .entities import ClientEntitiesPlugin
 from .scenes import ScenesPlugin
-from .gui import GUIPlugin
-from .perspective import PerspectivePlugin
 from .actions import ClientActionPlugin
-from .services.session import SessionPlugin
 
 from .systems import ClientSystemsPlugin
 from .handlers import ClientHandlersPlugin
@@ -25,13 +20,8 @@ class ClientPluginCollection(Plugin):
             ClientHandlersPlugin(),
             ClientServicesPlugin(),
 
-            GraphicsPlugin(),
-            ClientEntitiesPlugin(),
-            GUIPlugin(),
             ScenesPlugin(),
-            PerspectivePlugin(),
             ClientActionPlugin(),
-            SessionPlugin()
         )
 
         app.add_plugins(ServerManagementPlugin())

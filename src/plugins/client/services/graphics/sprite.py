@@ -12,7 +12,7 @@ from core.assets import AssetManager
 from core.ecs import WorldECS
 
 from .lights import LightManager
-from plugins.client.perspective import CurrentPerspectiveAttached
+from plugins.client.services.perspective import CurrentPerspectiveAttached
 from plugins.client.components import RenderPosition, Sprite
 
 SPRITE_LIMIT = 64

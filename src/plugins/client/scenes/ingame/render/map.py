@@ -10,7 +10,7 @@ from typing import Optional
 from plugins.shared.services.map import WorldMap
 from plugins.client.events import WorldMapLoadedEvent, WorldMapUnloadedEvent
 
-from plugins.client.graphics import ModelRenderer, VERTEX_GL_FORMAT, VERTEX_DTYPE
+from plugins.client.services.graphics import ModelRenderer, VERTEX_GL_FORMAT, VERTEX_DTYPE
 
 from core.graphics import *
 from core.assets import AssetManager

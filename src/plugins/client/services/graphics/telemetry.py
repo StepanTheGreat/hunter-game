@@ -7,7 +7,7 @@ from core.telemetry import Telemetry
 
 from core.graphics import FontGPU
 
-from plugins.client.gui import GUIManager, Label
+from plugins.client.services.gui import GUIManager, Label
 
 class TelemetryState:
     def __init__(self, assets: AssetManager, gui: GUIManager):

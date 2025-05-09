@@ -4,8 +4,8 @@ from core.assets import AssetManager
 
 from modules.scene import SceneManager
 
-from plugins.client.graphics import FontGPU
-from plugins.client.gui import GUIBundleManager, TextButton, ColorRect, Label
+from plugins.client.services.graphics import FontGPU
+from plugins.client.services.gui import GUIBundleManager, TextButton, ColorRect, Label
 
 from plugins.shared.services.network import Client, insert_network_actor
 

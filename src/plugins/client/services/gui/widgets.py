@@ -3,7 +3,7 @@ import moderngl as gl
 from typing import Optional, Callable
 from collections import deque
 
-from plugins.client.graphics.render2d import Renderer2D
+from plugins.client.services.graphics.render2d import Renderer2D
 
 from core.graphics import FontGPU
 from core.events import *
