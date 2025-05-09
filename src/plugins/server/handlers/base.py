@@ -15,7 +15,7 @@ def on_control_player_command(resources: Resources, command: ControlPlayerComman
     world = resources[WorldECS]
     clientlist = resources[ClientList]
 
-    if command.addr not in clientlist:
+    if not clientlist.contains_client_addr(command.addr):
         return
 
     client_ent = clientlist.get_client_ent(command.addr)

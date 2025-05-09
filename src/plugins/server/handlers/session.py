@@ -4,10 +4,10 @@ from plugin import Plugin, Schedule, Resources, EventWriter
 from core.time import SystemScheduler
 from core.ecs import WorldECS
 
-from plugins.server.events import AddedClient, RemovedClient, GameStartedEvent
+from plugins.server.events import AddedClientEvent, RemovedClientEvent, GameStartedEvent
 from plugins.server.commands import CrookifyRandomPlayerCommand, StartGameCommand
 
-from plugins.server.components import Client, OwnedByClient, NetEntity, Position
+from plugins.server.components import Client, OwnedByClient, NetEntity, Position, OwnsEntity
 from plugins.server.entities.characters import make_server_policeman
 from plugins.shared.entities.diamond import make_diamond
 from plugins.shared.services.uidman import EntityUIDManager
@@ -15,7 +15,7 @@ from plugins.shared.services.network import Server
 
 from plugins.server.actions import ServerActionDispatcher, SpawnPlayerAction, SpawnDiamondsAction
 
-from plugins.server.services.state import GameState
+from plugins.server.services.state import CurrentGameState, GameState
 
 from plugins.server.constants import WAIT_TIME_MAP
 
@@ -36,7 +36,7 @@ def _spawn_diamonds(resources: Resources):
     action_dispatcher.dispatch_action(SpawnDiamondsAction(tuple(diamond_entries)))
 
 
-def on_added_client(resources: Resources, event: AddedClient):
+def on_added_client(resources: Resources, event: AddedClientEvent):
     """
     When a new client gets added, we would like to create an entity for it and also reschedule
     our game start.
@@ -46,23 +46,28 @@ def on_added_client(resources: Resources, event: AddedClient):
     uidman = resources[EntityUIDManager]
     action_dispatcher = resources[ServerActionDispatcher]
 
-
     new_client_ent = event.ent
     new_player_uid = uidman.consume_entity_uid()
     new_player_pos = (0, 0)
 
+    print("A new client connected:", new_client_ent)
+
     # First we're going to send the client all existing players in the world
     for _, (old_uid, old_pos) in world.query_components(NetEntity, Position, including=OwnedByClient):
         pos = old_pos.get_position()
+        old_uid = old_uid.get_uid()
 
         action_dispatcher.dispatch_action(SpawnPlayerAction(
             new_client_ent, old_uid, (pos.x, pos.y), False
         ))
 
     # Now we're going to create the client's player and put it in the world
-    new_player_ent = world.create_entity(
+    player_ent = world.create_entity(
         *make_server_policeman(new_client_ent, new_player_uid, new_player_pos)
-    )   
+    )
+
+    # Bind it to our client entity to create a parent-child relationship
+    world.add_components(new_client_ent, OwnsEntity(player_ent))
 
     # Send it over to our own client
     action_dispatcher.dispatch_action(SpawnPlayerAction(
@@ -83,7 +88,7 @@ def on_added_client(resources: Resources, event: AddedClient):
 
     _reschedule_game_start(resources)
 
-def on_removed_client(resources: Resources, event: RemovedClient):
+def on_removed_client(resources: Resources, event: RemovedClientEvent):
     """
     When a client is removed from the world, it means we need to kill its owned entity.
     We're going to iterate all owned entities by the clients, and if IDs match - kill them.
@@ -103,11 +108,11 @@ def on_removed_client(resources: Resources, event: RemovedClient):
 def _reschedule_game_start(resources: Resources):
     "This is a helper function that will schedule a new game start based on the current amount of players"
 
-    state = resources[GameState]
+    state = resources[CurrentGameState]
     world = resources[WorldECS]
     scheduler = resources[SystemScheduler]
 
-    if state is not GameState.WaitingForPlayers:
+    if state != GameState.WaitingForPlayers:
         return
 
     # First remove our current scheduled system, if it's present
@@ -137,7 +142,8 @@ def on_game_started(resources: Resources, _):
 
     resources[Server].accept_incoming_connections(False)
 
-class SessionEventsPlugin(Plugin):
+class SessionHandlersPlugin(Plugin):
     def build(self, app):
-        app.add_event_listener(AddedClient, on_added_client)
-        app.add_event_listener(RemovedClient, on_removed_client)
+        print("Executing the session events plugin")
+        app.add_event_listener(AddedClientEvent, on_added_client)
+        app.add_event_listener(RemovedClientEvent, on_removed_client)

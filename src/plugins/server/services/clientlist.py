@@ -2,7 +2,7 @@ from plugin import Plugin, Resources, Schedule, EventWriter
 
 from core.ecs import WorldECS
 
-from plugins.server.events import ClientConnectedEvent, ClientDisconnectedEvent, AddedClient, RemovedClient
+from plugins.server.events import ClientConnectedEvent, ClientDisconnectedEvent, AddedClientEvent, RemovedClientEvent
 
 from plugins.server.components import Client
 
@@ -55,7 +55,10 @@ def on_client_connected(resources: Resources, event: ClientConnectedEvent):
     # Bind it to our address
     clientlist._add_client(client_addr, client_ent)
 
-    ewriter.push_event(AddedClient(client_addr, client_ent))
+    print(f"Added client: {client_addr}, {client_ent}")
+
+    ewriter.push_event(AddedClientEvent(client_addr, client_ent))
+    print("Pushed an event of said client!")
 
 def on_client_disconnected(resources: Resources, event: ClientDisconnectedEvent):
     """
@@ -80,7 +83,7 @@ def on_client_disconnected(resources: Resources, event: ClientDisconnectedEvent)
     # Remove it from the client list
     clientlist._remove_client(client_addr)
 
-    ewriter.push_event(RemovedClient(client_addr, client_ent))
+    ewriter.push_event(RemovedClientEvent(client_addr, client_ent))
 
 class ClientListPlugin(Plugin):
     def build(self, app):

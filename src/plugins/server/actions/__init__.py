@@ -52,7 +52,8 @@ class SpawnPlayerAction(ServerAction):
             spawn_player_rpc, 
             (
                 uid, 
-                *pos, 
+                int(pos[0]),
+                int(pos[1]), 
                 is_main
             ), 
             to=(client, )

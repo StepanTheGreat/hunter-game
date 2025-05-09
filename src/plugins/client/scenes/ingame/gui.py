@@ -3,7 +3,7 @@ from plugin import Resources
 from core.assets import AssetManager
 
 from plugins.client.gui import GUIBundleManager, GUIElement
-from plugins.client.entities.player import PlayerStats
+from plugins.client.services.playerstats import PlayerStats
 
 class PlayerHealthbar(GUIElement):
     BG_COLOR = (40, 40, 40)

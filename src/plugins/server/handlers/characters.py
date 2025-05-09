@@ -11,7 +11,7 @@ from plugins.shared.entities.characters import crookify_policeman
 
 import random
 
-def on_crookify_player_command(resources: Resources):
+def on_crookify_player_command(resources: Resources, _):
     """
     A procedure that essentially is going to take a random player, give it robber components,
     and also dispatch appropriate action to notify all other players.

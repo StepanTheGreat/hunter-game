@@ -11,7 +11,7 @@ from plugins.shared.services.network import clean_network_actors, Client
 
 from plugins.server import ServerExecutor
 
-from plugins.client.session import ServerTime
+from plugins.client.services.session import ServerTime
 
 from .render.map import MapRendererPlugin
 from .render.minimap import MinimapPlugin

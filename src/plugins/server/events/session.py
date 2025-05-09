@@ -12,7 +12,7 @@ class GameFinishedEvent:
     "Fired when the game has ended and there's nothing to do. Used for cleanup"
 
 @event
-class AddedClient:
+class AddedClientEvent:
     "A new client was registered into the entity world"
 
     def __init__(self, addr: tuple[str, int], ent: int):
@@ -20,7 +20,7 @@ class AddedClient:
         self.ent = ent
 
 @event
-class RemovedClient:
+class RemovedClientEvent:
     "A client was removed from the world (due to disconnection)"
 
     def __init__(self, addr: tuple[str, int], ent: int):

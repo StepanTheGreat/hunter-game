@@ -6,7 +6,11 @@ from .scenes import ScenesPlugin
 from .gui import GUIPlugin
 from .perspective import PerspectivePlugin
 from .actions import ClientActionPlugin
-from .session import SessionPlugin
+from .services.session import SessionPlugin
+
+from .systems import ClientSystemsPlugin
+from .handlers import ClientHandlersPlugin
+from .services import ClientServicesPlugin
 
 from plugins.server import ServerManagementPlugin
 
@@ -16,6 +20,11 @@ class ClientPluginCollection(Plugin):
     def build(self, app):
         app.add_plugins(
             SharedPluginsCollection(),
+
+            ClientSystemsPlugin(),
+            ClientHandlersPlugin(),
+            ClientServicesPlugin(),
+
             GraphicsPlugin(),
             ClientEntitiesPlugin(),
             GUIPlugin(),

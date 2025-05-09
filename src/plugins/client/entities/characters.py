@@ -11,8 +11,6 @@ from plugins.shared.services.uidman import EntityUIDManager
 
 from plugins.client.components import *
 
-from .player import MainPlayer
-
 ROBBER_AMBIENT_LIGHT = (0.4, 0.8, 0.4)
 
 CLIENT_ROBBER_PROJECTILE = ROBBER_PROJECTILE.copy()

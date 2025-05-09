@@ -1,13 +1,12 @@
 from plugin import Plugin, Resources, Schedule
 
+from core.time import Clock
 from core.ecs import WorldECS
 
 from plugins.rpcs.client import *
 from plugins.client.components import *
 
-from plugins.client.session import ServerTime
-
-from plugins.shared.entities.player import MainPlayer
+from plugins.client.services.session import ServerTime
 
 INTERPOLATION_TIME_DELAY = 0.05
 """
@@ -54,39 +53,7 @@ def interpolate_network_positions(resources: Resources):
             *interpos.get_interpolated(server_time)
         )
 
-def on_move_players_command(resources: Resources, command: MovePlayersCommand):
-    "Apply net syncronization on all requested players"
-
-    world = resources[WorldECS]
-    uidman = resources[EntityUIDManager]
-    server_time = resources[ServerTime].get_current_time()
-
-    for (uid, new_pos) in command.entries:
-        ent = uidman.get_ent(uid)
-        if ent is None:
-            continue
-        elif world.has_component(ent, MainPlayer):
-            continue
-        elif not world.has_component(ent,  InterpolatedPosition):
-            continue
-
-        pos = world.get_component(ent, InterpolatedPosition)
-        pos.push_position(server_time, *new_pos)
-
-def on_kill_entity_command(resources: Resources, command: KillEntityCommand):
-    "When we receive an entity kill command from the server - we should kill said entity"
-
-    world = resources[WorldECS]
-    uidman = resources[EntityUIDManager]
-
-    target_uid = command.uid
-    target_ent = uidman.get_ent(target_uid)
-
-    if target_ent is not None and world.contains_entity(target_ent):
-        with world.command_buffer() as cmd:
-            cmd.remove_entity(target_ent)
-
-class ClientCommonComponentsPlugin(Plugin):
+class InterpolationSystemsPlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.FixedUpdate, update_render_components, priority=10)
         app.add_systems(
@@ -94,6 +61,3 @@ class ClientCommonComponentsPlugin(Plugin):
             interpolate_network_positions, 
             interpolate_render_components
         )
-
-        app.add_event_listener(MovePlayersCommand, on_move_players_command)
-        app.add_event_listener(KillEntityCommand, on_kill_entity_command)
