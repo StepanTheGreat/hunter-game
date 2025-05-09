@@ -8,15 +8,9 @@ from plugin import Resources, Plugin, Schedule, event, EventWriter
 from itertools import count
 import struct
 
-<<<<<<< HEAD
 from modules.time import Clock
 
 from modules.network import HighUDPClient, HighUDPServer, BroadcastListener, get_current_addr
-=======
-from core.time import Clock
-
-from modules.network import HighUDPClient, HighUDPServer, BroadcastReceiver, BroadcastSender, get_current_ip
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 
 MAX_RPC_FUNC = 256
 DEFAULT_RPC_RELIABILITY = False
@@ -237,11 +231,7 @@ class Client:
     def __init__(self, resources: Resources, rpcs: tuple[Callable, ...] = ()):
         self.resources = resources
         self.ewriter = resources[EventWriter]
-<<<<<<< HEAD
         self.client = HighUDPClient((get_current_addr(), 0))
-=======
-        self.client = HighUDPClient((get_current_ip(), 0))
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
         self.rpcs: dict[int, Callable] = {}
 
         self._init_hooks()
@@ -304,11 +294,7 @@ class Server:
     def __init__(self, resources: Resources, max_clients: int, rpcs: tuple[Callable, ...] = ()):
         self.resources = resources
         self.ewriter = resources[EventWriter]
-<<<<<<< HEAD
         self.server = HighUDPServer((get_current_addr(), 0), max_clients)
-=======
-        self.server = HighUDPServer((get_current_ip(), 0), max_clients)
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
         self.rpcs: dict[int, Callable] = {}
 
         self._init_event_hooks()
@@ -324,14 +310,6 @@ class Server:
         self.server.on_connection = on_server_connection
         self.server.on_disconnection = on_server_disconnection
 
-<<<<<<< HEAD
-=======
-    def accept_incoming_connections(self, to: bool):
-        "Change whether the server can accept new incoming connections or not"
-
-        self.server.accept_incoming_connections(to)
-
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
     def get_addr(self) -> tuple[str, int]:
         return self.server.get_addr()
     
@@ -360,43 +338,28 @@ class Server:
         for addr in self.server.get_connection_addresses():
             self.server.send_to(addr, rpc_call, reliability)
 
-    def close(self):
-        "Always close the server when you're done with it"
-        self.server.close()
-
-class BroadcastWriter:
-    def __init__(self):
-        self.writer = BroadcastSender(get_current_ip())
-
-    def broadcast_call(self, port: int, rpc_func: Callable, *args):
+    def broadcast(self, port: int, rpc_func: Callable, *args):
         """
         Broadcast the RPC function on the provided port. 
+        This is different from calling all connected clients.
         
         An additional important fact is that all broadcast RPC calls are unreliable, as there's
         no connection established. So, it's not possible to use reliable features when broadcasting.
         """
 
-        self.writer.broadcast(
+        self.server.broadcast(
             port,
             serialize_call(rpc_func, args), 
         )
 
     def close(self):
-        "Always close the writer when you're done with it"
+        "Always close the server when you're done with it"
+        self.server.close()
 
-<<<<<<< HEAD
 class Listener:
     def __init__(self, resources: Resources, port: int, rpcs: tuple[Callable, ...] = ()):
         self.resources = resources
         self.listener = BroadcastListener(("0.0.0.0", port))
-=======
-        self.writer.close()
-
-class BroadcastListener:
-    def __init__(self, resources: Resources, port: int, rpcs: tuple[Callable, ...] = ()):
-        self.resources = resources
-        self.listener = BroadcastReceiver(("0.0.0.0", port))
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
         self.rpcs: dict[int, Callable] = {}
 
         self.attach_rpcs(*rpcs)
@@ -414,26 +377,15 @@ class BroadcastListener:
         "Always close the listener when you're done with it"
         self.listener.close()
 
-<<<<<<< HEAD
 def clean_network_actors(resources: Resources, *actors: type):
     """
     A general purpose function for cleaning up network actors (Server/Client/Listener).
-=======
-def clean_network_actors(resources: Resources, *actors: Union[Server, Client, BroadcastListener, BroadcastWriter]):
-    """
-    A general purpose function for cleaning up network actors (Server/Client/BroadcastListener).
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
     Not to be confused with the system of similar name - it's a system, and it will get called
     immediately when the app closes.
     """
 
-<<<<<<< HEAD
     for actor in actors:
         actor = resources.remove(actor)
-=======
-    for actor_ty in actors:
-        actor = resources.remove(actor_ty)
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
         if actor is not None:
             actor.close()
 
@@ -444,16 +396,11 @@ def update_network_actors(resources: Resources):
     # Then, the server should receive this message, and notify both the client and the listener
     # Finally, the listener can act on server's action.
     # On the next tick the Client would be able to receive Server's message
-    for actor_ty in (Client, Server, BroadcastListener):
-        actor = resources.get(actor_ty)
+    for actor in (resources.get(Client), resources.get(Server), resources.get(Listener)):
         if actor is not None:
             actor.tick(dt)
 
-<<<<<<< HEAD
 def insert_network_actor(resources: Resources, actor: Union[Server, Client, Listener]):
-=======
-def insert_network_actor(resources: Resources, actor: Union[Server, Client, BroadcastListener, BroadcastWriter]):
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
     """
     Insert a network actor resource, and if it's present - close the existing one. 
     Please prefer using this function over simply inserting network actors directly, 
@@ -462,23 +409,15 @@ def insert_network_actor(resources: Resources, actor: Union[Server, Client, Broa
 
     actor_ty = type(actor)
 
-<<<<<<< HEAD
     if actor_ty in resources:
         resources.remove(actor_ty).close()
-=======
-    clean_network_actors(resources, actor_ty)
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 
     resources.insert(actor)
 
 def cleanup_network_actors(resources: Resources):
     "Clean all network actors when the app gets closed."
 
-<<<<<<< HEAD
     clean_network_actors(resources, Listener, Client, Server)
-=======
-    clean_network_actors(resources, BroadcastWriter, BroadcastListener, Client, Server)
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 
 @event
 class ClientConnectedEvent:

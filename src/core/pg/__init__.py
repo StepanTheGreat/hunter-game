@@ -5,11 +5,7 @@ from typing import Union, Any
 from plugin import App, AppBuilder, Resources, Plugin, EventWriter, event
 
 from .events import *
-<<<<<<< HEAD
 from modules.time import Clock
-=======
-from core.time import Clock
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 
 pg.font.init()
 
@@ -106,10 +102,6 @@ def pygame_runner(app: App):
             
             pg.display.flip()
     except Exception as exception:
-        
-        # We don't want to handle events when an app has caught an exception - only finalize it
-        event_writer.clear_events()
-
         caught_exception = exception
         print("The app has caught an exception, finalizing...")
 

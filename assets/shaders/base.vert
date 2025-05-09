@@ -40,7 +40,7 @@ vec3 apply_lights(vec3 material_color) {
         ret_color += light_color*dt*(clamp(light_radius/pow(light_dist+1, 2), 0, light_luminosity));
     }
 
-    return clamp(ret_color, 0, 1);
+    return ret_color;
 }
 
 void main() {

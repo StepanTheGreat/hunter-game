@@ -1,16 +1,11 @@
-from plugin import Plugin, Schedule, Resources, event, EventWriter
+from typing import Union
 
 from core.ecs import WorldECS
 
-<<<<<<< HEAD
-=======
-from modules.tilemap import Tilemap
-
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 from .collisions import StaticCollider
 from .components import Position
 
-from typing import Union
+from modules.tilemap import Tilemap
 
 class WorldMap:
     """
@@ -22,38 +17,43 @@ class WorldMap:
             tilemap: Tilemap, 
             color_map: dict[int, Union[str, tuple]],
             transparent_tiles: set[int],
-            tile_size: float
+            world: WorldECS,
+            tile_size: float,
+            offset: tuple[int, int] = (0, 0)
         ):
+        self.offset = offset
+        # Offset is a grid vector from which the map's chunks should get either rendered or turned into colliders
+
         self.tile_size = tile_size
         self.map = tilemap
         self.color_map = color_map
         self.transparent_tiles = transparent_tiles
 
         self.colliders = []
-
-    def destroy_map_colliders(self, world: WorldECS):
-        "Remove all map colliders from the world"
-
-        for collider_ent in self.colliders:
-            world.remove_entity(collider_ent)
+        self.create_map_colliders(world)
 
     def create_map_colliders(self, world: WorldECS):
-        "Generate map colliders for this world map"
 
         tile_size = self.tile_size
         tiles = self.map.get_tiles()
+
+        offsetx, offsety = self.offset
 
         for y, row in enumerate(tiles):
             for x, tile in enumerate(row):
                 if tile == 0:
                     continue
                 
+                posx, posy = offsetx+x, offsety+y
                 self.colliders.append(
                     world.create_entity(
-                        Position(x*tile_size, y*tile_size),
+                        Position(posx*tile_size, posy*tile_size),
                         StaticCollider(tile_size, tile_size)
                     )
                 )
+
+    def get_offset(self) -> tuple[int, int]:
+        return self.offset
     
     def get_transparent_tiles(self) -> set[int]:
         """
@@ -69,38 +69,3 @@ class WorldMap:
 
     def get_map(self) -> Tilemap:
         return self.map
-        
-@event
-class WorldMapLoadedEvent:
-    "Fired when a world map gets loaded"
-
-@event
-class WorldMapUnloadedEvent:
-    "Fired whenever a world map get unloaded"
-
-def load_world_map(resources: Resources, wmap: WorldMap):
-    """
-    Load a new world map, and if a map is already present - clean it up and overwrite with the new one.
-    This function will automatically create map colliders and push appropriate events.
-    """
-
-    unload_world_map(resources)
-
-    # First we're going to insert all map's colliders
-    wmap.create_map_colliders(resources[WorldECS])
-
-    resources.insert(wmap)
-
-    resources[EventWriter].push_event(WorldMapLoadedEvent())
-
-def unload_world_map(resources: Resources):
-    """
-    Unload the current world map if present. This will automatically remove its 
-    colliders and push appropriate events.
-    """
-
-    if WorldMap in resources:
-        wmap = resources[WorldMap]
-        wmap.destroy_map_colliders(resources[WorldECS])
-
-        resources[EventWriter].push_event(WorldMapUnloadedEvent())

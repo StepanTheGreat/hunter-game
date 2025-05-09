@@ -3,11 +3,7 @@ import numpy as np
 
 from plugin import Plugin, Schedule, Resources
 
-<<<<<<< HEAD
 from modules.time import Clock
-=======
-from core.time import Clock
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 from core.ecs import WorldECS, component
 
 from .net import *
@@ -120,13 +116,6 @@ class Health:
 
     def get_health(self) -> float:
         return self.health
-    
-    def set_percentage(self, percentage: float):
-        "Set this health to a percentage of the maximum health"
-
-        assert 0 <= percentage <= 1
-
-        self.health = percentage * self.max_health
 
     def get_percentage(self) -> float:
         "Return the fraction of health to the max health. This can be useful for rendering health bars"
@@ -188,6 +177,21 @@ def move_entities(resources: Resources):
     for ent, (angle, angle_vel) in world.query_components(Angle, AngleVelocity):
         angle.set_angle(angle.get_angle() + angle_vel.get_velocity() * dt)
 
+def update_invincibilities(resources: Resources):
+    world = resources[WorldECS]
+    dt = resources[Clock].get_fixed_delta()
+
+    for ent, health in world.query_component(Health):
+        health.update_invincibility(dt)
+
+def remove_dead_entities(resources: Resources):
+    world = resources[WorldECS]
+    
+    with world.command_buffer() as cmd:
+        for ent, health in world.query_component(Health):
+            if health.is_dead():
+                cmd.remove_entity(ent)
+
 def remove_temp_entities(resources: Resources):
     world = resources[WorldECS]
     dt = resources[Clock].get_fixed_delta()
@@ -205,6 +209,8 @@ class CommonComponentsPlugin(Plugin):
         
         app.add_systems(
             Schedule.FixedUpdate, 
+            remove_dead_entities, 
             remove_temp_entities,
+            update_invincibilities,
             move_entities,
         )

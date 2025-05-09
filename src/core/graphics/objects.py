@@ -308,11 +308,7 @@ class Model:
         self.vertices_to_draw = self.mesh.index_elements()
 
     def release(self):
-        """
-        Release this model by cleaning its vertex, index buffers and vertex array object. Doesn't
-        release the pipeline however. 
-        """
-
+        "Release this model by cleaning its vertex, index buffers and vertex array object. Doesn't "
         self.vbo.release()
         self.ibo.release()
         self.vao.release()

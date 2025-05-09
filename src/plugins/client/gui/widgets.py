@@ -269,12 +269,9 @@ class GUIElement:
             to_call.append(element)
 
         self.call_tree(pass_event)
-<<<<<<< HEAD
 
         for element in to_call:
             element.on_event(event)
-=======
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 
 class SizedBox(GUIElement):
     "An empty box element that can be used either for your own custom panels or for the screen itself"

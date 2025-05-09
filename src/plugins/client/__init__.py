@@ -7,10 +7,6 @@ from .scenes import ScenesPlugin
 from .gui import GUIPlugin
 from .perspective import PerspectivePlugin
 from .actions import ClientActionPlugin
-<<<<<<< HEAD
-=======
-from .session import SessionPlugin
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 
 from plugins.server import ServerManagementPlugin
 
@@ -26,12 +22,7 @@ class ClientPluginCollection(Plugin):
             GUIPlugin(),
             ScenesPlugin(),
             PerspectivePlugin(),
-<<<<<<< HEAD
             ClientActionPlugin()
-=======
-            ClientActionPlugin(),
-            SessionPlugin()
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
         )
 
         app.add_plugins(ServerManagementPlugin())

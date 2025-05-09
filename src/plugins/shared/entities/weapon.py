@@ -3,37 +3,28 @@ This file contains a general use Weapon component that works for every single en
 """
 from plugin import Plugin, Resources, Schedule
 
-<<<<<<< HEAD
 from modules.time import Clock
-=======
-from core.time import Clock
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 from core.ecs import WorldECS, component
 
 from plugins.shared.components import *
 
 from .projectile import ProjectileFactory
 
-class WeaponStats:
-    "This class contains actor-agnostic weapon statistics."
-    def __init__(self, cooldown: float = 1, automatic: bool = False):
-        self.cooldown = cooldown
-        self.automatic = automatic
-
 @component
 class Weapon:
     def __init__(
         self, 
         projectile_factory: ProjectileFactory, 
-        stats: WeaponStats,
+        cooldown: float = 1,
+        automatic: bool = False
     ):
         self.projectile_factory = projectile_factory
-        self.cooldown = stats.cooldown
+        self.cooldown = cooldown
 
         self.on_cooldown = self.cooldown
 
         self.is_shooting = False
-        self.automatic = stats.automatic
+        self.automatic = automatic
         "When `True`, the `is_shooting` variable won't get reset to `False` automatically - only manually"
 
     def update(self, dt: float):
@@ -65,16 +56,15 @@ def shoot_weapons(resources: Resources):
 
     dt = resources[Clock].get_fixed_delta()
 
-    with world.command_buffer() as cmd:
-        for ent, (pos, angle, weapon) in world.query_components(Position, Angle, Weapon):
-            weapon.update(dt)
+    for ent, (pos, angle, weapon) in world.query_components(Position, Angle, Weapon):
+        weapon.update(dt)
 
-            if weapon.may_shoot():
-                # Safety: projectiles don't contain neither Angle nor Weapon components, thus it is safe
-                # to create them in this iteration 
-                cmd.create_entity(*
-                    weapon.shoot(pos.get_position(), angle.get_vector())
-                )
+        if weapon.may_shoot():
+            # Safety: projectiles don't contain neither Angle nor Weapon components, thus it is safe
+            # to create them in this iteration 
+            world.create_entity(*
+                weapon.shoot(pos.get_position(), angle.get_vector())
+            )
 
 class WeaponPlugin(Plugin):
     def build(self, app):

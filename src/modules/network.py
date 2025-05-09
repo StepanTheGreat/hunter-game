@@ -83,9 +83,6 @@ from typing import Optional, Callable, Iterable, Union
 from .circleset import CircleSet
 from collections import deque
 
-from platform import system as device_system
-from subprocess import run as run_process
-
 from enum import Enum, auto
 
 import socket
@@ -156,31 +153,9 @@ def fnv1_hash(data: bytes) -> int:
 
     return ret_hash 
 
-<<<<<<< HEAD
 def get_current_addr() -> str:
     "Get the current IP address of this device"
     return socket.gethostbyname(socket.gethostname())
-=======
-def get_current_ip() -> str:
-    "Get the non-loopback host name of this device"
-
-    if device_system() == "Linux":
-        # Well, this is a really awkward workaround, but Linux for me only returns the localhost host
-        # when using `gethostname`. 
-        #
-        # We're executing here the linux `hostname` command, which usually displays our localhost hostname (like with the `socket.gethostname`),
-        # so we need to add the `-I` parameter, which will show all network hostnames. Usually the LAN hostname is the first one.
-        hosts = run_process(["hostname", "-I"], capture_output=True, text=True).stdout
-
-        # Split by empty spaces, then get us the first address.
-        host = hosts.split(" ")[0]
-
-        # Now, one possible issue which is unclear for me is... can this command return an empty string? No hostnames? I think it is possible, though
-        # I also don't think that the localhost can ever be absent on Linux. Some experts might help me here.
-        return host
-    else:
-        return socket.gethostbyname(socket.gethostname())
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 
 def make_async_socket(
     addr: tuple[str, int], 
@@ -532,7 +507,7 @@ class HighUDPServer:
 
         self.connections: dict[tuple[str, int], HighUDPConnection] = {}
 
-        self.sock = make_async_socket(addr)
+        self.sock = make_async_socket(addr, True)
         self.addr = self.sock.getsockname()
 
         self._connection_cls: HighUDPConnection = HighUDPConnection
@@ -601,7 +576,6 @@ class HighUDPServer:
     def send_to(self, addr: tuple[str, int], data: bytes, reliable: bool):
         if addr in self.connections:
             self.connections[addr].queue_message(data, reliable)
-<<<<<<< HEAD
 
     def broadcast(self, port: int, data: bytes):
         """
@@ -617,8 +591,6 @@ class HighUDPServer:
             make_broadcast_packet(data),
             ("255.255.255.255", port),
         )
-=======
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 
     def get_connection_addresses(self) -> tuple[tuple[str, int], ...]:
         return tuple(self.connections.keys())
@@ -830,79 +802,10 @@ class HighUDPClient:
             self.connection.disconnect()
 
         self.sock.close()
-
-class BroadcastSender:
-    def __init__(self, ip: str):
-        self.ip = ip
-
-        self.last_interfaces = None
-        "Last known interfaces. If they differ - we will reopen sockets again when broadcasting"
-
-        self.socks: list[socket.socket] = []
-        """
-        So we're using multiple sockets here, because broadcasting requires sending packets
-        to multiple network interfaces (ethernet, wifi, localhost and so on). Because multicast
-        isn't such a supported feature - we will open and manage multiple sockets for every single
-        interface.
         
-        This was taken from this [answer](https://stackoverflow.com/questions/64066634/sending-broadcast-in-python)
-        """
-
-        self.closed: bool = False
-
-    def _close_sockets(self):
-        for sock in self.socks:
-            sock.close()
-
-    def _actualise_sockets(self):
-        "Check the current available network interfaces, and if they differ - reopen all sockets"
-
-        interfaces = socket.getaddrinfo(self.ip, None, socket.AF_INET)
-        # Get the current interfaces
-
-        if interfaces == self.last_interfaces:
-            # If they're identical - don't do anything
-            return
-
-        # If there's a change however - we would like to overwrite our existing interfaces
-        self.last_interfaces = interfaces
-
-        # And close/reopen all our sockets on these new interfaces
-        self._gen_broadcast_sockets([interface[-1][0] for interface in interfaces])
-
-    def _gen_broadcast_sockets(self, new_ips: tuple[str]):
-        "Close all existing sockets and open new ones on the providing tuple of IP addresses"
-
-        self._close_sockets()
-
-        self.socks.clear()
-        self.socks = [make_async_socket((ip, 0), True) for ip in new_ips]
-
-    def broadcast(self, port: int, data: bytes):
-        """
-        Broadcast provided `data` to all broadcast listeners on the provided `port`.
-        This is going to use all available network interfaces.
-        """
-
-        assert not self.closed, "The broadcast writer is closed, can't use it again"
-
-        self._actualise_sockets()
-
-        for sock in self.socks:
-            sock.sendto(
-                make_broadcast_packet(data),
-                ("255.255.255.255", port),
-            )
-
-    def close(self):
-        "Close this writer and its sockets. You will not be able to use this broadcast writer again"
-
-        self._close_sockets()
-        self.closed = True
-        
-class BroadcastReceiver:
+class BroadcastListener:
     """
-    Broadcast receiver is an abstraction that allows you to listen for broadcasted messages. 
+    Broadcast listener is an abstraction that allows you to listen for broadcasted messages. 
     Why not just use the Client to receive broadcasts? Well, I think the problem with this API is that
     a client is always expected to have the same port. Something that isn't possible 
     """

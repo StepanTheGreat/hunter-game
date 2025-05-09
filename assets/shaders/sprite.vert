@@ -37,7 +37,7 @@ out vec3 in_color;
 // This function is slightly different from the one in base shader, but it applies the same shading for sprites as well.
 // For sprites, the only significant difference is that their normal is always pointing towards the player, thus it's calculated based on
 // the position of the sprite's vertex and the camera's position
-vec3 apply_lights(vec3 material_color, vec3 vert_pos) {
+vec3 apply_lights(vec3 material_color, vec3 vert_pos, vec3 normal) {
     vec3 ret_color = material_color * ambient_color;
 
     for (int i = 0; i < lights_amount; ++i) {
@@ -48,8 +48,9 @@ vec3 apply_lights(vec3 material_color, vec3 vert_pos) {
 
         float light_dist = distance(light_position, vert_pos);
         vec3 light_dir = normalize(vert_pos-light_position);
+        float dt = max(dot(normal, light_dir), 0);
 
-        ret_color += light_color*(clamp(light_radius/pow(light_dist+1, 2), 0, light_luminosity));
+        ret_color += light_color*dt*(clamp(light_radius/pow(light_dist+1, 2), 0, light_luminosity));
     }
 
     return ret_color;
@@ -82,7 +83,8 @@ void main()
     pos.xz *= sprite_rot;
     pos += sprite_pos;
 
-    gl_Position = projection*(vec4(camera_rot*(pos-camera_pos), 1));
+    vec3 world_pos = pos-camera_pos;
+    gl_Position = projection*(vec4(camera_rot*world_pos, 1));
 
     in_uv = vec2(
         uv_xy.x * uv_mat[0].x + uv_wh.x * uv_mat[1].x,
@@ -90,5 +92,5 @@ void main()
     );
     in_uv = vec2(in_uv.x/texture_size.x, in_uv.y/texture_size.y);
 
-    in_color = apply_lights(vec3(1, 1, 1), pos);
+    in_color = apply_lights(vec3(1, 1, 1), pos, normalize(world_pos));
 }  

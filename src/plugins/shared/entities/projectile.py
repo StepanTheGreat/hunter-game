@@ -4,11 +4,6 @@ from core.ecs import WorldECS, component
 from plugins.shared.collisions import DynCollider, CollisionEvent, StaticCollider
 
 from plugins.shared.components import *
-<<<<<<< HEAD
-=======
-
-from typing import Callable
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
 
 @component
 class Projectile:
@@ -27,11 +22,7 @@ class Projectile:
         self.pierce -= 1
         
 class ProjectileFactory:
-    """
-    This is more of a builder class used to build different types of projectiles.
-    
-    Before you use `user_components` though, please read how it works and how to use it properly
-    """
+    "This is more of a builder class used to build different types of projectiles"
     def __init__(
         self,
         is_enemy: bool,
@@ -41,7 +32,7 @@ class ProjectileFactory:
         pierce: int = 1,
         lifetime: int = 10,
         spawn_offset: float = 0,
-        user_components: tuple[Callable, ...] = ()
+        user_components: tuple = ()
     ):
         self.is_enemy = is_enemy
         self.speed = speed
@@ -50,16 +41,7 @@ class ProjectileFactory:
         self.lifetime = lifetime
         self.pierce = pierce
 
-        self.user_components: tuple[Callable, ...] = user_components
-        """
-        User components are user-defined components, attached to this projectile factory.
-        Attention - here, you bind not objects, but functions without arguments that return
-        said objects (essentially lambdas: `lambda: MyComp()`).
-        
-        The reasoning is simple - we don't want shared components to be persistent across multiple
-        projectiles, so this workaround is going to "construct" said projectiles every single time
-        instead.
-        """
+        self.user_components = user_components
 
         self.spawn_offset = spawn_offset
         "This attribute describes the offset the projectile is going to move when spawning. Useful for melee weapons for example"
@@ -89,9 +71,7 @@ class ProjectileFactory:
             DynCollider(self.radius, 1, sensor=True),
             Temporary(self.lifetime),
             Team(self.is_enemy),
-
-            # For every user component function, we're going to call it and collect into our components
-            *(user_comp() for user_comp in self.user_components),
+            *self.user_components,
             Projectile(self.damage, self.pierce)
         )
 
@@ -102,17 +82,8 @@ def make_projectile(
 ) -> tuple:
     return factory.make_projectile(pos, direction)
 
-@event
-class ProjectileHitEvent:
-    "Fired whenever a projectile hits a hittable entity of an opposite team"
-
-    def __init__(self, target_ent: int, damage: float):
-        self.target_ent = target_ent
-        self.damage = damage
-
-def collide_projectiles(resources: Resources, event: CollisionEvent):
+def deal_damage_on_collision(resources: Resources, event: CollisionEvent):
     world = resources[WorldECS]
-    ewriter = resources[EventWriter]
 
     projectile_entity, target_entity = event.sensor_entity, event.hit_entity
 
@@ -127,14 +98,11 @@ def collide_projectiles(resources: Resources, event: CollisionEvent):
             world.remove_entity(projectile_entity)
         elif world.has_components(target_entity, Hittable, Team, Health):
             projectile_team, projectile = world.get_components(projectile_entity, Team, Projectile)
-            target_team = world.get_component(target_entity, Team)
+            target_team, target_health = world.get_components(target_entity, Team, Health)
 
             # If they are on the same team however - we won't do anything
             if not projectile_team.same_team(target_team):
-
-                # Because this entire collision resolution logic is shared, but only the hitting
-                # part is up to the server - we're going to simply send an event instead
-                ewriter.push_event(ProjectileHitEvent(target_entity, projectile.damage))
+                target_health.hurt(projectile.damage)
 
                 # Our projectile can hit multiple targets, which is called piercing!
                 projectile.consume_pierce()
@@ -143,4 +111,4 @@ def collide_projectiles(resources: Resources, event: CollisionEvent):
 
 class ProjectilePlugin(Plugin):
     def build(self, app):
-        app.add_event_listener(CollisionEvent, collide_projectiles)
+        app.add_event_listener(CollisionEvent, deal_damage_on_collision)

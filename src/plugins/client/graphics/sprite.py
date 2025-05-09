@@ -62,12 +62,7 @@ def sprite_model(ctx: gl.Context, assets: AssetManager) -> tuple[Model, Pipeline
 @component
 class Sprite:
     "A sprite component that allows an entity to be rendered as 2D billboards"
-<<<<<<< HEAD
     def __init__(self, texture: Texture, size: tuple[int, int]):
-=======
-    def __init__(self, y: float, texture: Texture, size: tuple[int, int]):
-        self.y: float = y
->>>>>>> 21250e21a0d3c519c569c4b7537a8cf58aa1eb75
         self.texture: Texture = texture
         self.size: pg.Vector2 = pg.Vector2(size[0], size[1])
 
@@ -120,14 +115,14 @@ class SpriteRenderer:
         self.pipeline: Pipeline = pipeline
         self.can_draw: bool = True
         
-    def push_sprite(self, sprite: Sprite, pos: tuple[float, float]):  
+    def push_sprite(self, sprite: Sprite, pos: tuple[float, float], y: float):  
         texture = sprite.texture
         gl_texture = texture.texture
 
         if gl_texture not in self.groups:
             self.groups[gl_texture] = SpriteRenderer.SpriteGroup(self.sprite_limit)
 
-        self.groups[gl_texture].add(sprite, pos, sprite.y)
+        self.groups[gl_texture].add(sprite, pos, y)
 
     def get_sprite_uniform_arrays(self) -> list[tuple[int, gl.Texture, np.ndarray, np.ndarray, np.ndarray]]:
         """Transform this sprite map into a list of tuples of:
@@ -175,7 +170,7 @@ def draw_sprites(resources: Resources):
     for ent, (position, sprite) in resources[WorldECS].query_components(RenderPosition, Sprite)[:renderer.sprite_limit]:
         if ent != current_perspective_entity:
             # If the entity is the current camera entity - we should ignore its sprite
-            renderer.push_sprite(sprite, position.get_position())
+            renderer.push_sprite(sprite, position.get_position(), position.height)
 
     draw_calls = renderer.draw(lights, resources[Camera3D])
 
