@@ -1,8 +1,12 @@
 """ A tiny module for general file loading """
 
 from os.path import abspath
+import sys
 
-PROJECT_DIR = abspath(__file__ + "/../../") + "/"
+if getattr(sys, "frozen", False):
+    PROJECT_DIR = sys._MEIPASS + "/"
+else:
+    PROJECT_DIR = abspath(__file__ + "/../../") + "/"
 """
 This is an ugly way of solving it, but since `file.py` is in the same path as `main.py`,
 we can take this absolute path, go back to `src` using `..`, then finally move to any other local 

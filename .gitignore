@@ -10,6 +10,5 @@ config.json
 # Pyinstaller
 dist
 build
-main.spec
 
 assets/sounds/test_sound.ogg
