@@ -1,4 +1,4 @@
-from modules.inteprolation import Interpolated, InterpolatedAngle
+from modules.inteprolation import Interpolated, InterpolatedDegrees, compute_time_alpha
 from plugins.shared.components import *
 
 @component
@@ -19,7 +19,7 @@ class RenderPosition:
 @component
 class RenderAngle:
     def __init__(self):
-        self.angles = InterpolatedAngle(0)
+        self.angles = InterpolatedDegrees(0)
         self.interpolated = self.angles.get_value()
 
     def interpolate(self, alpha: float):
@@ -58,22 +58,32 @@ class InterpolatedPosition:
 
     def get_interpolated(self, current_time: float) -> pg.Vector2:
         prelast, last = self.time
-
-        # We're computing the alpha here of our current time. Essentially, if we have 2 points in time
-        # A and B, and we have time C in between these time points, we would like to get a value
-        # between 0 and 1, which we could then use as alpha for our position interpolation.
-        #
-        # For this we first need to get the delta time between our current time and A (the oldest point).
-        # Then, we're dividing this by the delta time between A and B.
-        # So if for example A is 1, B is 2 and C is 1.5, then the formula will be:
-        # (C-A)/(B-A) -> (1.5-1)/(2-1) -> 0.5/1 -> 0.5
-        alpha = min(
-            1, 
-            max((current_time-prelast)/(last-prelast+0.0001), 0)
-        )
+        alpha = compute_time_alpha(prelast, last, current_time)
 
         return self.interpolated.get_interpolated(alpha)
-    
+
+@component
+class InterpolatedAngle:
+    """
+    Essentially the same as `InterpolatedPosition`, but for angles (directions)
+    """
+    def __init__(self):
+        self.interpolated = InterpolatedDegrees(0)
+
+        self.time: tuple[float, float] = (0, 0)
+        "The time used when interpolating. It gets swapped every time a new position gets introduced."
+
+    def push_angle(self, time: float, new_angle: float):
+        self.interpolated.push_value(new_angle)
+
+        self.time = (self.time[-1], time)
+
+    def get_interpolated(self, current_time: float) -> float:
+        prelast, last = self.time
+
+        alpha = compute_time_alpha(prelast, last, current_time)
+
+        return self.interpolated.get_interpolated(alpha)
 
 @component
 class PerspectiveAttachment:

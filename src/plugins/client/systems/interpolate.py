@@ -43,21 +43,27 @@ def interpolate_render_components(resources: Resources):
         for _, component in world.query_component(interpolatable):
             component.interpolate(alpha)
 
-def interpolate_network_positions(resources: Resources):
+def interpolate_network_components(resources: Resources):
     world = resources[WorldECS]
     server_time = resources[ServerTime].get_current_time() - INTERPOLATION_TIME_DELAY
 
+    # Interpolate positions
     for _, (pos, interpos) in world.query_components(Position, InterpolatedPosition):
         interpos.get_interpolated(server_time)
         pos.set_position(
             *interpos.get_interpolated(server_time)
         )
 
+    # Interpolate angles
+    for _, (angle, interangle) in world.query_components(Angle, InterpolatedAngle):
+        interangle.get_interpolated(server_time)
+        angle.set_angle(interangle.get_interpolated(server_time))
+
 class InterpolationSystemsPlugin(Plugin):
     def build(self, app):
         app.add_systems(Schedule.FixedUpdate, update_render_components, priority=10)
         app.add_systems(
             Schedule.PostUpdate, 
-            interpolate_network_positions, 
+            interpolate_network_components, 
             interpolate_render_components
         )

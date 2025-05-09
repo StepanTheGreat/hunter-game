@@ -36,6 +36,6 @@ def make_client_policeman(
     if ismain:
         components += (MainPlayer(), )
     else:
-        components += (InterpolatedPosition(), )
+        components += (InterpolatedPosition(), InterpolatedAngle())
     
     return components

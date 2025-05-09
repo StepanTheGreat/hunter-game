@@ -2,7 +2,7 @@ from plugin import Resources, event, EventWriter
 
 from plugins.shared.services.network import ENDIAN, rpc, rpc_raw
 
-from .pack import unpack_velocity
+from .pack import unpack_angle
 
 import struct
 
@@ -10,10 +10,10 @@ import struct
 class MovePlayersCommand:
     """
     A client command send from the server that tells the client to move all specified players to their
-    new position (and update their velocities)
+    new position and angles
     """
-    def __init__(self, entries: tuple[tuple[int, tuple[int, int]]]):
-        self.entries: tuple[tuple[int, tuple[int, int]]] = entries
+    def __init__(self, entries: tuple[tuple[int, tuple[int, int], int]]):
+        self.entries: tuple[tuple[int, tuple[int, int], int]] = entries
 
 @event
 class SpawnPlayerCommand:
@@ -61,11 +61,12 @@ class SyncHealthCommand:
 MOVE_PLAYERS_LIMIT = 127
 "We can transfer only 127 players per packet for now"
 
-MOVE_PLAYERS_FORMAT = struct.Struct(ENDIAN+"Hhh")
+MOVE_PLAYERS_FORMAT = struct.Struct(ENDIAN+"HhhB")
 """
 Components:
-- Entity UID: 2 bytes unsigned int, `H`
-- Entity Position: 2 2-byte signed ints, `2h`
+- Player's UID: 2 bytes unsigned int, `H`
+- Player's Position: 2 2-byte signed ints, `2h`
+- Player's Angle: 1-byte unsigned int, `B`
 """
 
 SPAWN_DIAMONDS_FORMAT = struct.Struct(ENDIAN+"Hhh")
@@ -84,19 +85,18 @@ def move_players_rpc(resources: Resources, data: bytes):
 
     moved_entries = []
     try:
-        for (uid, posx, posy,) in MOVE_PLAYERS_FORMAT.iter_unpack(data):
+        for (uid, posx, posy, angle) in MOVE_PLAYERS_FORMAT.iter_unpack(data):
             moved_entries.append((
                 uid, 
                 (posx, posy), 
+                unpack_angle(angle)
             ))
     except struct.error:
         print("Failed to parse players movement packet")
         return
     
     if len(moved_entries) > 0:
-        ewriter.push_event(MovePlayersCommand(
-            tuple(moved_entries)
-        ))
+        ewriter.push_event(MovePlayersCommand(tuple(moved_entries)))
 
 @rpc("Hhh?", reliable=True)
 def spawn_player_rpc(resources: Resources, uid: int, posx: int, posy: int, is_main: bool):

@@ -20,16 +20,18 @@ def on_move_players_command(resources: Resources, command: MovePlayersCommand):
     uidman = resources[EntityUIDManager]
     server_time = resources[ServerTime].get_current_time()
 
-    for (uid, new_pos) in command.entries:
+    for (uid, new_pos, new_angle) in command.entries:
         ent = uidman.get_ent(uid)
         if ent is None:
             continue
         elif world.has_component(ent, MainPlayer):
             continue
-        elif not world.has_component(ent,  InterpolatedPosition):
+        elif not world.has_components(ent,  InterpolatedPosition, InterpolatedAngle):
             continue
 
-        pos = world.get_component(ent, InterpolatedPosition)
+        pos, angle = world.get_components(ent, InterpolatedPosition, InterpolatedAngle)
+
+        angle.push_angle(server_time, new_angle)
         pos.push_position(server_time, *new_pos)
 
 def on_kill_entity_command(resources: Resources, command: KillEntityCommand):

@@ -37,12 +37,13 @@ def move_players_system(resources: Resources):
 
     moved_entries = []
 
-    for _, (ent, pos) in world.query_components(NetEntity, Position, including=NetSyncronized):
+    for _, (ent, pos, angle) in world.query_components(NetEntity, Position, Angle, including=NetSyncronized):
         uid = ent.get_uid()
 
         pos = pos.get_position()
+        angle = angle.get_angle()
 
-        moved_entries.append((uid, (pos.x, pos.y)))
+        moved_entries.append((uid, (pos.x, pos.y), angle))
 
     action_dispatcher.dispatch_action(MovePlayersAction(
         tuple(moved_entries)

@@ -10,7 +10,7 @@ from plugins.shared.actions import ActionDispatcher, Action
 from plugins.server.services.clientlist import ClientList
 
 from plugins.rpcs.client import *
-from plugins.rpcs.pack import pack_velocity
+from plugins.rpcs.pack import pack_angle
 
 from typing import Callable, Optional, Any
 
@@ -29,10 +29,15 @@ class ServerAction(Action):
         self.to: Optional[tuple[int]] = to
 
 class MovePlayersAction(ServerAction):
-    def __init__(self, entries: tuple[tuple[int, tuple[int, int], tuple[float, float]]]):
+    def __init__(self, entries: tuple[tuple[int, tuple[int, int], float]]):
         data = bytes()
-        for (uid, pos) in entries:
-            data += MOVE_PLAYERS_FORMAT.pack(uid, int(pos[0]), int(pos[1]))
+        for (uid, pos, angle) in entries:
+            data += MOVE_PLAYERS_FORMAT.pack(
+                uid, 
+                int(pos[0]), 
+                int(pos[1]),
+                pack_angle(angle)
+            )
 
         super().__init__(
             move_players_rpc, 
@@ -53,7 +58,7 @@ class SpawnPlayerAction(ServerAction):
             (
                 uid, 
                 int(pos[0]),
-                int(pos[1]), 
+                int(pos[1]),
                 is_main
             ), 
             to=(client, )
