@@ -26,10 +26,10 @@ def remove_dead_entities_system(resources: Resources):
             if health.is_dead():
                 cmd.remove_entity(ent)
 
-def move_players_system(resources: Resources):
+def sync_players_system(resources: Resources):
     """
-    Syncronize all movable entities by collecting their UIDs, positions and velocities, and sending
-    them over
+    Syncronize all movable entities by collecting their UIDs, positions, angles and shooting statuses,
+    sending them over network
     """
 
     world = resources[WorldECS]
@@ -37,15 +37,16 @@ def move_players_system(resources: Resources):
 
     moved_entries = []
 
-    for _, (ent, pos, angle) in world.query_components(NetEntity, Position, Angle, including=NetSyncronized):
+    for _, (ent, pos, angle, controller) in world.query_components(NetEntity, Position, Angle, PlayerController, including=NetSyncronized):
         uid = ent.get_uid()
 
         pos = pos.get_position()
         angle = angle.get_angle()
+        is_shooting = controller.is_shooting
 
-        moved_entries.append((uid, (pos.x, pos.y), angle))
+        moved_entries.append((uid, (pos.x, pos.y), angle, is_shooting))
 
-    action_dispatcher.dispatch_action(MovePlayersAction(
+    action_dispatcher.dispatch_action(SyncPlayersAction(
         tuple(moved_entries)
     ))
 
@@ -58,4 +59,4 @@ class BaseSystemsPlugin(Plugin):
         )
 
         # We would like to syncronize our movables 20 times a second
-        schedule_systems_seconds(app, (move_players_system, 1/20, True))
+        schedule_systems_seconds(app, (sync_players_system, 1/20, True))

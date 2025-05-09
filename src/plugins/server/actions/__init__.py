@@ -28,19 +28,20 @@ class ServerAction(Action):
         self.args: tuple[Any, ...] = args
         self.to: Optional[tuple[int]] = to
 
-class MovePlayersAction(ServerAction):
-    def __init__(self, entries: tuple[tuple[int, tuple[int, int], float]]):
+class SyncPlayersAction(ServerAction):
+    def __init__(self, entries: tuple[tuple[int, tuple[int, int], float, bool]]):
         data = bytes()
-        for (uid, pos, angle) in entries:
-            data += MOVE_PLAYERS_FORMAT.pack(
+        for (uid, pos, angle, is_shooting) in entries:
+            data += SYNC_PLAYERS_FORMAT.pack(
                 uid, 
                 int(pos[0]), 
                 int(pos[1]),
-                pack_angle(angle)
+                pack_angle(angle),
+                is_shooting
             )
 
         super().__init__(
-            move_players_rpc, 
+            sync_players_rpc, 
             (data, )
         )
 

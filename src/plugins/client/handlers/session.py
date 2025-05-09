@@ -13,26 +13,27 @@ from plugins.shared.services.uidman import EntityUIDManager
 from plugins.client.services.session import ServerTime
 from plugins.client.components import MainPlayer
 
-def on_move_players_command(resources: Resources, command: MovePlayersCommand):
+def on_sync_players_command(resources: Resources, command: SyncPlayersCommand):
     "Apply net syncronization on all requested players"
 
     world = resources[WorldECS]
     uidman = resources[EntityUIDManager]
     server_time = resources[ServerTime].get_current_time()
 
-    for (uid, new_pos, new_angle) in command.entries:
+    for (uid, new_pos, new_angle, is_shooting) in command.entries:
         ent = uidman.get_ent(uid)
         if ent is None:
             continue
         elif world.has_component(ent, MainPlayer):
             continue
-        elif not world.has_components(ent,  InterpolatedPosition, InterpolatedAngle):
+        elif not world.has_components(ent,  InterpolatedPosition, InterpolatedAngle, PlayerController):
             continue
 
-        pos, angle = world.get_components(ent, InterpolatedPosition, InterpolatedAngle)
+        pos, angle, controller = world.get_components(ent, InterpolatedPosition, InterpolatedAngle, PlayerController)
 
         angle.push_angle(server_time, new_angle)
         pos.push_position(server_time, *new_pos)
+        controller.is_shooting = is_shooting
 
 def on_kill_entity_command(resources: Resources, command: KillEntityCommand):
     "When we receive an entity kill command from the server - we should kill said entity"
@@ -69,7 +70,7 @@ def on_sync_health_command(resources: Resources, command: SyncHealthCommand):
 
 class SessionHandlersPlugin(Plugin):
     def build(self, app):
-        app.add_event_listener(MovePlayersCommand, on_move_players_command)
+        app.add_event_listener(SyncPlayersCommand, on_sync_players_command)
         app.add_event_listener(KillEntityCommand, on_kill_entity_command)
 
         app.add_event_listener(ComponentsAddedEvent, on_new_main_player)

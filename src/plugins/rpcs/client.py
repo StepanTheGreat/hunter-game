@@ -7,13 +7,13 @@ from .pack import unpack_angle
 import struct
 
 @event
-class MovePlayersCommand:
+class SyncPlayersCommand:
     """
     A client command send from the server that tells the client to move all specified players to their
-    new position and angles
+    new position, angles and shooting status
     """
-    def __init__(self, entries: tuple[tuple[int, tuple[int, int], int]]):
-        self.entries: tuple[tuple[int, tuple[int, int], int]] = entries
+    def __init__(self, entries: tuple[tuple[int, tuple[int, int], int, bool]]):
+        self.entries: tuple[tuple[int, tuple[int, int], int, bool]] = entries
 
 @event
 class SpawnPlayerCommand:
@@ -61,12 +61,13 @@ class SyncHealthCommand:
 MOVE_PLAYERS_LIMIT = 127
 "We can transfer only 127 players per packet for now"
 
-MOVE_PLAYERS_FORMAT = struct.Struct(ENDIAN+"HhhB")
+SYNC_PLAYERS_FORMAT = struct.Struct(ENDIAN+"HhhB?")
 """
 Components:
 - Player's UID: 2 bytes unsigned int, `H`
 - Player's Position: 2 2-byte signed ints, `2h`
 - Player's Angle: 1-byte unsigned int, `B`
+- Player's shooting status: 1-byte boolean `?`
 """
 
 SPAWN_DIAMONDS_FORMAT = struct.Struct(ENDIAN+"Hhh")
@@ -77,26 +78,27 @@ Components:
 """
 
 @rpc_raw
-def move_players_rpc(resources: Resources, data: bytes):
+def sync_players_rpc(resources: Resources, data: bytes):
     """
-    Move all players on the client side. This will both set their position and velocity.
+    Sync all players on the client side. This will both set their position, angle and shooting status.
     """
     ewriter = resources[EventWriter]
 
     moved_entries = []
     try:
-        for (uid, posx, posy, angle) in MOVE_PLAYERS_FORMAT.iter_unpack(data):
+        for (uid, posx, posy, angle, is_shooting) in SYNC_PLAYERS_FORMAT.iter_unpack(data):
             moved_entries.append((
                 uid, 
                 (posx, posy), 
-                unpack_angle(angle)
+                unpack_angle(angle),
+                is_shooting
             ))
     except struct.error:
         print("Failed to parse players movement packet")
         return
     
     if len(moved_entries) > 0:
-        ewriter.push_event(MovePlayersCommand(tuple(moved_entries)))
+        ewriter.push_event(SyncPlayersCommand(tuple(moved_entries)))
 
 @rpc("Hhh?", reliable=True)
 def spawn_player_rpc(resources: Resources, uid: int, posx: int, posy: int, is_main: bool):
@@ -143,7 +145,7 @@ def sync_player_health(resources: Resources, health: float):
     resources[EventWriter].push_event(SyncHealthCommand(health))
 
 CLIENT_RPCS = (
-    move_players_rpc,
+    sync_players_rpc,
     spawn_player_rpc,
     spawn_diamonds_rpc,
     kill_entity_rpc,
