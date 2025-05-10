@@ -811,10 +811,7 @@ class BroadcastSender:
     def __init__(self, ip: str):
         self.ip = ip
 
-        self.last_interfaces = None
-        "Last known interfaces. If they differ - we will reopen sockets again when broadcasting"
-
-        self.socks: list[socket.socket] = []
+        self.socks: tuple[socket.socket] = self._gen_broadcast_sockets()
         """
         So we're using multiple sockets here, because broadcasting requires sending packets
         to multiple network interfaces (ethernet, wifi, localhost and so on). Because multicast
@@ -824,45 +821,24 @@ class BroadcastSender:
         This was taken from this [answer](https://stackoverflow.com/questions/64066634/sending-broadcast-in-python)
         """
 
-        self.closed: bool = False
-
-    def _close_sockets(self):
-        for sock in self.socks:
-            sock.close()
-
-    def _actualise_sockets(self):
-        "Check the current available network interfaces, and if they differ - reopen all sockets"
+    def _gen_broadcast_sockets(self) :
+        "Generate broadcast sockets on all available interfaces"
 
         interfaces = socket.getaddrinfo(self.ip, None, socket.AF_INET)
-        # Get the current interfaces
 
-        if interfaces == self.last_interfaces:
-            # If they're identical - don't do anything
-            return
+        # Get all IPS
+        ips = tuple(interface[-1][0] for interface in interfaces)
 
-        # If there's a change however - we would like to overwrite our existing interfaces
-        self.last_interfaces = interfaces
-
-        # And close/reopen all our sockets on these new interfaces
-        self._gen_broadcast_sockets([interface[-1][0] for interface in interfaces])
-
-    def _gen_broadcast_sockets(self, new_ips: tuple[str]):
-        "Close all existing sockets and open new ones on the providing tuple of IP addresses"
-
-        self._close_sockets()
-
-        self.socks.clear()
-        self.socks = [make_async_socket((ip, 0), True) for ip in new_ips]
+        # Of course, some of them could be the same, so we would like to get rid of them
+        ips = tuple(set(ips))
+  
+        return tuple(make_async_socket((ip, 0), True) for ip in ips)
 
     def broadcast(self, port: int, data: bytes):
         """
         Broadcast provided `data` to all broadcast listeners on the provided `port`.
         This is going to use all available network interfaces.
         """
-
-        assert not self.closed, "The broadcast writer is closed, can't use it again"
-
-        self._actualise_sockets()
 
         for sock in self.socks:
             sock.sendto(
@@ -873,8 +849,8 @@ class BroadcastSender:
     def close(self):
         "Close this writer and its sockets. You will not be able to use this broadcast writer again"
 
-        self._close_sockets()
-        self.closed = True
+        for sock in self.socks:
+            sock.close()
         
 class BroadcastReceiver:
     """
