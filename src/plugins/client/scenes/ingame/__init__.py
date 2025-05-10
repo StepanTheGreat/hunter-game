@@ -13,9 +13,6 @@ from plugins.server import ServerExecutor
 
 from plugins.client.services.session import ServerTime
 
-from .render.map import MapRendererPlugin
-from .render.minimap import MinimapPlugin
-
 from .gui import IngameGUI
 
 TILE_SIZE = 48
@@ -81,7 +78,4 @@ class IngameScene(SceneBundle):
 
 class IngamePlugin(Plugin):
     def build(self, app):
-        app.add_plugins(
-            MapRendererPlugin(),
-            MinimapPlugin(),
-        )
+        pass
