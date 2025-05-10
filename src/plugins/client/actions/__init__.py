@@ -46,6 +46,15 @@ class ControlAction(ClientAction):
             )
         )
 
+class SignalPlayerReadyAction(ClientAction):
+    "Tell the server that whether the client is ready or not for the game"
+
+    def __init__(self, is_ready: bool, ):
+        super().__init__(
+            signal_ready_rpc, 
+            (is_ready, )
+        )
+
 class ClientActionDispatcher(ActionDispatcher):
     """
     A dispatcher is a command dispatcher for network actions. You push your actions directly here,

@@ -58,6 +58,14 @@ class SyncHealthCommand:
     def __init__(self, health: float):
         self.health = health
 
+@event
+class PlayersReadyCommand:
+    "The command that tells the client how many players are ready to start the game"
+
+    def __init__(self, players_ready: int, players: int):
+        self.players_ready = players_ready
+        self.players = players
+
 MOVE_PLAYERS_LIMIT = 127
 "We can transfer only 127 players per packet for now"
 
@@ -141,8 +149,12 @@ def sync_time_rpc(resources: Resources, time: float):
     resources[EventWriter].push_event(SyncTimeCommand(time))
 
 @rpc("f")
-def sync_player_health(resources: Resources, health: float):
+def sync_player_health_rpc(resources: Resources, health: float):
     resources[EventWriter].push_event(SyncHealthCommand(health))
+
+@rpc("BB")
+def tell_players_ready_rpc(resources: Resources, ready_players: int, players: int):
+    resources[EventWriter].push_event(PlayersReadyCommand(ready_players, players))
 
 CLIENT_RPCS = (
     sync_players_rpc,
@@ -151,6 +163,7 @@ CLIENT_RPCS = (
     kill_entity_rpc,
     crookify_policeman_rpc,
     sync_time_rpc,
-    sync_player_health
+    sync_player_health_rpc,
+    tell_players_ready_rpc
 )
 "RPCs used by the client"

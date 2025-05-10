@@ -69,6 +69,9 @@ def on_sync_health_command(resources: Resources, command: SyncHealthCommand):
     # be done from a separate event listener instead
     resources[EventWriter].push_event(UpdatePlayerStatsHealthCommand(command.health))
 
+def on_players_ready_command(resources: Resources, command: PlayersReadyCommand):
+    print(f"Players ready update: {command.players_ready}/{command.players}")
+
 class SessionHandlersPlugin(Plugin):
     def build(self, app):
         app.add_event_listener(SyncPlayersCommand, on_sync_players_command)
@@ -76,3 +79,4 @@ class SessionHandlersPlugin(Plugin):
 
         app.add_event_listener(ComponentsAddedEvent, on_new_main_player)
         app.add_event_listener(SyncHealthCommand, on_sync_health_command)
+        app.add_event_listener(PlayersReadyCommand, on_players_ready_command)

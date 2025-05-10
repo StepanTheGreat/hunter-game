@@ -27,6 +27,22 @@ class ControlPlayerCommand:
         self.angle_vel = angle_vel
         self.is_shooting = is_shooting
 
+@event
+class SignalPlayerReadyCommand:
+    "A command that the player sends to the server to signal that they're ready to start the game"
+
+    def __init__(self, addr: tuple[str, int], is_ready: bool):
+        self.addr: tuple[str, int] = addr 
+        self.is_ready: bool = is_ready
+
+@rpc("?")
+def signal_ready_rpc(resources: Resources, is_ready: bool):
+    ewriter = resources[EventWriter]
+
+    caller_addr = resources[RPCCallerAddress].get_addr()
+
+    ewriter.push_event(SignalPlayerReadyCommand(caller_addr, is_ready))
+
 @rpc("2hB?Bb?")
 def control_player_rpc(
     resources: Resources, 
@@ -50,5 +66,6 @@ def control_player_rpc(
 
 SERVER_RPCS = (
     control_player_rpc,
+    signal_ready_rpc
 )
 "The RPCs used by the server"

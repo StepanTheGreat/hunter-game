@@ -7,15 +7,18 @@ from core.ecs import WorldECS
 from plugins.server.events import AddedClientEvent, RemovedClientEvent, GameStartedEvent
 from plugins.server.commands import CrookifyRandomPlayerCommand, StartGameCommand
 
-from plugins.server.components import Client, OwnedByClient, NetEntity, Position, OwnsEntity
+from plugins.server.components import Client, OwnedByClient, NetEntity, Position, OwnsEntity, IsReady
 from plugins.server.entities.characters import make_server_policeman
 from plugins.shared.entities.diamond import make_diamond
 from plugins.shared.services.uidman import EntityUIDManager
 from plugins.shared.services.network import Server
 
-from plugins.server.actions import ServerActionDispatcher, SpawnPlayerAction, SpawnDiamondsAction
+from plugins.rpcs.server import SignalPlayerReadyCommand
+
+from plugins.server.actions import ServerActionDispatcher, SpawnPlayerAction, SpawnDiamondsAction, TellReadyPlayersAction
 
 from plugins.server.services.state import CurrentGameState, GameState
+from plugins.server.services.clientlist import ClientList
 
 from plugins.server.constants import WAIT_TIME_MAP
 
@@ -85,7 +88,6 @@ def on_added_client(resources: Resources, event: AddedClientEvent):
         ))
     
     print("A new client connection:", event.addr)
-
     _reschedule_game_start(resources)
 
 def on_removed_client(resources: Resources, event: RemovedClientEvent):
@@ -102,7 +104,6 @@ def on_removed_client(resources: Resources, event: RemovedClientEvent):
                 cmd.remove_entity(owned_ent)
     
     print("A new client disconnection:", event.addr)
-
     _reschedule_game_start(resources)
 
 def _reschedule_game_start(resources: Resources):
@@ -111,6 +112,7 @@ def _reschedule_game_start(resources: Resources):
     state = resources[CurrentGameState]
     world = resources[WorldECS]
     scheduler = resources[SystemScheduler]
+    dispatcher = resources[ServerActionDispatcher]
 
     if state != GameState.WaitingForPlayers:
         return
@@ -119,13 +121,17 @@ def _reschedule_game_start(resources: Resources):
     scheduler.remove_scheduled(start_game_system)
 
     clients_len = len(world.query_component(Client))
+    ready_clients_len = len(world.query_component(Client, including=IsReady))
 
-    # Because wait time can be `None` (infinite), we will need to check that as well
-    wait_time = WAIT_TIME_MAP.get(clients_len)
-    if wait_time is not None:
-        # If it's okay - schedule the start game
-        print(f"Scheduled next game start for {wait_time}s")
-        scheduler.schedule_seconds(start_game_system, wait_time, False)
+    dispatcher.dispatch_action(TellReadyPlayersAction(ready_clients_len, clients_len))
+
+    if ready_clients_len > 1 and ready_clients_len == clients_len:
+        WAIT_TIME = 10
+
+        print(f"Scheduled next game start for {WAIT_TIME}s")
+        scheduler.schedule_seconds(start_game_system, WAIT_TIME, False)
+    else:
+        print(f"Canceling game start")
 
 def start_game_system(resources: Resources):
     "This is a scheduled system that is going to push the `GameStartedEvent`"
@@ -138,9 +144,26 @@ def start_game_system(resources: Resources):
     ewriter.push_event(CrookifyRandomPlayerCommand())
     _spawn_diamonds(resources)
 
+def on_client_ready(resources: Resources, command: SignalPlayerReadyCommand):
+    clientlist = resources[ClientList]
+    world = resources[WorldECS]
+
+    if not clientlist.contains_client_addr(command.addr):
+        return
+
+    is_ready = command.is_ready
+    client_ent = clientlist.get_client_ent(command.addr)
+
+    has_is_ready_component = world.has_component(client_ent, IsReady)
+
+    if is_ready and not has_is_ready_component:
+        world.add_components(client_ent, IsReady())
+    elif not is_ready and has_is_ready_component:
+        world.remove_components(client_ent, IsReady)
+
+    _reschedule_game_start(resources)
+
 def on_game_started(resources: Resources, _):
-
-
     resources[Server].accept_incoming_connections(False)
 
 class SessionHandlersPlugin(Plugin):
@@ -148,3 +171,6 @@ class SessionHandlersPlugin(Plugin):
         print("Executing the session events plugin")
         app.add_event_listener(AddedClientEvent, on_added_client)
         app.add_event_listener(RemovedClientEvent, on_removed_client)
+
+        app.add_event_listener(GameStartedEvent, on_game_started)
+        app.add_event_listener(SignalPlayerReadyCommand, on_client_ready)

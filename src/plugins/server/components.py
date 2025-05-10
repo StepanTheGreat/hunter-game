@@ -40,3 +40,7 @@ class OwnedByClient:
 @component
 class RobberClient:
     "The client that was chosen to be the robber"
+
+@component
+class IsReady:
+    "The client with this component is ready to start the game"

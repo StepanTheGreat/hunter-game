@@ -110,9 +110,20 @@ class SyncHealthAction(ServerAction):
     
     def __init__(self, client: int, health: float):
         super().__init__(
-            sync_player_health, 
+            sync_player_health_rpc, 
             (health, ),
             to = (client, )
+        )
+
+@event
+class TellReadyPlayersAction(ServerAction):
+    "This action tells all players how many players are ready to start the game"
+
+    def __init__(self, players_ready: int, players: int):
+        super().__init__(
+            tell_players_ready_rpc, 
+            (players_ready, players),
+            to = None
         )
 
 class ServerActionDispatcher(ActionDispatcher):
