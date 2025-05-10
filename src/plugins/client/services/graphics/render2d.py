@@ -20,13 +20,13 @@ RENDERER_PIPELINE_PARAMS = PipelineParams(
 )
 
 RENDERER_VERTEX_ATTRIBUTES = ("position", "uv", "color")
-VERTEX_DTYPE = np.dtype([
+RENDERER_VERTEX_DTYPE = np.dtype([
     ("position", "i2", 2),
     ("uv", "u2", 2),
     ("color", "u1", 3),
     ("_padding", "u1")
 ])
-VERTEX_GL_FORMAT = "2i2 2u2 3f1 x"
+RENDERER_VERTEX_GL_FORMAT = "2i2 2u2 3f1 x"
 
 PADDING = 0
 """
@@ -42,9 +42,9 @@ def make_quad(*points: tuple[tuple[float], tuple[float], tuple[float]]) -> Dynam
             (p2[0], p2[1],  p2[2], PADDING),
             (p3[0], p3[1],  p3[2], PADDING),
             (p4[0], p4[1],  p4[2], PADDING),
-        ], dtype=VERTEX_DTYPE),
+        ], dtype=RENDERER_VERTEX_DTYPE),
         np.array([0, 1, 2, 1, 2, 3], dtype=np.uint32),
-        VERTEX_DTYPE
+        RENDERER_VERTEX_DTYPE
     )
 
 def make_quads(quads: list[tuple[tuple[float], tuple[float], tuple[float]]]) -> DynamicMeshCPU:
@@ -52,7 +52,7 @@ def make_quads(quads: list[tuple[tuple[float], tuple[float], tuple[float]]]) -> 
 
     quads_len = len(quads)
 
-    verticies = np.zeros((quads_len, 4), dtype=VERTEX_DTYPE)
+    verticies = np.zeros((quads_len, 4), dtype=RENDERER_VERTEX_DTYPE)
     indices = np.zeros((quads_len, 6), dtype=np.uint32)
 
     lind = 0
@@ -68,7 +68,7 @@ def make_quads(quads: list[tuple[tuple[float], tuple[float], tuple[float]]]) -> 
         indices[ind] = [lind, lind+1, lind+2, lind+1, lind+2, lind+3]
         lind += 4
     
-    return DynamicMeshCPU(verticies.ravel(), indices.ravel(), VERTEX_DTYPE)
+    return DynamicMeshCPU(verticies.ravel(), indices.ravel(), RENDERER_VERTEX_DTYPE)
 
 def make_circle(pos: tuple[float, float], radius: float, color: tuple[float, ...], points: int = 20) -> DynamicMeshCPU:
     assert points > 2, "Can't build a circle mesh with less than 3 points" 
@@ -77,7 +77,7 @@ def make_circle(pos: tuple[float, float], radius: float, color: tuple[float, ...
     x, y = pos
     r = radius
 
-    verticies = np.empty(points, dtype=VERTEX_DTYPE)
+    verticies = np.empty(points, dtype=RENDERER_VERTEX_DTYPE)
     indices = np.empty((points-2, 3), dtype=np.uint32)
     
     angle = 0
@@ -91,7 +91,7 @@ def make_circle(pos: tuple[float, float], radius: float, color: tuple[float, ...
     for ind in range(1, points-1):
         indices[ind-1] = [0, ind, ind+1]
 
-    return DynamicMeshCPU(verticies.flatten(), indices.flatten(), VERTEX_DTYPE)
+    return DynamicMeshCPU(verticies.flatten(), indices.flatten(), RENDERER_VERTEX_DTYPE)
 
 def make_circles(
     circles: tuple[tuple[tuple[float, float], float, tuple[int, ...]]],
@@ -103,7 +103,7 @@ def make_circles(
     
     circles_len = len(circles)
 
-    verticies = np.empty(circles_len*points, dtype=VERTEX_DTYPE)
+    verticies = np.empty(circles_len*points, dtype=RENDERER_VERTEX_DTYPE)
     indices = np.empty((circles_len*(points-2), 3), dtype=np.uint32)
 
     for cind, ((x, y), rd, color) in enumerate(circles):
@@ -124,7 +124,7 @@ def make_circles(
         for ind in range(1, points-1):
             indices[indx_cind+ind-1] = [arr_cind, arr_cind+ind, arr_cind+ind+1]
 
-    return DynamicMeshCPU(verticies.flatten(), indices.flatten(), VERTEX_DTYPE)
+    return DynamicMeshCPU(verticies.flatten(), indices.flatten(), RENDERER_VERTEX_DTYPE)
 
 class DrawCall:
     """
@@ -149,7 +149,7 @@ class DrawCall:
 class DrawCallBatch:
     "Draw call container and merger"
     def __init__(self, verticies: int, indicies: int):
-        self.reserved_mesh = ReservedMeshCPU(verticies, indicies, VERTEX_DTYPE)
+        self.reserved_mesh = ReservedMeshCPU(verticies, indicies, RENDERER_VERTEX_DTYPE)
         self.texture = None
 
     def can_merge(self, draw_call: DrawCall):
@@ -210,12 +210,12 @@ class Renderer2D:
             RENDERER_VERTEX_ATTRIBUTES
         )
 
-        self.vbo = self.ctx.buffer(reserve=vertex_elements*VERTEX_DTYPE.itemsize, dynamic=True)
+        self.vbo = self.ctx.buffer(reserve=vertex_elements*RENDERER_VERTEX_DTYPE.itemsize, dynamic=True)
         self.ibo = self.ctx.buffer(reserve=index_elements*4, dynamic=True)
         self.vao = self.ctx.vertex_array(
             self.pipeline.program, 
             [
-                (self.vbo, VERTEX_GL_FORMAT, *self.pipeline.vertex_attributes)
+                (self.vbo, RENDERER_VERTEX_GL_FORMAT, *self.pipeline.vertex_attributes)
             ],
             index_buffer=self.ibo
         )

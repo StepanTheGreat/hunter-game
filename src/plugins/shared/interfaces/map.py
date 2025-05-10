@@ -65,3 +65,6 @@ class WorldMap:
 
     def get_map(self) -> Tilemap:
         return self.map
+    
+    def get_tile_size(self) -> int:
+        return self.tile_size

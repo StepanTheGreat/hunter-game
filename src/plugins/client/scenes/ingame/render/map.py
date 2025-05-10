@@ -10,12 +10,11 @@ from typing import Optional
 from plugins.shared.services.map import WorldMap
 from plugins.client.events import WorldMapLoadedEvent, WorldMapUnloadedEvent
 
-from plugins.client.services.graphics import ModelRenderer, VERTEX_GL_FORMAT, VERTEX_DTYPE
+from plugins.client.services.graphics.render3d import * 
 
 from core.graphics import *
 from core.assets import AssetManager
 
-TILE_SIZE = 48
 FLOOR_COLOR = (30, 200, 30)
 CEILING_COLOR = FLOOR_COLOR
 
@@ -56,9 +55,9 @@ def gen_tile_mesh(
     uvw, uvh = uvx+uvw, uvy+uvh
 
     mesh = DynamicMeshCPU(
-        np.array([], dtype=VERTEX_DTYPE),
+        np.array([], dtype=MODEL_VERTEX_DTYPE),
         np.array([], dtype=np.uint32),
-        vertex_dtype=VERTEX_DTYPE
+        vertex_dtype=MODEL_VERTEX_DTYPE
     )
 
     if not top_neighbour:
@@ -68,7 +67,7 @@ def gen_tile_mesh(
                 ((x+s, s, y),  normal(0, 0, -1),    color,      (uvx, uvy)),
                 ((x,   0, y),  normal(0, 0, -1),    color,      (uvw, uvh)),
                 ((x+s, 0, y),  normal(0, 0, -1),    color,      (uvx, uvh))
-            ], dtype=VERTEX_DTYPE),
+            ], dtype=MODEL_VERTEX_DTYPE),
             np.array([0, 1, 2, 2, 1, 3], dtype=np.uint32)
         )
 
@@ -79,7 +78,7 @@ def gen_tile_mesh(
                 ((x+s, s, y-s),  normal(0, 0, 1),  color,    (uvw, uvy)),
                 ((x,   0, y-s),  normal(0, 0, 1),  color,    (uvx, uvh)),
                 ((x+s, 0, y-s),  normal(0, 0, 1),  color,    (uvw, uvh)),
-            ], dtype=VERTEX_DTYPE),
+            ], dtype=MODEL_VERTEX_DTYPE),
             np.array([1, 0, 2, 1, 2, 3], dtype=np.uint32)
         )
 
@@ -90,7 +89,7 @@ def gen_tile_mesh(
                 ((x, s, y-s),     normal(1, 0, 0),  color,    (uvw, uvy)),
                 ((x, 0, y),       normal(1, 0, 0),  color,    (uvx, uvh)),
                 ((x, 0, y-s),     normal(1, 0, 0),  color,    (uvw, uvh)),
-            ], dtype=VERTEX_DTYPE),
+            ], dtype=MODEL_VERTEX_DTYPE),
             np.array([1, 0, 2, 1, 2, 3], dtype=np.uint32)
         )
 
@@ -101,7 +100,7 @@ def gen_tile_mesh(
                 ((x+s, s, y-s),   normal(-1, 0, 0),  color,    (uvx, uvy)),
                 ((x+s, 0, y),     normal(-1, 0, 0),  color,    (uvw, uvh)),
                 ((x+s, 0, y-s),   normal(-1, 0, 0),  color,    (uvx, uvh)),
-            ], dtype=VERTEX_DTYPE),
+            ], dtype=MODEL_VERTEX_DTYPE),
             np.array([0, 1, 2, 2, 1, 3], dtype=np.uint32)
         )
 
@@ -131,9 +130,9 @@ def gen_platform_mesh(
             ((x+s, y, z),    normal(0, normal_dir, 0),  color,    (uvw, uvy)),
             ((x,   y, z-s),  normal(0, normal_dir, 0),  color,    (uvx, uvh)),
             ((x+s, y, z-s),  normal(0, normal_dir, 0),  color,    (uvw, uvh)),
-        ], dtype=VERTEX_DTYPE),
+        ], dtype=MODEL_VERTEX_DTYPE),
         np.array(indices, dtype=np.uint32),
-        vertex_dtype=VERTEX_DTYPE
+        vertex_dtype=MODEL_VERTEX_DTYPE
     )
 
 def gen_map_models(
@@ -159,6 +158,7 @@ def gen_map_models(
     ctx = gfx.get_context()
     white_texture = gfx.get_white_texture()
 
+    tile_size = worldmap.get_tile_size() 
     tilemap = worldmap.get_map()
     tiles = tilemap.get_tiles()
 
@@ -182,7 +182,7 @@ def gen_map_models(
 
                 tile_mesh = gen_tile_mesh(
                     (x, -y), 
-                    TILE_SIZE,
+                    tile_size,
                     color,
                     texture.region,
                     neighbours
@@ -198,7 +198,7 @@ def gen_map_models(
             if tile == 0 or (tile in transparent_tiles):
                 floor_mesh = gen_platform_mesh(
                     (x, -y), 
-                    TILE_SIZE, 
+                    tile_size, 
                     0, 
                     FLOOR_COLOR, 
                     white_texture.region,
@@ -209,8 +209,8 @@ def gen_map_models(
                 floor_mesh.add_mesh(
                     gen_platform_mesh(
                         (x, -y), 
-                        TILE_SIZE, 
-                        TILE_SIZE, 
+                        tile_size, 
+                        tile_size, 
                         CEILING_COLOR, 
                         white_texture.region,
                         True
@@ -225,7 +225,7 @@ def gen_map_models(
 
     pipeline = model_renderer.get_pipeline()
     models = [
-        (Model(ctx, group_mesh, pipeline, vertex_format=VERTEX_GL_FORMAT), group_texture) 
+        (Model(ctx, group_mesh, pipeline, vertex_format=MODEL_VERTEX_GL_FORMAT), group_texture) 
         for group_texture, group_mesh in mesh_group.items()
     ]
     return models
@@ -238,6 +238,9 @@ class MapModel:
         renderer: ModelRenderer, 
         world_map: WorldMap
     ):
+        self.skybox_texture = assets.load(Texture, "images/skybox.png")
+
+        self.skybox = SkyBox(*((self.skybox_texture, )*4))
         self.models = gen_map_models(gfx, assets, renderer, world_map)
 
     def get_models(self) -> list[tuple[Model, gl.Texture]]:
@@ -255,6 +258,7 @@ def render_map(resources: Resources):
     map_model = resources[MapModel]
     renderer = resources[ModelRenderer]
 
+    renderer.set_skybox(map_model.skybox)
     for model in map_model.get_models():
         renderer.push_model(*model)
 
