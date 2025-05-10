@@ -136,6 +136,7 @@ def start_game_system(resources: Resources):
 
     ewriter.push_event(StartGameCommand())    
     ewriter.push_event(CrookifyRandomPlayerCommand())
+    _spawn_diamonds(resources)
 
 def on_game_started(resources: Resources, _):
 
