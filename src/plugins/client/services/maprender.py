@@ -7,7 +7,7 @@ from plugin import Resources, Plugin, Schedule, run_if, resource_exists
 
 from typing import Optional
 
-from plugins.shared.services.map import WorldMap
+from plugins.shared.interfaces.map import *
 from plugins.client.events import WorldMapLoadedEvent, WorldMapUnloadedEvent
 
 from plugins.client.services.graphics.render3d import * 
@@ -15,8 +15,10 @@ from plugins.client.services.graphics.render3d import *
 from core.graphics import *
 from core.assets import AssetManager
 
-FLOOR_COLOR = (30, 200, 30)
-CEILING_COLOR = FLOOR_COLOR
+# Just a default white color
+WHITE_COLOR = (255, 255, 255)
+
+IGNORE_TILES = (0, PLAYER_SPAWNPOINT, ROBBER_SPAWNPOINT, DIAMOND_SPAWNPOINT)
 
 def _bitcrush(x: float) -> float:
     return max(min(x * 128, 127), -128)
@@ -27,7 +29,8 @@ def normal(x: float, y: float, z: float):
 
 def gen_tile_mesh(
     coords: tuple[int, int], 
-    size: float, 
+    width: float,
+    height: float, 
     color: tuple[int, int, int],
     uv_region: tuple[int, int, int],
     neighbours: tuple[bool, bool, bool, bool]
@@ -46,9 +49,9 @@ def gen_tile_mesh(
     but this is simply a notice.
     """
     # The coordinates are topleft
-    s = size
+    w, h = width, height
     x, y = coords
-    x, y = x*s, y*s
+    x, y = x*w, y*w
     top_neighbour, left_neighbour, right_neighbour, bottom_neighbour = neighbours
 
     uvx, uvy, uvw, uvh = uv_region
@@ -63,10 +66,10 @@ def gen_tile_mesh(
     if not top_neighbour:
         mesh.add_geometry(
             np.array([
-                ((x,   s, y),  normal(0, 0, -1),    color,      (uvw, uvy)),
-                ((x+s, s, y),  normal(0, 0, -1),    color,      (uvx, uvy)),
+                ((x,   h, y),  normal(0, 0, -1),    color,      (uvw, uvy)),
+                ((x+w, h, y),  normal(0, 0, -1),    color,      (uvx, uvy)),
                 ((x,   0, y),  normal(0, 0, -1),    color,      (uvw, uvh)),
-                ((x+s, 0, y),  normal(0, 0, -1),    color,      (uvx, uvh))
+                ((x+w, 0, y),  normal(0, 0, -1),    color,      (uvx, uvh))
             ], dtype=MODEL_VERTEX_DTYPE),
             np.array([0, 1, 2, 2, 1, 3], dtype=np.uint32)
         )
@@ -74,10 +77,10 @@ def gen_tile_mesh(
     if not bottom_neighbour:
         mesh.add_geometry(
             np.array([
-                ((x,   s, y-s),  normal(0, 0, 1),  color,    (uvx, uvy)),
-                ((x+s, s, y-s),  normal(0, 0, 1),  color,    (uvw, uvy)),
-                ((x,   0, y-s),  normal(0, 0, 1),  color,    (uvx, uvh)),
-                ((x+s, 0, y-s),  normal(0, 0, 1),  color,    (uvw, uvh)),
+                ((x,   h, y-w),  normal(0, 0, 1),  color,    (uvx, uvy)),
+                ((x+w, h, y-w),  normal(0, 0, 1),  color,    (uvw, uvy)),
+                ((x,   0, y-w),  normal(0, 0, 1),  color,    (uvx, uvh)),
+                ((x+w, 0, y-w),  normal(0, 0, 1),  color,    (uvw, uvh)),
             ], dtype=MODEL_VERTEX_DTYPE),
             np.array([1, 0, 2, 1, 2, 3], dtype=np.uint32)
         )
@@ -85,10 +88,10 @@ def gen_tile_mesh(
     if not left_neighbour:
         mesh.add_geometry(
             np.array([
-                ((x, s, y),       normal(1, 0, 0),  color,    (uvx, uvy)),
-                ((x, s, y-s),     normal(1, 0, 0),  color,    (uvw, uvy)),
+                ((x, h, y),       normal(1, 0, 0),  color,    (uvx, uvy)),
+                ((x, h, y-w),     normal(1, 0, 0),  color,    (uvw, uvy)),
                 ((x, 0, y),       normal(1, 0, 0),  color,    (uvx, uvh)),
-                ((x, 0, y-s),     normal(1, 0, 0),  color,    (uvw, uvh)),
+                ((x, 0, y-w),     normal(1, 0, 0),  color,    (uvw, uvh)),
             ], dtype=MODEL_VERTEX_DTYPE),
             np.array([1, 0, 2, 1, 2, 3], dtype=np.uint32)
         )
@@ -96,10 +99,10 @@ def gen_tile_mesh(
     if not right_neighbour:
         mesh.add_geometry(
             np.array([
-                ((x+s, s, y),     normal(-1, 0, 0),  color,    (uvw, uvy)),
-                ((x+s, s, y-s),   normal(-1, 0, 0),  color,    (uvx, uvy)),
-                ((x+s, 0, y),     normal(-1, 0, 0),  color,    (uvw, uvh)),
-                ((x+s, 0, y-s),   normal(-1, 0, 0),  color,    (uvx, uvh)),
+                ((x+w, h, y),     normal(-1, 0, 0),  color,    (uvw, uvy)),
+                ((x+w, h, y-w),   normal(-1, 0, 0),  color,    (uvx, uvy)),
+                ((x+w, 0, y),     normal(-1, 0, 0),  color,    (uvw, uvh)),
+                ((x+w, 0, y-w),   normal(-1, 0, 0),  color,    (uvx, uvh)),
             ], dtype=MODEL_VERTEX_DTYPE),
             np.array([0, 1, 2, 2, 1, 3], dtype=np.uint32)
         )
@@ -143,85 +146,107 @@ def gen_map_models(
 ) -> list[tuple[Model, gl.Texture]]:
     "Generate an array of renderable map models"
 
-    def has_neighbour(tile: int, ntile: int, transparent_tiles: set[int]) -> bool:
+    def has_neighbour(wall: int, nwall: int, opaque_walls: set[int]) -> bool:
         # This is a simple culling neighbour culling function.
-        # Basically, we would like to check if a tile has a neighbour.
+        # Basically, we would like to check if a wall has a neighbour.
         #
-        # If a tile is normal and it has a non-transparent neighbour - it does have a neighbour.
-        # If a tile is normal and it has a transparent neighbour - it "doesn't"
-        # If a tile is transparent and its neighbour isn't - it does have a neighbour 
-        if tile in transparent_tiles:
-            return ntile != 0
-        else:
-            return ntile != 0 and ntile not in transparent_tiles
+        # If a wall is normal and it has a non-opaque neighbour - it does have a neighbour.
+        # If a wall is normal and it has an opaque neighbour - it "doesn't"
+        # If a wall is opaque and its neighbour isn't - it does have a neighbour 
+
+        return (nwall in IGNORE_TILES) or (wall in opaque_walls) or (nwall not in opaque_walls)
     
     ctx = gfx.get_context()
-    white_texture = gfx.get_white_texture()
 
-    tile_size = worldmap.get_tile_size() 
-    tilemap = worldmap.get_map()
-    tiles = tilemap.get_tiles()
+    wall_width, wall_height = worldmap.get_wall_size() 
 
-    color_map = worldmap.get_color_map()
-    transparent_tiles = worldmap.get_transparent_tiles()
+    ceiling_map = worldmap.get_ceiling_map()
+    floor_map = worldmap.get_floor_map()
+    wall_map = worldmap.get_wall_map()
+
+    walls = wall_map.get_tiles()
+    opaque_walls = worldmap.get_opaque_walls()
 
     # A mesh group is a dictionary, where keys are textures, and values are meshes
     mesh_group: dict[gl.Texture, DynamicMeshCPU] = {}
 
-    for y, row in enumerate(tiles):
+    for y, row in enumerate(walls):
         for x, tile in enumerate(row):
-            if tile != 0:
-                neighbours = tilemap.get_neighbours((x, y))
-                neighbours = tuple(has_neighbour(tile, n, transparent_tiles) if n else False for n in neighbours)
+            if tile not in IGNORE_TILES:
+                neighbours = wall_map.get_neighbours((x, y))
 
-                # A material is either a color or a texture path
-                material = color_map[tile]
+                neighbours = tuple(neighbour and has_neighbour(tile, neighbour, opaque_walls) for neighbour in neighbours)
 
-                color = (255, 255, 255) if type(material) is str else material
-                texture = assets.load(Texture, material) if type(material) is str else white_texture
+                if not all(neighbours): 
+                    # If there's at least one absent neighbour (where our tile's face can be seen) - 
+                    # we're going to generate the mesh. In any other case we shouldn't even bother
 
-                tile_mesh = gen_tile_mesh(
-                    (x, -y), 
-                    tile_size,
-                    color,
-                    texture.region,
-                    neighbours
-                )
+                    wall_prop = worldmap.get_wall_prop(tile)
+                    texture = assets.load(Texture, wall_prop.texture)
 
-                gl_texture = texture.texture
-                if tile_mesh is not None:
+                    tile_mesh = gen_tile_mesh(
+                        (x, -y), 
+                        wall_width,
+                        wall_height,
+                        WHITE_COLOR,
+                        texture.region,
+                        neighbours
+                    )
+
+                    gl_texture = texture.texture
                     if (group_mesh := mesh_group.get(gl_texture)):
                         group_mesh.add_mesh(tile_mesh)
                     else:
                         mesh_group[gl_texture] = tile_mesh
             
-            if tile == 0 or (tile in transparent_tiles):
-                floor_mesh = gen_platform_mesh(
-                    (x, -y), 
-                    tile_size, 
-                    0, 
-                    FLOOR_COLOR, 
-                    white_texture.region,
-                    False
-                )
+            if tile in IGNORE_TILES or (tile in opaque_walls):
+                
+                floor_tile = floor_map.get_tile(x, y)
 
-                # Generate the ceiling mesh
-                floor_mesh.add_mesh(
-                    gen_platform_mesh(
+                if floor_tile != 0:
+                    floor_texture = assets.load(
+                        Texture,
+                        worldmap.get_platform_texture(floor_tile)
+                    )
+
+                    floor_mesh = gen_platform_mesh(
                         (x, -y), 
-                        tile_size, 
-                        tile_size, 
-                        CEILING_COLOR, 
-                        white_texture.region,
+                        wall_width, 
+                        0, 
+                        WHITE_COLOR, 
+                        floor_texture.region,
+                        False
+                    )
+
+                    gl_floor_texture = floor_texture.texture
+                    if gl_floor_texture in mesh_group:
+                        mesh_group[gl_floor_texture].add_mesh(floor_mesh)
+                    else:
+                        mesh_group[gl_floor_texture] = floor_mesh
+
+                ceiling_tile = ceiling_map.get_tile(x, y)
+
+                if ceiling_tile != 0:
+                
+                    ceiling_texture = assets.load(
+                        Texture,
+                        worldmap.get_platform_texture(ceiling_tile)
+                    )
+
+                    ceiling_mesh = gen_platform_mesh(
+                        (x, -y), 
+                        wall_width, 
+                        wall_height, 
+                        WHITE_COLOR, 
+                        ceiling_texture.region,
                         True
                     )
-                )
 
-                gl_texture = white_texture.texture
-                if gl_texture in mesh_group:
-                    mesh_group[gl_texture].add_mesh(floor_mesh)
-                else:
-                    mesh_group[gl_texture] = floor_mesh
+                    gl_ceiling_texture = ceiling_texture.texture
+                    if gl_ceiling_texture in mesh_group:
+                        mesh_group[gl_ceiling_texture].add_mesh(ceiling_mesh)
+                    else:
+                        mesh_group[gl_ceiling_texture] = ceiling_mesh
 
     pipeline = model_renderer.get_pipeline()
     models = [

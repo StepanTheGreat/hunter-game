@@ -78,8 +78,8 @@ class ServerPlugins(Plugin):
 
     def build(self, app):
         app.add_plugins(
-            SharedPluginsCollection(),
             ServerCoreModulesPlugin(),
+            SharedPluginsCollection(),
             ServerServicesPlugin(),
             ServerSystemsPlugin(),
             ServerActionPlugin(),

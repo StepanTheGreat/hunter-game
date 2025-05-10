@@ -1,9 +1,8 @@
-import numpy as np
-
 from plugin import Plugin, Resources, EventWriter
 
+from core.assets import AssetManager
+
 from modules.scene import SceneBundle
-from modules.tilemap import Tilemap
 
 from plugins.shared.commands import ResetEntityUIDManagerCommand, LoadMapCommand, UnloadMapCommand
 from plugins.shared.services.map import WorldMap
@@ -15,32 +14,6 @@ from plugins.client.services.session import ServerTime
 
 from .gui import IngameGUI
 
-TILE_SIZE = 48
-
-def make_world_map() -> WorldMap:
-    return WorldMap(
-        Tilemap(8, 8, np.array([
-            [0, 0, 0, 0, 0, 0, 2, 2],
-            [2, 1, 1, 0, 0, 0, 0, 2],
-            [3, 0, 0, 2, 0, 0, 0, 1],
-            [1, 0, 0, 4, 1, 1, 0, 1],
-            [3, 0, 0, 0, 0, 0, 0, 2],
-            [2, 0, 0, 0, 0, 0, 0, 2],
-            [2, 0, 0, 2, 0, 0, 0, 3],
-            [1, 3, 0, 0, 0, 0, 3, 3],
-        ], dtype=np.uint32)),
-        color_map = {
-            1: "images/blocks.atl#window",
-            2: "images/blocks.atl#cool_texture",
-            3: (200, 200, 60),
-            4: (30, 200, 170)
-        },
-        transparent_tiles = set([
-            1
-        ]),
-        tile_size=TILE_SIZE,
-    )
-
 class IngameScene(SceneBundle):
     def __init__(self, resources: Resources):
         super().__init__()
@@ -51,7 +24,10 @@ class IngameScene(SceneBundle):
 
     def pre_init(self, resources):
         # Before we're going to load this scene, we will load our world map first
-        resources[EventWriter].push_event(LoadMapCommand(make_world_map()))
+        assets = resources[AssetManager]
+
+        wmap = assets.load(WorldMap, "maps/map1.json")
+        resources[EventWriter].push_event(LoadMapCommand(wmap))
 
     def post_init(self, resources):
         # We're going to start the clock when the scene starts

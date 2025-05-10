@@ -3,6 +3,9 @@
     "source": "blocks.png",
     "sprites": {
         "cool_texture": [0, 0, 32, 32],
-        "window": [32, 32, 32, 32]
+        "window": [32, 32, 32, 32],
+
+        "floor1": [0, 32, 32, 32],
+        "floor2": [0, 64, 32, 32]
     }
 }

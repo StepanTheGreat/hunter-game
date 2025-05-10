@@ -4,7 +4,7 @@ Server-side components and their behaviour
 
 from core.ecs import WorldECS
 
-from core.time import Clock, schedule_systems_seconds 
+from core.time import Clock
 
 from plugins.server.components import *
 from plugins.server.actions import *

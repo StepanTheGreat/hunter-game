@@ -269,3 +269,18 @@ class DynCollider:
             # addition. Hope no one will get stuck (but if they do - they can easily leave)
             if 0 < distance <= radius:
                 pos += (pos-point).normalize() * (radius-distance)
+
+@component
+class PlayerSpawnpoint:
+    """
+    A player spawnpoint. Not a gamplay entity, but acts more as a marker for all possible spawnpoints
+    on the map. 
+    """
+
+@component
+class RobberSpawnpoint:
+    "The same as `PlayerSpawnpoint` but for robbers"
+
+@component
+class DiamondSpawnpoint:
+    "The same as `PlayerSpawnpoint` but for diamonds"
