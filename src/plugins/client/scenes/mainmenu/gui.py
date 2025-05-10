@@ -14,6 +14,8 @@ from plugins.client.commands import *
 
 from plugins.rpcs.client import CLIENT_RPCS
 
+from plugins.rpcs.listener import AvailableServerCommand
+
 from plugins.server import ServerExecutor
 
 from ..ingame import IngameScene
@@ -101,6 +103,13 @@ def on_connection_accepted(resources: Resources, _: ServerConnectedEvent):
     if MainMenuGUI in resources:
         resources[SceneManager].insert_scene(IngameScene(resources))
 
+def on_available_server(resources: Resources, command: AvailableServerCommand):
+    new_client = Client(resources, CLIENT_RPCS)
+    new_client.try_connect(command.addr)
+    insert_network_actor(resources, new_client)
+
 class MainMenuGUIPlugin(Plugin):
     def build(self, app):
         app.add_event_listener(ServerConnectedEvent, on_connection_accepted)
+
+        app.add_event_listener(AvailableServerCommand, on_available_server)

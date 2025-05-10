@@ -45,7 +45,10 @@ def interpolate_render_components(resources: Resources):
 
 def interpolate_network_components(resources: Resources):
     world = resources[WorldECS]
-    server_time = resources[ServerTime].get_current_time() - INTERPOLATION_TIME_DELAY
+    server_timer = resources[ServerTime]
+
+
+    server_time = (server_timer.get_current_time() + server_timer.get_server_offset()) - INTERPOLATION_TIME_DELAY
 
     # Interpolate positions
     for _, (pos, interpos) in world.query_components(Position, InterpolatedPosition):

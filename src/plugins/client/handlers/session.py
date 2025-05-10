@@ -18,7 +18,8 @@ def on_sync_players_command(resources: Resources, command: SyncPlayersCommand):
 
     world = resources[WorldECS]
     uidman = resources[EntityUIDManager]
-    server_time = resources[ServerTime].get_current_time()
+    server_timer = resources[ServerTime]
+    server_time = resources[ServerTime].get_current_time() + server_timer.get_server_offset()
 
     for (uid, new_pos, new_angle, is_shooting) in command.entries:
         ent = uidman.get_ent(uid)

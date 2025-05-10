@@ -6,10 +6,19 @@ from plugins.rpcs.client import SyncTimeCommand
 
 from plugin import Plugin, Resources, Schedule
 
+from collections import deque
+
+from typing import Optional
+
 class ServerTime:
+    SERVER_OFFSETS = 5
+    "We will store 5 different offsets and average them"
+
     def __init__(self):
         self.current_time = 0
         self.ticking = False
+
+        self.server_offsets: deque[float] = deque()
 
     def start(self):
         "Start this clock"
@@ -19,6 +28,8 @@ class ServerTime:
         "Stop and reset this clock"
         self.ticking = False
         self.current_time = 0
+
+        self.server_offsets.clear()
 
     def tick(self, dt: float):
         if self.ticking:
@@ -30,9 +41,22 @@ class ServerTime:
         the packet command was issued) and the current server time.
         """
 
-        # We're compensating for packet's latency here
-        diff = self.current_time-new_time
-        self.current_time = new_time + diff
+        # Add the difference as the last entry
+        self.server_offsets.append(new_time-self.current_time)
+
+        # If we have more than the maximum amount of offsets - remove the oldest one
+        if len(self.server_offsets) > ServerTime.SERVER_OFFSETS:
+            self.server_offsets.popleft()
+
+    def _get_average_offset(self) -> float:
+        "Return the average server offset. Will raise an exception if the queue is empty"
+
+        return sum(self.server_offsets) / len(self.server_offsets)
+
+    def get_server_offset(self) -> float:
+        "Get the current server offset. If not yet received - returns 0"
+
+        return self._get_average_offset() if len(self.server_offsets) > 0 else 0
 
     def get_current_time(self) -> float:
         return self.current_time
