@@ -6,7 +6,7 @@ from core.telemetry import Telemetry
 
 from core.graphics import FontGPU
 
-from plugins.client.interfaces.gui import Label
+from plugins.client.interfaces.gui_widgets import Label
 from plugins.client.services.gui import GUIManager
 
 class TelemetryState:

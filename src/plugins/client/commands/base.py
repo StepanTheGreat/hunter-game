@@ -12,3 +12,7 @@ class UpdatePlayerStatsHealthCommand:
         assert 0 <= value <= 1
 
         self.value = value
+
+@event 
+class CleanUpEntitiesCommand:
+    "A command that tells to remove all game-related entities from the ECS world"

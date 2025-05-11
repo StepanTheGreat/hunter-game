@@ -57,8 +57,10 @@ from plugin import Plugin, Schedule, Resources
 
 from core.events.pg import *
 
+from plugins.client.interfaces.gui_widgets import *
 from plugins.client.commands.gui import *
-from plugins.client.interfaces.gui import *
+
+from ..graphics.render2d import Renderer2D
 
 from app_config import CONFIG
 

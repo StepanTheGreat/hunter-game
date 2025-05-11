@@ -78,8 +78,9 @@ def on_network_entity_removed(resources: Resources, event: ComponentsRemovedEven
         ent = event.entity
         uid = netman.get_uid(ent)
 
-        netman._remove_entry_by_ent(ent)
-        ewriter.push_event(RemovedNetworkEntityEvent(ent, uid, event.components))
+        if uid is not None:
+            netman._remove_entry_by_ent(ent)
+            ewriter.push_event(RemovedNetworkEntityEvent(ent, uid, event.components))
 
 def on_network_entity_added(resources: Resources, event: ComponentsAddedEvent):
     netman = resources[EntityUIDManager]

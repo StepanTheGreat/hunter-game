@@ -55,10 +55,7 @@ def on_client_connected(resources: Resources, event: ClientConnectedEvent):
     # Bind it to our address
     clientlist._add_client(client_addr, client_ent)
 
-    print(f"Added client: {client_addr}, {client_ent}")
-
     ewriter.push_event(AddedClientEvent(client_addr, client_ent))
-    print("Pushed an event of said client!")
 
 def on_client_disconnected(resources: Resources, event: ClientDisconnectedEvent):
     """

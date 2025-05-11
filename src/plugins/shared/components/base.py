@@ -4,6 +4,13 @@ import numpy as np
 from core.ecs import component
 
 @component
+class GameEntity:
+    """
+    A component attached to ALL entities that are part of the game.
+    It's sole purpose is to help clean-up all game entities at the end of the game
+    """
+
+@component
 class Position:
     "An entity position. If added with Collider component - it will also get automatically overwritten by Collider's interpolated position"
     def __init__(self, x: float, y: float):

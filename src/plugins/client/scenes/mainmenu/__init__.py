@@ -1,11 +1,11 @@
-from plugin import Resources, Plugin
+from plugin import Plugin, Resources
 
 from modules.scene import SceneBundle
 
 from plugins.shared.services.network import BroadcastListener, insert_network_actor, clean_network_actors
 from plugins.rpcs.listener import LISTENER_PORT, LISTENER_RPCS
 
-from .gui import MainMenuGUI, MainMenuGUIPlugin
+from .gui import *
 
 class MainMenuScene(SceneBundle):
     def __init__(self, resources: Resources):

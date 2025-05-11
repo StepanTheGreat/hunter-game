@@ -7,11 +7,14 @@ from plugins.server.components import Diamond, Position, DiamondSpawnpoint
 from plugins.server.actions import ServerActionDispatcher, SpawnDiamondsAction
 
 from plugins.shared.services.uidman import EntityUIDManager
+from plugins.server.services.state import GameState, CurrentGameState
+
 from plugins.shared.entities import make_diamond
 
 
 def on_diamond_pickup(resources: Resources, event: DiamondPickedUpEvent):
     world = resources[WorldECS]
+    state = resources[CurrentGameState]
 
     diamond_ent = event.ent
 
@@ -19,8 +22,10 @@ def on_diamond_pickup(resources: Resources, event: DiamondPickedUpEvent):
         with world.command_buffer() as cmd:
             cmd.remove_entity(diamond_ent)
 
-    if len(world.query_component(Diamond)) == 0:
-        print("The robber team has won!")
+
+    if state == GameState.InGame:
+        if len(world.query_component(Diamond)) == 0:
+            print("The robber team has won!")
 
 def on_start_game_command(resources: Resources, _):
     "When the game starts, we would like to spawn diamonds across the map!"

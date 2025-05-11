@@ -7,7 +7,6 @@ from .include import IncludedServicesPlugin
 
 class ServerServicesPlugin(Plugin):
     def build(self, app):
-        print("Building included plugins")
         app.add_plugins(
             IncludedServicesPlugin(),
             ClientListPlugin(),

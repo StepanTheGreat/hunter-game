@@ -100,7 +100,7 @@ def _unload_world_map(resources: Resources):
     """
 
     if WorldMap in resources:
-        wmap = resources[WorldMap]
+        wmap = resources.remove(WorldMap)
         wmap.destroy_map_entities(resources[WorldECS])
 
         resources[EventWriter].push_event(WorldMapUnloadedEvent())

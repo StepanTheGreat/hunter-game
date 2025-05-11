@@ -85,7 +85,8 @@ class ProjectileFactory:
 
             # For every user component function, we're going to call it and collect into our components
             *(user_comp() for user_comp in self.user_components),
-            Projectile(self.damage, self.pierce)
+            Projectile(self.damage, self.pierce),
+            GameEntity()
         )
 
 class WeaponStats:

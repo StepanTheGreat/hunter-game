@@ -5,7 +5,8 @@ def make_diamond(uid: int, pos: tuple[int, int]) -> tuple:
         Position(*pos),
         NetEntity(uid),
         PickingUp(),
-        Diamond()
+        Diamond(),
+        GameEntity()
     )
     
     return components

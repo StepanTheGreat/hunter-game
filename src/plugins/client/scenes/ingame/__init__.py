@@ -4,7 +4,7 @@ from core.assets import AssetManager
 
 from modules.scene import SceneBundle
 
-from plugins.shared.commands import ResetEntityUIDManagerCommand, LoadMapCommand, UnloadMapCommand
+from plugins.client.commands import ResetEntityUIDManagerCommand, LoadMapCommand, UnloadMapCommand, CleanUpEntitiesCommand
 from plugins.shared.services.map import WorldMap
 from plugins.shared.services.network import clean_network_actors, Client
 
@@ -12,7 +12,7 @@ from plugins.server import ServerExecutor
 
 from plugins.client.services.session import ServerTime
 
-from .gui import IngameGUI
+from .gui import *
 
 class IngameScene(SceneBundle):
     def __init__(self, resources: Resources):
@@ -32,12 +32,10 @@ class IngameScene(SceneBundle):
     def post_init(self, resources):
         # We're going to start the clock when the scene starts
         resources[ServerTime].start()
-
-    def pre_destroy(self, resources):
-        # Before destroying the scene, we would like to remove the world map
+        
+    def post_destroy(self, resources):
         resources[EventWriter].push_event(UnloadMapCommand())
 
-    def post_destroy(self, resources):
         # We need to close our client before leaving
         clean_network_actors(resources, Client)
 
@@ -49,9 +47,14 @@ class IngameScene(SceneBundle):
         # This is highly important, as reusing the same UID manager will lead to instabilities
         resources[EventWriter].push_event(ResetEntityUIDManagerCommand())
 
+        # And now we can safely remove all existing entities
+        resources[EventWriter].push_event(CleanUpEntitiesCommand())
+
         # Reset and stop our server time
         resources[ServerTime].stop_and_reset()
 
 class IngamePlugin(Plugin):
     def build(self, app):
-        pass
+        app.add_plugins(
+            IngameGUIPlugin()
+        )

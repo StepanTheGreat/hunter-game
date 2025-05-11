@@ -1,14 +1,17 @@
-from plugin import Resources, EventWriter
+from plugin import Plugin, Resources, EventWriter, resource_exists, run_if
 
 from core.assets import AssetManager
 from core.graphics import FontGPU
 
-from plugins.client.interfaces.gui import GUIElement, TextButton
+from plugins.client.interfaces.gui_widgets import GUIElement, TextButton, Label
 from plugins.client.services.playerstats import PlayerStats
+from plugins.shared.services.network import Client, clean_network_actors
 
-from plugins.client.commands import ClearGUICommand, ReplaceGUICommand
-
+from plugins.client.commands import ClearGUICommand, ReplaceGUICommand, CheckoutSceneCommand, CheckoutScene
+from plugins.client.events import ServerDisonnectedEvent
 from plugins.client.actions import ClientActionDispatcher, SignalPlayerReadyAction
+
+from plugins.client.commands import PlayersReadyCommand
 
 class PlayerHealthbar(GUIElement):
     BG_COLOR = (40, 40, 40)
@@ -57,17 +60,26 @@ class IngameGUI:
         self.assets = resources[AssetManager]
         self.dispatcher = resources[ClientActionDispatcher]
 
+        self.font = self.assets.load(FontGPU, "fonts/font.ttf")
+
+        def on_quit():
+            if Client in self.resources:
+                clean_network_actors(self.resources, Client)
+
+        self.quit_btn = TextButton(self.font, "Quit", (0, 0), (128, 64), (0, 0), 0.3)
+        self.quit_btn.set_callback(on_quit)
+
+        self.players_ready_label = Label(self.font, "Players ready: 0/0", (0.5, 1), (0.5, 1), (255, 255, 255), 0.3)
+
         self.ewriter.push_event(ClearGUICommand())
-        self.enter_ingame()
+        self.enter_waiting_stage()
 
-    def enter_ingame(self):
-        font = self.assets.load(FontGPU, "fonts/font.ttf")
+    def enter_waiting_stage(self):
 
-        healthbar = PlayerHealthbar((1, 0), (1, 0), (260, 32), 6, self.resources[PlayerStats])
-
+        # Give me a medal, for the cheapest architectural workaround ever found
         is_ready: list[bool] = [False]
 
-        ready_btn = TextButton(font, "I'm not ready", (0.5, 0.5), (96, 48), (0.5, 0.5), 0.4)
+        ready_btn = TextButton(self.font, "I'm not ready", (0.5, 0.5), (168, 84), (0.5, 0.5), 0.4)
 
         def change_ready():
             is_ready[0] = not is_ready[0]
@@ -76,4 +88,34 @@ class IngameGUI:
         
         ready_btn.set_callback(change_ready)
 
-        self.ewriter.push_event(ReplaceGUICommand([healthbar, ready_btn]))
+        self.ewriter.push_event(ReplaceGUICommand([ 
+            ready_btn,
+            self.players_ready_label,
+            self.quit_btn
+        ]))
+
+    def enter_game_stage(self):
+        healthbar = PlayerHealthbar((1, 0), (1, 0), (260, 32), 6, self.resources[PlayerStats])
+        self.ewriter.push_event(ReplaceGUICommand([
+            healthbar,
+            self.quit_btn
+        ]))
+
+    def update_players_ready(self, ready: int, players: int):
+        self.players_ready_label.set_text(f"Players ready: {ready}/{players}")
+
+@run_if(resource_exists, IngameGUI)
+def on_server_disconnection(resources: Resources, _: ServerDisonnectedEvent):
+    "When our client is disconnected, we would like to get back to the main menu"
+
+    resources[EventWriter].push_event(CheckoutSceneCommand(CheckoutScene.MainMenu))
+
+@run_if(resource_exists, IngameGUI)
+def on_players_ready_command(resources: Resources, command: PlayersReadyCommand):
+    gui = resources[IngameGUI]
+    gui.update_players_ready(command.players_ready, command.players)
+
+class IngameGUIPlugin(Plugin):
+    def build(self, app):
+        app.add_event_listener(PlayersReadyCommand, on_players_ready_command)
+        app.add_event_listener(ServerDisonnectedEvent, on_server_disconnection)

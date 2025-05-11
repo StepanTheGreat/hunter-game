@@ -1,24 +1,20 @@
-from plugin import Resources, Plugin, EventWriter
+from plugin import Resources, Plugin, EventWriter, run_if, resource_exists
 
 from core.assets import AssetManager
 
-from modules.scene import SceneManager
-
 from plugins.client.services.graphics import FontGPU
-from plugins.client.interfaces.gui import TextButton, ColorRect, Label
+from plugins.client.interfaces.gui_widgets import TextButton, ColorRect, Label
 
 from plugins.shared.services.network import Client, insert_network_actor
 
 from plugins.client.events import ServerConnectedEvent
-from plugins.client.commands import *
+from plugins.client.commands import ClearGUICommand, ReplaceGUICommand, CheckoutScene, CheckoutSceneCommand
 
 from plugins.rpcs.client import CLIENT_RPCS
 
 from plugins.rpcs.listener import AvailableServerCommand
 
 from plugins.server import ServerExecutor
-
-from ..ingame import IngameScene
 
 class MainMenuGUI:
     BUTTON_SIZE = (312, 64)
@@ -40,20 +36,11 @@ class MainMenuGUI:
             # self.resources[SceneManager].insert_scene(IngameScene(self.resources, as_server))
 
         def start_game_session(as_server: bool):
-            # self.resources[SceneManager].insert_scene(IngameScene(self.resources))
-            # return
-            new_client = Client(self.resources, CLIENT_RPCS)
             if as_server:
-                print("Pressed as the server")
+                new_client = Client(self.resources, CLIENT_RPCS)
                 addr = self.resources[ServerExecutor].start_server()
-            else:
-                print("Pressed as a client")
-                addr = input("Address: ")
-                ip, port = addr.split(":")
-                addr = (ip, int(port))
-
-            new_client.try_connect(addr)
-            insert_network_actor(self.resources, new_client)
+                new_client.try_connect(addr)
+                insert_network_actor(self.resources, new_client)            
 
         join_btn = (TextButton(font, "Join Game", (0.5, 0.5), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
             .attached_to(background)
@@ -99,9 +86,9 @@ class MainMenuGUI:
         
         self.ewriter.push_event(ReplaceGUICommand([background]))
 
+@run_if(resource_exists, MainMenuGUI)
 def on_connection_accepted(resources: Resources, _: ServerConnectedEvent):
-    if MainMenuGUI in resources:
-        resources[SceneManager].insert_scene(IngameScene(resources))
+    resources[EventWriter].push_event(CheckoutSceneCommand(CheckoutScene.InGame))
 
 def on_available_server(resources: Resources, command: AvailableServerCommand):
     new_client = Client(resources, CLIENT_RPCS)

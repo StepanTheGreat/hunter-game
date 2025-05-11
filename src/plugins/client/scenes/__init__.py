@@ -2,8 +2,23 @@ from plugin import Plugin
 
 from modules.scene import SceneManager
 
-from .ingame import IngamePlugin, IngameScene
-from .mainmenu import MainMenuPlugin, MainMenuScene
+from plugins.client.commands import CheckoutSceneCommand, CheckoutScene
+
+from .ingame import *
+from .mainmenu import *
+
+def on_checkout_scene_command(resources: Resources, command: CheckoutSceneCommand):
+    """
+    Because python REALLY doesn't like recursive imports, we will maintain a simple command listener to switch
+    scenes manually.
+    """
+    scene_manager = resources[SceneManager]
+
+    new_scene = command.new_scene
+    if new_scene is CheckoutScene.InGame:
+        scene_manager.insert_scene(IngameScene(resources))
+    elif new_scene is CheckoutScene.MainMenu:
+        scene_manager.insert_scene(MainMenuScene(resources))
 
 class ScenesPlugin(Plugin):
     def build(self, app):
@@ -16,3 +31,5 @@ class ScenesPlugin(Plugin):
             app.get_resources(),
             MainMenuScene(app.get_resources())
         ))
+
+        app.add_event_listener(CheckoutSceneCommand, on_checkout_scene_command)

@@ -46,6 +46,7 @@ def make_policeman(uid: int, pos: tuple[float, float]) -> tuple:
         NetSyncronized(),
         Policeman(),
         Player(),
+        GameEntity()
     )
     
     return components

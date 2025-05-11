@@ -9,6 +9,7 @@ from plugins.server.components import *
 
 # TODO: Remove this things
 from plugins.shared.entities.characters import crookify_policeman
+from plugins.server.services.state import CurrentGameState, GameState
 
 import random
 
@@ -53,9 +54,14 @@ def on_game_started(resources: Resources, _):
         robber_pos.set_position(*new_spawnpoint.get_position())
 
 def on_robber_death(resources: Resources, event: ComponentsRemovedEvent):
-    if Robber in event.components:
-        # A robber has died. The game should essentially end
-        print("Policemen won!")
+    state = resources[CurrentGameState]
+    
+    # We should make sure that the game is running, as 
+    if state == GameState.InGame:
+
+        if Robber in event.components:
+            # A robber has died. The game should essentially end
+            print("Policemen won!")
 
 class CharactersHandlersPlugin(Plugin):
     def build(self, app):

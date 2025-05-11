@@ -309,7 +309,8 @@ class WorldECS:
         It is absolutely safe to use when iterating
         """
 
-        self.dead_entities.add(entity)
+        if self.contains_entity(entity):
+            self.dead_entities.add(entity)
 
     @overload
     def query_components(
@@ -502,8 +503,10 @@ class WorldECS:
         Clearing entities mid iteration can lead to incorrect iteration of other entities (i.e. skipping other
         entities that are part of the same archetype). Only call this at the END of the iteration.
         """
+
         for entity in self.dead_entities:
             self._discard_entity_archetype(entity)
+
 
             # Notify everyone
             self.ewriter.push_event(ComponentsRemovedEvent(entity, tuple(self.entities[entity].keys())))

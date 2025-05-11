@@ -27,6 +27,8 @@ class ServerExecutor:
         self.server_process.join()
         self.server_controller.reset()
 
+        self.server_process = None
+
         print("Have successfully stopped the server!")  
 
     def is_running(self) -> bool:

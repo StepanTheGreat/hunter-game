@@ -3,7 +3,7 @@ from plugin import Plugin, Resources, Schedule
 from core.time import Clock
 from core.ecs import WorldECS
 
-from plugins.rpcs.client import *
+from plugins.client.commands import *
 from plugins.client.components import *
 
 from plugins.client.services.session import ServerTime

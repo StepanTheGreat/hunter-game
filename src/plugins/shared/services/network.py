@@ -143,6 +143,7 @@ class Client:
     def close(self):
         "Always close the client when you're done with it"
         self.client.close()
+        self.ewriter.push_event(ServerDisonnectedEvent())
 
 class Server:
     def __init__(self, resources: Resources, max_clients: int, rpcs: tuple[Callable, ...] = ()):

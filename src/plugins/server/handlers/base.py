@@ -5,7 +5,7 @@ from core.ecs import WorldECS
 from plugins.server.events import RemovedNetworkEntityEvent
 from plugins.server.components import *
 
-from plugins.rpcs.server import ControlPlayerCommand
+from plugins.server.commands import ControlPlayerCommand
 
 from plugins.server.actions import *
 

@@ -2,13 +2,11 @@
 
 from core.time import Clock
 
-from plugins.rpcs.client import SyncTimeCommand
+from plugins.client.commands import SyncTimeCommand
 
 from plugin import Plugin, Resources, Schedule
 
 from collections import deque
-
-from typing import Optional
 
 class ServerTime:
     SERVER_OFFSETS = 5

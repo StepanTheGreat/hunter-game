@@ -8,7 +8,7 @@ from core.assets import AssetManager
 from plugins.client.entities import *
 from plugins.client.components import *
 
-from plugins.rpcs.client import SpawnDiamondsCommand
+from plugins.client.commands import SpawnDiamondsCommand
 
 def on_spawn_diamonds_command(resources: Resources, command: SpawnDiamondsCommand):
     "Spawn diamonds"

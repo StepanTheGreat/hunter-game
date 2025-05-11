@@ -262,6 +262,10 @@ class Model:
             )
 
     def render(self, vertices: int = -1, first: int = 0, instances: int = -1):
+        if self.vao is None:
+            # Probably the model is getting cleaned up
+            return
+        
         self.pipeline.apply_params()
         vertices = self.vertices_to_draw if vertices == -1 else vertices
         self.vao.render(self.pipeline.get_mode(), vertices, first, instances)  
@@ -313,6 +317,6 @@ class Model:
         release the pipeline however. 
         """
 
-        self.vbo.release()
-        self.ibo.release()
-        self.vao.release()
+        self.vbo = self.vbo.release()
+        self.ibo = self.ibo.release()
+        self.vao = self.vao.release()

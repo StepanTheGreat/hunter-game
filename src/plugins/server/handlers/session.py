@@ -13,7 +13,7 @@ from plugins.server.entities.characters import make_server_policeman
 from plugins.shared.services.uidman import EntityUIDManager
 from plugins.shared.services.network import Server
 
-from plugins.rpcs.server import SignalPlayerReadyCommand
+from plugins.server.commands import SignalPlayerReadyCommand
 
 from plugins.server.actions import ServerActionDispatcher, SpawnPlayerAction, TellReadyPlayersAction
 
@@ -119,8 +119,6 @@ def _reschedule_game_start(resources: Resources):
 
         print(f"Scheduled next game start for {WAIT_TIME}s")
         scheduler.schedule_seconds(start_game_system, WAIT_TIME, False)
-    else:
-        print(f"Canceling game start")
 
 def start_game_system(resources: Resources):
     "This is a scheduled system that is going to push the `GameStartedEvent`"
@@ -152,7 +150,6 @@ def on_game_started(resources: Resources, _):
 
 class SessionHandlersPlugin(Plugin):
     def build(self, app):
-        print("Executing the session events plugin")
         app.add_event_listener(AddedClientEvent, on_added_client)
         app.add_event_listener(RemovedClientEvent, on_removed_client)
 

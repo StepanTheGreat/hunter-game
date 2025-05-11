@@ -1,3 +1,5 @@
+import pygame as pg
+
 from typing import Optional, Callable
 from collections import deque
 
@@ -333,6 +335,7 @@ class Label(GUIElement):
         self.color = color
 
         self._cached_drawcall = None
+        self._last_rect = None
 
         self.set_text(text)
 
@@ -350,7 +353,10 @@ class Label(GUIElement):
         self._cached_drawcall = None
 
     def draw(self, renderer):
-        if not self._cached_drawcall:
+        rect = self.get_rect()
+
+        if not self._cached_drawcall or self._last_rect != rect:
+            self._last_rect = rect
             self._cached_drawcall = renderer.draw_text_call(self.font, self.text, self.get_position(), self.color, self.text_scale)
         renderer.push_draw_call(self._cached_drawcall)
 
