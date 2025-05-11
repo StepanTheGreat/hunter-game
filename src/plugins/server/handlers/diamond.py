@@ -1,20 +1,21 @@
-from plugin import Plugin, Resources
+from plugin import Plugin, Resources, EventWriter
 
 from core.ecs import WorldECS
 
-from plugins.server.events import DiamondPickedUpEvent, GameStartedEvent
+from plugins.server.events import DiamondPickedUpEvent, GameStartedEvent, LightsOnEvent, GameFinishedEvent
 from plugins.server.components import Diamond, Position, DiamondSpawnpoint
-from plugins.server.actions import ServerActionDispatcher, SpawnDiamondsAction
+from plugins.server.actions import *
 
 from plugins.shared.services.uidman import EntityUIDManager
-from plugins.server.services.state import GameState, CurrentGameState
+from plugins.server.services.state import GameState, CurrentGameState, LightsOn
 
 from plugins.shared.entities import make_diamond
-
 
 def on_diamond_pickup(resources: Resources, event: DiamondPickedUpEvent):
     world = resources[WorldECS]
     state = resources[CurrentGameState]
+    ewriter = resources[EventWriter]
+    dispatcher = resources[ServerActionDispatcher]
 
     diamond_ent = event.ent
 
@@ -22,10 +23,17 @@ def on_diamond_pickup(resources: Resources, event: DiamondPickedUpEvent):
         with world.command_buffer() as cmd:
             cmd.remove_entity(diamond_ent)
 
-
+    # This is a really ugly way of structuring it, but essentially...
     if state == GameState.InGame:
+        # If the game has started
+        
+        if LightsOn not in resources:
+            ewriter.push_event(LightsOnEvent())
+            dispatcher.dispatch_action(GameNotificationAction(GameNotification.LightsOn))
+
         if len(world.query_component(Diamond)) == 0:
-            print("The robber team has won!")
+            dispatcher.dispatch_action(GameNotificationAction(GameNotification.RobberWon))
+            ewriter.push_event(GameFinishedEvent())
 
 def on_start_game_command(resources: Resources, _):
     "When the game starts, we would like to spawn diamonds across the map!"

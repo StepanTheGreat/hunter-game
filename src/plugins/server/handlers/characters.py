@@ -1,15 +1,15 @@
-from plugin import Plugin, Resources
+from plugin import Plugin, Resources, EventWriter
 
 from core.ecs import WorldECS
 from core.events import ComponentsRemovedEvent
 
-from plugins.server.events import GameStartedEvent
-from plugins.server.actions import ServerActionDispatcher, CrookifyPolicemanAction
+from plugins.server.events import GameStartedEvent, GameFinishedEvent, LightsOnEvent
+from plugins.server.actions import *
 from plugins.server.components import *
 
 # TODO: Remove this things
 from plugins.shared.entities.characters import crookify_policeman
-from plugins.server.services.state import CurrentGameState, GameState
+from plugins.server.services.state import CurrentGameState, GameState, LightsOn
 
 import random
 
@@ -54,16 +54,53 @@ def on_game_started(resources: Resources, _):
         robber_pos.set_position(*new_spawnpoint.get_position())
 
 def on_robber_death(resources: Resources, event: ComponentsRemovedEvent):
-    state = resources[CurrentGameState]
-    
-    # We should make sure that the game is running, as 
-    if state == GameState.InGame:
+    "This handler changes the current state of the game and pushed the victory notifications whenever the robber has died"
 
-        if Robber in event.components:
-            # A robber has died. The game should essentially end
-            print("Policemen won!")
+    state = resources[CurrentGameState]
+    ewriter = resources[EventWriter]
+    dispatcher = resources[ServerActionDispatcher]
+    
+    # We should make sure that the game is running and it's indeed the robber that was killed
+    if state != GameState.InGame:
+        return
+    if Robber not in event.components:
+        return
+    
+    # A robber has died. The game should essentially end
+    dispatcher.dispatch_action(GameNotificationAction(GameNotification.PolicemenWon))
+    ewriter.push_event(GameFinishedEvent())
+
+def on_policeman_death(resources: Resources, event: ComponentsRemovedEvent):
+    """
+    This handler tracks all policeman deaths, and if the game has started and the lights are off - it's
+    going to turn them on and push a notification to all clients
+    """
+
+    world = resources[WorldECS]
+    state = resources[CurrentGameState]
+    ewriter = resources[EventWriter]
+    dispatcher = resources[ServerActionDispatcher]
+
+    if state != GameState.InGame:
+        # The game should start
+        return
+    elif Policeman not in event.components:
+        # Only policemen should count
+        return
+    elif world.contains_entity(event.entity):
+        # If a policeman component was removed but the entity is still alive... It means it was
+        # a crookification, thus doesn't count either
+        return
+    elif LightsOn in resources:
+        # If the lights are already on - there's no reason
+        return
+
+    dispatcher.dispatch_action(GameNotificationAction(GameNotification.LightsOn))
+    ewriter.push_event(LightsOnEvent())
 
 class CharactersHandlersPlugin(Plugin):
     def build(self, app):
         app.add_event_listener(GameStartedEvent, on_game_started)
+
         app.add_event_listener(ComponentsRemovedEvent, on_robber_death)
+        app.add_event_listener(ComponentsRemovedEvent, on_policeman_death)

@@ -300,7 +300,6 @@ def unload_map_model(resources: Resources):
 
     if MapModel in resources:
         resources[MapModel].release()
-        print("Releasing the map model")
         resources.remove(MapModel)
 
 def load_map_model(resources: Resources, wmap: WorldMap):

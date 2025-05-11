@@ -251,8 +251,6 @@ class WorldMap:
     def destroy_map_entities(self, world: WorldECS):
         "Remove all map entities from the world (colliders and spawnpoints)"
 
-        # This allows for immediate removal
-        print("Destroying map entities")
         with world.command_buffer() as cmd:
             for ent in self.map_entities:
                 cmd.remove_entity(ent)

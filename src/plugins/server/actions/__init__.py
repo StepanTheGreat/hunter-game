@@ -126,6 +126,17 @@ class TellReadyPlayersAction(ServerAction):
             to = None
         )
 
+@event
+class GameNotificationAction(ServerAction):
+    "This action that simply sends a simple game notification, like state transitions and so on"
+
+    def __init__(self, notification: GameNotification):
+        super().__init__(
+            game_notification_rpc, 
+            (notification.value, ),
+            to = None
+        )
+
 class ServerActionDispatcher(ActionDispatcher):
     """
     A dispatcher is a command dispatcher for network actions. You push your actions directly here,

@@ -16,3 +16,11 @@ class UpdatePlayerStatsHealthCommand:
 @event 
 class CleanUpEntitiesCommand:
     "A command that tells to remove all game-related entities from the ECS world"
+
+@event
+class GameStartedCommand:
+    "The game has started, even though in the darkness"
+
+@event
+class ResetSceneLightsCommand:
+    "A command that resets the current client's lighting level to default (full)"

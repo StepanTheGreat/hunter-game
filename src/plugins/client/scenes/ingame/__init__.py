@@ -4,7 +4,7 @@ from core.assets import AssetManager
 
 from modules.scene import SceneBundle
 
-from plugins.client.commands import ResetEntityUIDManagerCommand, LoadMapCommand, UnloadMapCommand, CleanUpEntitiesCommand
+from plugins.client.commands import *
 from plugins.shared.services.map import WorldMap
 from plugins.shared.services.network import clean_network_actors, Client
 
@@ -28,6 +28,7 @@ class IngameScene(SceneBundle):
 
         wmap = assets.load(WorldMap, "maps/map1.json")
         resources[EventWriter].push_event(LoadMapCommand(wmap))
+        resources[EventWriter].push_event(ResetSceneLightsCommand())
 
     def post_init(self, resources):
         # We're going to start the clock when the scene starts

@@ -8,6 +8,10 @@ class GameStartedEvent:
     """
 
 @event
+class LightsOnEvent:
+    "An event that simply means that the game has entered the second sub-faze, thus turning on the lights"
+
+@event
 class GameFinishedEvent:
     "Fired when the game has ended and there's nothing to do. Used for cleanup"
 

@@ -1,6 +1,7 @@
 from plugin import Resources, event, EventWriter
 
 from plugins.shared.services.network import ENDIAN, rpc, rpc_raw
+from plugins.shared.interfaces.stage import GameNotification
 
 from .pack import unpack_angle
 
@@ -65,6 +66,13 @@ class PlayersReadyCommand:
     def __init__(self, players_ready: int, players: int):
         self.players_ready = players_ready
         self.players = players
+
+@event
+class GameNotificationCommand:
+    "A notification send by the server"
+
+    def __init__(self, notification: GameNotification):
+        self.notification = notification
 
 MOVE_PLAYERS_LIMIT = 127
 "We can transfer only 127 players per packet for now"
@@ -156,6 +164,18 @@ def sync_player_health_rpc(resources: Resources, health: float):
 def tell_players_ready_rpc(resources: Resources, ready_players: int, players: int):
     resources[EventWriter].push_event(PlayersReadyCommand(ready_players, players))
 
+@rpc("B")
+def game_notification_rpc(resources: Resources, notification: int):
+    try:
+        # Because the notification ID might not be the required field - we're going to 
+        # use a try-except block here to make sure, before sending the notification.
+
+        resources[EventWriter].push_event(GameNotificationCommand(
+            GameNotification(notification)
+        ))
+    except ValueError:
+        pass
+
 CLIENT_RPCS = (
     sync_players_rpc,
     spawn_player_rpc,
@@ -164,6 +184,7 @@ CLIENT_RPCS = (
     crookify_policeman_rpc,
     sync_time_rpc,
     sync_player_health_rpc,
-    tell_players_ready_rpc
+    tell_players_ready_rpc,
+    game_notification_rpc
 )
 "RPCs used by the client"

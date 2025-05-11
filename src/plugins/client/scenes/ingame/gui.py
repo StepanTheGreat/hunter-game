@@ -2,6 +2,7 @@ from plugin import Plugin, Resources, EventWriter, resource_exists, run_if
 
 from core.assets import AssetManager
 from core.graphics import FontGPU
+from core.time import SystemScheduler
 
 from plugins.client.interfaces.gui_widgets import GUIElement, TextButton, Label
 from plugins.client.services.playerstats import PlayerStats
@@ -11,7 +12,10 @@ from plugins.client.commands import ClearGUICommand, ReplaceGUICommand, Checkout
 from plugins.client.events import ServerDisonnectedEvent
 from plugins.client.actions import ClientActionDispatcher, SignalPlayerReadyAction
 
-from plugins.client.commands import PlayersReadyCommand
+from plugins.client.commands import PlayersReadyCommand, GameNotificationCommand, GameNotification
+
+GO_BACK_TO_MENU_IN = 8
+"The amount of time to wait during the victory stage to automatically go back"
 
 class PlayerHealthbar(GUIElement):
     BG_COLOR = (40, 40, 40)
@@ -69,6 +73,7 @@ class IngameGUI:
         self.quit_btn = TextButton(self.font, "Quit", (0, 0), (128, 64), (0, 0), 0.3)
         self.quit_btn.set_callback(on_quit)
 
+        self.healthbar = PlayerHealthbar((1, 0), (1, 0), (260, 32), 6, self.resources[PlayerStats])
         self.players_ready_label = Label(self.font, "Players ready: 0/0", (0.5, 1), (0.5, 1), (255, 255, 255), 0.3)
 
         self.ewriter.push_event(ClearGUICommand())
@@ -95,10 +100,20 @@ class IngameGUI:
         ]))
 
     def enter_game_stage(self):
-        healthbar = PlayerHealthbar((1, 0), (1, 0), (260, 32), 6, self.resources[PlayerStats])
         self.ewriter.push_event(ReplaceGUICommand([
-            healthbar,
+            self.healthbar,
             self.quit_btn
+        ]))
+
+    def enter_finish_stage(self, policemen_won: bool):
+
+        text = "The policemen won!" if policemen_won else "The robster won!"
+        color = (100, 100, 255) if policemen_won else (255, 100, 00)
+        victory_label = Label(self.font, text, (0.5, 0.5), (0.5, 0.5), color, 0.4) 
+
+        self.ewriter.push_event(ReplaceGUICommand([
+            self.healthbar,
+            victory_label
         ]))
 
     def update_players_ready(self, ready: int, players: int):
@@ -108,14 +123,44 @@ class IngameGUI:
 def on_server_disconnection(resources: Resources, _: ServerDisonnectedEvent):
     "When our client is disconnected, we would like to get back to the main menu"
 
-    resources[EventWriter].push_event(CheckoutSceneCommand(CheckoutScene.MainMenu))
+    scheduler = resources[SystemScheduler]
+
+    # Because it's 100% possible for this handler to get called WHEN the system is waiting to be executed,
+    # we're going to remove it in advace, so we're not quitting multiple times 
+    scheduler.remove_scheduled(go_back_to_menu)
+
+    go_back_to_menu(resources)
 
 @run_if(resource_exists, IngameGUI)
 def on_players_ready_command(resources: Resources, command: PlayersReadyCommand):
     gui = resources[IngameGUI]
     gui.update_players_ready(command.players_ready, command.players)
 
+@run_if(resource_exists, IngameGUI)
+def on_game_notification(resources: Resources, command: GameNotificationCommand):
+    gui = resources[IngameGUI]
+    scheduler = resources[SystemScheduler]
+
+    # When we receive a game started notification - we would like to change the curent UI state
+    if command.notification == GameNotification.GameStarted:
+        gui.enter_game_stage()
+    if command.notification in (GameNotification.PolicemenWon, GameNotification.RobberWon):
+        policemen_won = command.notification == GameNotification.PolicemenWon
+
+        gui.enter_finish_stage(policemen_won)
+        scheduler.schedule_seconds(go_back_to_menu, GO_BACK_TO_MENU_IN, False)
+
+def go_back_to_menu(resources: Resources):
+    """
+    This system is only called either by callbacks (when disconnected) or scheduled after a certain
+    amount of time (on victory).
+    It's purpose is to simply go back to the main menu.
+    """
+    resources[EventWriter].push_event(CheckoutSceneCommand(CheckoutScene.MainMenu))
+
 class IngameGUIPlugin(Plugin):
     def build(self, app):
         app.add_event_listener(PlayersReadyCommand, on_players_ready_command)
         app.add_event_listener(ServerDisonnectedEvent, on_server_disconnection)
+
+        app.add_event_listener(GameNotificationCommand, on_game_notification)

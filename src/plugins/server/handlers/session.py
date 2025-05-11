@@ -6,7 +6,6 @@ from core.ecs import WorldECS
 from random import choice as rand_choice
 
 from plugins.server.events import AddedClientEvent, RemovedClientEvent, GameStartedEvent
-from plugins.server.commands import StartGameCommand
 
 from plugins.server.components import Client, OwnedByClient, NetEntity, Position, OwnsEntity, IsReady, PlayerSpawnpoint
 from plugins.server.entities.characters import make_server_policeman
@@ -15,7 +14,7 @@ from plugins.shared.services.network import Server
 
 from plugins.server.commands import SignalPlayerReadyCommand
 
-from plugins.server.actions import ServerActionDispatcher, SpawnPlayerAction, TellReadyPlayersAction
+from plugins.server.actions import *
 
 from plugins.server.services.state import CurrentGameState, GameState
 from plugins.server.services.clientlist import ClientList
@@ -124,7 +123,10 @@ def start_game_system(resources: Resources):
     "This is a scheduled system that is going to push the `GameStartedEvent`"
 
     ewriter = resources[EventWriter]
-    ewriter.push_event(StartGameCommand())    
+    dispatcher = resources[ServerActionDispatcher]
+
+    dispatcher.dispatch_action(GameNotificationAction(GameNotification.GameStarted))
+    ewriter.push_event(GameStartedEvent())
 
 def on_client_ready(resources: Resources, command: SignalPlayerReadyCommand):
     clientlist = resources[ClientList]

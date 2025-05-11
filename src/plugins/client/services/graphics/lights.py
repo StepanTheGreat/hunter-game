@@ -8,7 +8,7 @@ from core.ecs import WorldECS
 from plugins.client.components import RenderPosition, Light
 
 LIGHTS_LIMIT = 32
-DEFAULT_AMBIENT_LIGHT = (0.05, 0.05, 0.1)
+DEFAULT_AMBIENT_LIGHT = (1, 1, 1)
 
 class LightManager:
     def __init__(self, ambient_color: tuple, max_lights: int):

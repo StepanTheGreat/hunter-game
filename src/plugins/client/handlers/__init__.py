@@ -4,6 +4,7 @@ from .session import SessionHandlersPlugin
 from .character import CharacterHandlersPlugin
 from .diamond import DiamondHandlersPlugin
 from .entities import EntitiesHandlersPlugin
+from .lights import LightsHandlersPlugin
 
 class ClientHandlersPlugin(Plugin):
     def build(self, app):
@@ -11,5 +12,6 @@ class ClientHandlersPlugin(Plugin):
             SessionHandlersPlugin(),
             CharacterHandlersPlugin(),
             DiamondHandlersPlugin(),
-            EntitiesHandlersPlugin()
+            EntitiesHandlersPlugin(),
+            LightsHandlersPlugin()
         )
