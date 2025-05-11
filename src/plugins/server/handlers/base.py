@@ -1,3 +1,5 @@
+from plugin import Plugin, Resources
+
 from core.ecs import WorldECS
 
 from plugins.server.events import RemovedNetworkEntityEvent
@@ -9,7 +11,8 @@ from plugins.server.actions import *
 
 from plugins.server.services.clientlist import ClientList
 
-from plugin import Plugin, Resources
+from plugins.shared.constants import SNAP_PLAYER_POSITION_DISTANCE
+
 
 def on_control_player_command(resources: Resources, command: ControlPlayerCommand):
     world = resources[WorldECS]
@@ -36,7 +39,13 @@ def on_control_player_command(resources: Resources, command: ControlPlayerComman
         AngleVelocity,
         PlayerController
     )
-    pos.set_position(*command.pos)
+
+    # If the distance between server-side position and player's position is less than
+    # the stap distance - we're going to accept its movement packet
+    new_pos = command.pos
+    if pos.get_position().distance_to(new_pos) <= SNAP_PLAYER_POSITION_DISTANCE:
+        pos.set_position(*new_pos)
+
     vel.set_velocity(*command.vel)
     angle.set_angle(command.angle)
     angle_vel.set_velocity(command.angle_vel)

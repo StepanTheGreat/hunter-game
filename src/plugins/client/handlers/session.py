@@ -13,6 +13,8 @@ from plugins.shared.services.uidman import EntityUIDManager
 from plugins.client.services.session import ServerTime
 from plugins.client.components import MainPlayer
 
+from plugins.shared.constants import SNAP_PLAYER_POSITION_DISTANCE
+
 def on_sync_players_command(resources: Resources, command: SyncPlayersCommand):
     "Apply net syncronization on all requested players"
 
@@ -25,16 +27,19 @@ def on_sync_players_command(resources: Resources, command: SyncPlayersCommand):
         ent = uidman.get_ent(uid)
         if ent is None:
             continue
-        elif world.has_component(ent, MainPlayer):
-            continue
-        elif not world.has_components(ent,  InterpolatedPosition, InterpolatedAngle, PlayerController):
-            continue
+        
+        is_main = world.has_component(ent, MainPlayer)
+        if is_main and world.has_component(ent, Position):
+            pos = world.get_component(ent, Position)
 
-        pos, angle, controller = world.get_components(ent, InterpolatedPosition, InterpolatedAngle, PlayerController)
+            if pos.get_position().distance_to(new_pos) > SNAP_PLAYER_POSITION_DISTANCE:
+                pos.set_position(*new_pos)
+        elif world.has_components(ent, InterpolatedPosition, InterpolatedAngle, PlayerController):
 
-        angle.push_angle(server_time, new_angle)
-        pos.push_position(server_time, *new_pos)
-        controller.is_shooting = is_shooting
+            pos, angle, controller = world.get_components(ent, InterpolatedPosition, InterpolatedAngle, PlayerController)
+            pos.push_position(server_time, *new_pos)
+            angle.push_angle(server_time, new_angle)
+            controller.is_shooting = is_shooting
 
 def on_kill_entity_command(resources: Resources, command: KillEntityCommand):
     "When we receive an entity kill command from the server - we should kill said entity"

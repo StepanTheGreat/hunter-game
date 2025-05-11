@@ -1,43 +1,24 @@
 from plugin import Plugin, Schedule, Resources, EventWriter
 
-
 from core.time import SystemScheduler
 from core.ecs import WorldECS
 
-from plugins.server.events import AddedClientEvent, RemovedClientEvent, GameStartedEvent
-from plugins.server.commands import CrookifyRandomPlayerCommand, StartGameCommand
+from random import choice as rand_choice
 
-from plugins.server.components import Client, OwnedByClient, NetEntity, Position, OwnsEntity, IsReady
+from plugins.server.events import AddedClientEvent, RemovedClientEvent, GameStartedEvent
+from plugins.server.commands import StartGameCommand
+
+from plugins.server.components import Client, OwnedByClient, NetEntity, Position, OwnsEntity, IsReady, PlayerSpawnpoint
 from plugins.server.entities.characters import make_server_policeman
-from plugins.shared.entities.diamond import make_diamond
 from plugins.shared.services.uidman import EntityUIDManager
 from plugins.shared.services.network import Server
 
 from plugins.rpcs.server import SignalPlayerReadyCommand
 
-from plugins.server.actions import ServerActionDispatcher, SpawnPlayerAction, SpawnDiamondsAction, TellReadyPlayersAction
+from plugins.server.actions import ServerActionDispatcher, SpawnPlayerAction, TellReadyPlayersAction
 
 from plugins.server.services.state import CurrentGameState, GameState
 from plugins.server.services.clientlist import ClientList
-
-from plugins.server.constants import WAIT_TIME_MAP
-
-def _spawn_diamonds(resources: Resources):
-    "A function purely for testing purposes"
-    action_dispatcher = resources[ServerActionDispatcher]
-    world = resources[WorldECS]
-    uidman = resources[EntityUIDManager]
-
-    diamond_entries = []
-    for diamond_pos in ((0, 0), (64, 0), (-64, 0), (0, 64), (0, -64)):
-        uid = uidman.consume_entity_uid()
-
-        diamond_entries.append((uid, diamond_pos))
-
-        world.create_entity(*make_diamond(uid, diamond_pos))
-
-    action_dispatcher.dispatch_action(SpawnDiamondsAction(tuple(diamond_entries)))
-
 
 def on_added_client(resources: Resources, event: AddedClientEvent):
     """
@@ -51,7 +32,15 @@ def on_added_client(resources: Resources, event: AddedClientEvent):
 
     new_client_ent = event.ent
     new_player_uid = uidman.consume_entity_uid()
-    new_player_pos = (0, 0)
+    
+    spawnpoints = world.query_component(Position, including=PlayerSpawnpoint)
+    assert len(spawnpoints) > 0, "No player spawnpoints on the map!"
+
+    # Damn this is a horrible line. We're getting a random spawn point from all available ones, and since
+    # the world returns as an entity as well - we only get the position component via [1]. Then, we get the
+    # position vector itself from the component via `get_position` method
+    spawnpoint = rand_choice(spawnpoints)[1].get_position()
+    new_player_pos = (spawnpoint.x, spawnpoint.y)
 
     print("A new client connected:", new_client_ent)
 
@@ -137,12 +126,7 @@ def start_game_system(resources: Resources):
     "This is a scheduled system that is going to push the `GameStartedEvent`"
 
     ewriter = resources[EventWriter]
-
-    print(f"The game has started!")
-
     ewriter.push_event(StartGameCommand())    
-    ewriter.push_event(CrookifyRandomPlayerCommand())
-    _spawn_diamonds(resources)
 
 def on_client_ready(resources: Resources, command: SignalPlayerReadyCommand):
     clientlist = resources[ClientList]

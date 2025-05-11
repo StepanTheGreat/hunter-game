@@ -145,7 +145,7 @@ def resolve_collisions_system(resources: Resources):
     dyn_colliders = [(ent, (pos, collider.as_moved(pos.get_position()))) for ent, (pos, collider) in world.query_components(Position, DynCollider)]
     fill_grid_with_colliders(grid_dynamic, dyn_colliders)
 
-    events = deque()
+    events: list[CollisionEvent] = []
 
     # Now, the most ugly part - the collision detection and resolution
     checks = 0
@@ -168,7 +168,7 @@ def resolve_collisions_system(resources: Resources):
                 # The same check applies for sensor and static colliders 
 
                 if collider1.sensor and collider1.is_colliding_static(collider2):
-                    events.appendleft(CollisionEvent(ent1, ent2, StaticCollider))
+                    events.append(CollisionEvent(ent1, ent2, StaticCollider))
                 else:
                     collider1.resolve_collision_static(collider2)
 
