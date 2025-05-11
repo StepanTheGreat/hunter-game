@@ -1,0 +1,7 @@
+{
+    "dynamic": true,
+    "sources": {
+        "normal": "skybox2.png",
+        "moon": "skybox1.png"
+    }
+}

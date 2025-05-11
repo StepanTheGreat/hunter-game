@@ -11,7 +11,7 @@ from plugins.shared.events.map import *
 from plugins.shared.commands.map import LoadMapCommand, UnloadMapCommand
 
 from modules.tilemap import Tilemap
-from plugins.shared.interfaces.map import WorldMap, WORLDMAP_JSON_SCHEMA, MapCamera, WallPropery
+from plugins.shared.interfaces.map import WorldMap, WORLDMAP_JSON_SCHEMA, MapCamera, WallPropery, MapSkybox
 
 from jsonschema import validate, ValidationError
 from json import loads as json_loads
@@ -60,6 +60,10 @@ def loader_world_map(resources: Resources, path: str) -> WorldMap:
     map_camera = map_json["map_camera"]
     map_camera = MapCamera((map_camera["x"], map_camera["y"]), map_camera["height"], map_camera["angle"])
 
+    map_skybox = map_json.get("map_skybox")
+    if map_skybox is not None:
+        map_skybox = MapSkybox(map_skybox["left"], map_skybox["front"], map_skybox["right"], map_skybox["back"])
+
     # And return our world map object!
     return WorldMap(
         wall_map,
@@ -69,7 +73,8 @@ def loader_world_map(resources: Resources, path: str) -> WorldMap:
         wall_height,
         wall_props,
         platform_props,
-        map_camera
+        map_camera,
+        map_skybox
     )
 
 

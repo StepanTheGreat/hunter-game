@@ -6,6 +6,8 @@ from modules.tilemap import Tilemap
 
 from plugins.shared.components import Position, StaticCollider, PlayerSpawnpoint, DiamondSpawnpoint, RobberSpawnpoint
 
+from typing import Optional
+
 WORLDMAP_JSON_SCHEMA = {
     "properties": {
         # The size of our map (amount of tiles in both X and Y axis)
@@ -96,6 +98,17 @@ WORLDMAP_JSON_SCHEMA = {
                 "angle": {"type": "number"}
             },
             "required": ["x", "y", "height", "angle"]
+        },
+
+        # A skybox while not required, can be supplied for further map customization
+        "map_skybox": {
+            "type": "object",
+            "properties": {
+                "left": {"type": "string"},
+                "front": {"type": "string"},
+                "right": {"type": "string"},
+                "back": {"type": "string"},
+            }
         }
     },
 
@@ -178,6 +191,15 @@ class WallPropery:
         self.texture = texture
         self.is_opaque = is_opaque
 
+class MapSkybox:
+    "The map's provided skybox"
+
+    def __init__(self, left: str, front: str, right: str, back: str):
+        self.left = left
+        self.front = front
+        self.right = right
+        self.back = back
+
 class MapCamera:
     "The map scene camera (when there are no players). Especially useful for game menus"
 
@@ -197,7 +219,8 @@ class WorldMap:
 
         wall_props: dict[int, WallPropery],
         platform_props: dict[int, str],
-        map_camera: MapCamera
+        map_camera: MapCamera,
+        map_skybox: Optional[MapSkybox] 
     ):
         # These maps should absolutely have the same dimensions
         assert wall_map.width == floor_map.width == ceiling_map.width
@@ -216,6 +239,7 @@ class WorldMap:
         self.opaque_walls = self._get_opaque_walls()
 
         self.map_camera: MapCamera = map_camera
+        self.map_skybox: Optional[MapSkybox] = map_skybox
 
         self.map_entities = []
 
@@ -309,65 +333,5 @@ class WorldMap:
     def get_map_camera(self) -> MapCamera:
         return self.map_camera
 
-'''
-class WorldMap:
-    """
-    The globally explorable map. Essentially it's the same as `Tilemap`, but has more details. 
-    It contains tile information, colliders, materials and so on.
-    """
-    def __init__(
-            self, 
-            tilemap: Tilemap, 
-            color_map: dict[int, Union[str, tuple]],
-            transparent_tiles: set[int],
-            tile_size: float
-        ):
-        self.tile_size = tile_size
-        self.map = tilemap
-        self.color_map = color_map
-        self.transparent_tiles = transparent_tiles
-
-        self.colliders = []
-
-    def destroy_map_colliders(self, world: WorldECS):
-        "Remove all map colliders from the world"
-
-        for collider_ent in self.colliders:
-            world.remove_entity(collider_ent)
-
-    def create_map_colliders(self, world: WorldECS):
-        "Generate map colliders for this world map"
-
-        tile_size = self.tile_size
-        tiles = self.map.get_tiles()
-
-        for y, row in enumerate(tiles):
-            for x, tile in enumerate(row):
-                if tile == 0:
-                    continue
-                
-                self.colliders.append(
-                    world.create_entity(
-                        Position(x*tile_size, y*tile_size),
-                        StaticCollider(tile_size, tile_size)
-                    )
-                )
-    
-    def get_transparent_tiles(self) -> set[int]:
-        """
-        A transparent tiles set simply stores transparent tile IDs. 
-        These are treated a bit differently when generating a map mesh, since their neighbour quads 
-        don't get culled.
-        """
-        return self.transparent_tiles
-
-    def get_color_map(self) -> dict[int, Union[str, tuple]]:
-        "A colormap is a tile ID to color/texture map that's used for mesh generation"
-        return self.color_map
-
-    def get_map(self) -> Tilemap:
-        return self.map
-    
-    def get_tile_size(self) -> int:
-        return self.tile_size
-'''
+    def get_map_skybox(self) -> Optional[MapSkybox]:
+        return self.map_skybox

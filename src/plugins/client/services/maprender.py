@@ -153,8 +153,8 @@ def gen_map_models(
         # If a wall is normal and it has a non-opaque neighbour - it does have a neighbour.
         # If a wall is normal and it has an opaque neighbour - it "doesn't"
         # If a wall is opaque and its neighbour isn't - it does have a neighbour 
-
-        return (nwall in IGNORE_TILES) or (wall in opaque_walls) or (nwall not in opaque_walls)
+        
+        return (nwall not in IGNORE_TILES) and ((wall in opaque_walls) or (nwall not in opaque_walls))
     
     ctx = gfx.get_context()
 
@@ -263,9 +263,17 @@ class MapModel:
         renderer: ModelRenderer, 
         world_map: WorldMap
     ):
-        self.skybox_texture = assets.load(Texture, "images/skybox.png")
+        map_skybox = world_map.get_map_skybox()
+        if map_skybox is not None:
+            self.skybox = SkyBox(
+                assets.load(Texture, map_skybox.left),
+                assets.load(Texture, map_skybox.front),
+                assets.load(Texture, map_skybox.right),
+                assets.load(Texture, map_skybox.back)
+            )
+        else:
+            self.skybox = None
 
-        self.skybox = SkyBox(*((self.skybox_texture, )*4))
         self.models = gen_map_models(gfx, assets, renderer, world_map)
 
     def get_models(self) -> list[tuple[Model, gl.Texture]]:
@@ -291,7 +299,6 @@ def unload_map_model(resources: Resources):
     "A helper function that will perform map model clean up if present"
 
     if MapModel in resources:
-        print("Releasing the old map")
         resources[MapModel].release()
         resources.remove(MapModel)
 

@@ -29,7 +29,7 @@ MODEL_VERTEX_GL_FORMAT = "3i2 3i1 3f1 2u2"
 
 
 SKYBOX_PIPELINE_PARAMS = PipelineParams(
-    cull_face=True,
+    cull_face=False,
     depth_test=False,
     alpha_blending=False,
     mode=gl.TRIANGLES
@@ -42,31 +42,34 @@ SKYBOX_VERTEX_DTYPE = np.dtype([
 ])
 SKYBOX_VERTEX_GL_FORMAT = "3f4 u4"
 
+S = 0.75
+"This a variable only for mesh construction purposes. It allows us to stretch our skybox height"
+
 SKYBOX_MESH = DynamicMeshCPU(
     np.array([
         # Left face
-        ((-1, -1, -1), 0),
-        ((-1,  1, -1), 1),
-        ((-1, -1,  1), 2),
-        ((-1,  1,  1), 3),
+        ((-1,  S, -1), 0),
+        ((-1,  S,  1), 1),
+        ((-1, -S, -1), 2),
+        ((-1, -S,  1), 3),
 
         # Front face
-        ((-1, -1, -1), 4),
-        ((-1,  1, -1), 5),
-        (( 1, -1, -1), 6),
-        (( 1,  1, -1), 7),
+        (( 1,  S, -1), 4),
+        ((-1,  S, -1), 5),
+        (( 1, -S, -1), 6),
+        ((-1, -S, -1), 7),
 
         # Right face
-        ((1, -1, -1), 8),
-        ((1,  1, -1), 9),
-        ((1, -1,  1), 10),
-        ((1,  1,  1), 11),
+        ((1,  S,  1), 8),
+        ((1,  S, -1), 9),
+        ((1, -S,  1), 10),
+        ((1, -S, -1), 11),
 
         # Back face
-        ((-1, -1, 1), 12),
-        ((-1,  1, 1), 13),
-        (( 1, -1, 1), 14),
-        (( 1,  1, 1), 15),
+        ((-1,  S,  1), 12),
+        (( 1,  S,  1), 13),
+        ((-1, -S,  1), 14),
+        (( 1, -S,  1), 15),
 
     ], dtype=SKYBOX_VERTEX_DTYPE),
     np.array([
@@ -116,6 +119,7 @@ class SkyBox:
         for ind, texture in enumerate((left, front, right, back)):
             face_ind = ind*4
             x, y, w, h = texture.region
+            w, h = x+w, y+h
             for coord_ind, uv_coord in enumerate(((x, y), (w, y), (x, h), (w, h))):
                 self.uv_array[face_ind+coord_ind] = uv_coord
         
