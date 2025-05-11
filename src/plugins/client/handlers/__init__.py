@@ -5,6 +5,7 @@ from .character import CharacterHandlersPlugin
 from .diamond import DiamondHandlersPlugin
 from .entities import EntitiesHandlersPlugin
 from .lights import LightsHandlersPlugin
+from .sounds import SoundHandlersPlugin
 
 class ClientHandlersPlugin(Plugin):
     def build(self, app):
@@ -13,5 +14,6 @@ class ClientHandlersPlugin(Plugin):
             CharacterHandlersPlugin(),
             DiamondHandlersPlugin(),
             EntitiesHandlersPlugin(),
-            LightsHandlersPlugin()
+            LightsHandlersPlugin(),
+            SoundHandlersPlugin()
         )
