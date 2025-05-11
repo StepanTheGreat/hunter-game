@@ -72,14 +72,9 @@ entirely and let the runtime manage those instead
 import moderngl as gl
 import pygame as pg
 
-from json import loads
-from jsonschema import validate, ValidationError
-
-from os.path import abspath
-
 from plugin import Plugin, Resources
 from math import log2, ceil
-from file import load_file_str
+from file import load_json_and_validate, get_file_dir
 
 from core.graphics.ctx import *
 from core.assets import AssetManager, add_loaders
@@ -368,7 +363,7 @@ def _load_texture_atlas(
     ctx: gl.Context,
     assets: AssetManager, 
     atlas_dir: str,
-    atlas_data: str
+    atlas_obj: dict
 ) -> TextureAtlas:
     """
     Try guess and load a texture atlas. This function supports 2 types of file atlases:
@@ -377,9 +372,6 @@ def _load_texture_atlas(
 
     If the format doesn't match anything - will raise an error.
     """
-    atlas_obj = loads(atlas_data)
-
-    validate(atlas_obj, ATLAS_JSON_SCHEMA)
 
     if atlas_obj["dynamic"]:
         return _load_dynamic_texture_atlas(ctx, atlas_dir, atlas_obj)
@@ -388,19 +380,15 @@ def _load_texture_atlas(
 
 def loader_texture_atlas(resources: Resources, path: str) -> TextureAtlas:
     "A loader for texture atlases"
-    atlas_data = load_file_str(path)
-    atlas_dir = abspath(path + "/../")+"/" # Yup, I know, it's not the best way, but it's a simple one
+    atlas_data = load_json_and_validate(path, ATLAS_JSON_SCHEMA)
+    atlas_dir = get_file_dir(path) # Yup, I know, it's not the best way, but it's a simple one
 
-    try:
-        return _load_texture_atlas(
-            resources[GraphicsContext].get_context(),
-            resources[AssetManager],
-            atlas_dir,
-            atlas_data
-        )
-    except ValidationError as e:
-        print(f"Failed to parse atlas at \"{path}\":")
-        raise e
+    return _load_texture_atlas(
+        resources[GraphicsContext].get_context(),
+        resources[AssetManager],
+        atlas_dir,
+        atlas_data
+    )
 
 def _get_path_atlas_split(path: str) -> Union[str, None]:
     atlas_texture_split = path.split("#")

@@ -5,7 +5,7 @@ from plugin import Plugin, Resources, EventWriter
 from core.ecs import WorldECS
 from core.assets import add_loaders
 
-from file import load_file_str
+from file import load_json_and_validate
 
 from plugins.shared.events.map import *
 from plugins.shared.commands.map import LoadMapCommand, UnloadMapCommand
@@ -13,24 +13,13 @@ from plugins.shared.commands.map import LoadMapCommand, UnloadMapCommand
 from modules.tilemap import Tilemap
 from plugins.shared.interfaces.map import WorldMap, WORLDMAP_JSON_SCHEMA, MapCamera, WallPropery, MapSkybox
 
-from jsonschema import validate, ValidationError
-from json import loads as json_loads
-
 def loader_world_map(resources: Resources, path: str) -> WorldMap:
     "A custom loader for world maps. Extremely useful for both the server and the client"
 
     # This one is a bit heavy to parse, so I'll try to explain everything
 
-    # First of course load our file as a string, then parse it as JSON
-    map_str = load_file_str(path)
-    map_json = json_loads(map_str)
-
-    # We're going to validate it against our worldmap schema, and if it doesn't pass - we'll raise an exception
-    try:
-        validate(map_json, WORLDMAP_JSON_SCHEMA)
-    except ValidationError as err:
-        print(f"Failed to parse the map at {path}")
-        raise err
+    # Load and automatically validate our map against the map schema
+    map_json = load_json_and_validate(path, WORLDMAP_JSON_SCHEMA)
 
     # Get our map size
     map_size = map_json["size"]

@@ -3,6 +3,9 @@
 from os.path import abspath
 import sys
 
+from json import loads as json_loads
+from jsonschema import validate, ValidationError
+
 if getattr(sys, "frozen", False):
     PROJECT_DIR = sys._MEIPASS + "/"
 else:
@@ -34,9 +37,31 @@ def load_file_str(path: str) -> str:
         contents = file.read()
     return contents
 
+def load_json_and_validate(path: str, schema: dict) -> dict:
+    """
+    Load and automatically validate the file at the provided path against given schema.
+    If the file passes - this function returns the resulting object, but if it doesn't, it's
+    going to raise a validation error with some additional details
+    """
+
+    obj = json_loads(load_file_str(path))
+
+    try:    
+        validate(obj, schema)
+    except ValidationError as e:
+        print(f"File at {path} failed JSON schema validation:")
+        raise e
+
+    return obj
+
 def load_file_bytes(path: str) -> bytes:
     "Load a file as a byte array"
     contents = None
     with open(path, "rb") as file:
         contents = file.read()
     return contents
+
+def get_file_dir(path: str) -> str:
+    "Convert the absolute file path to a directory path relative to the file"
+
+    return abspath(path + "/../")+"/"
