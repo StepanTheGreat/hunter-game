@@ -11,6 +11,8 @@ from plugins.rpcs.listener import LISTENER_PORT, LISTENER_RPCS
 from .gui import *
 
 class MainMenuScene(SceneBundle):
+    "The main menu scene"
+
     def __init__(self, resources: Resources):
         super().__init__()
         self.add_auto_resources(

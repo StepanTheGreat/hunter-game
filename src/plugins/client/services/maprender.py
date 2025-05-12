@@ -21,6 +21,7 @@ from core.assets import AssetManager
 WHITE_COLOR = (255, 255, 255)
 
 IGNORE_TILES = (0, PLAYER_SPAWNPOINT, ROBBER_SPAWNPOINT, DIAMOND_SPAWNPOINT)
+"Tiles that should be ignored when batching wall geometry"
 
 def _bitcrush(x: float) -> float:
     return max(min(x * 128, 127), -128)
@@ -119,6 +120,8 @@ def gen_platform_mesh(
     uv_region: tuple[int, int, int, int],
     reverse: bool
 ) -> DynamicMeshCPU:
+    "Build a platform mesh"
+
     s = size
     x, z = coords
     x, z = x*s, z*s
@@ -258,6 +261,8 @@ def gen_map_models(
     return models
     
 class MapModel:
+    "A map model is just a giant combination of map meshes, with different textures and its own skybox"
+
     def __init__(
         self, 
         gfx: GraphicsContext, 

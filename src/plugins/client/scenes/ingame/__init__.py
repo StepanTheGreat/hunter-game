@@ -15,6 +15,8 @@ from plugins.client.services.session import ServerTime
 from .gui import *
 
 class IngameScene(SceneBundle):
+    "The ingame scene"
+
     def __init__(self, resources: Resources):
         super().__init__()
 

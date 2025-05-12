@@ -6,6 +6,7 @@ from core.graphics import Texture
 
 @component
 class Light:
+    "A light component emits lights in the 3D world. It can have different color, luminosity, height and so on"
     def __init__(self, y: float, color: tuple[float, float, float], radius: float, luminosity: float):
         assert luminosity > 0
         assert radius > 0

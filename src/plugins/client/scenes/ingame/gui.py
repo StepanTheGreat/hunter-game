@@ -21,6 +21,8 @@ POLICEMAN_WEAPON_SPEED = 15
 ROBBER_WEAPON_SPEED = 20
 
 class PlayerHealthbar(GUIElement):
+    "A custom healthbar element for rendering the current player's health"
+
     BG_COLOR = (40, 40, 40)
     HEALTH_COLOR = (40, 255, 70)
 
@@ -60,6 +62,8 @@ class PlayerHealthbar(GUIElement):
         ), PlayerHealthbar.HEALTH_COLOR)
 
 class PlayerWeapon(GUIElement):
+    "A GUI element for player weapon animations. It essentially simply plays animations and allows restarting them over"
+
     def __init__(
         self, 
         edge: tuple[int, int], 
@@ -116,6 +120,8 @@ class PlayerWeapon(GUIElement):
 
 
 class IngameGUI:
+    "The GUI active during the actual game"
+
     BUTTON_SIZE = (312, 64)
 
     def __init__(self, resources: Resources):
@@ -196,6 +202,8 @@ class IngameGUI:
         ]))
 
     def update_players_ready(self, ready: int, players: int):
+        "Update the \"players ready\" label with new data from the server"
+
         self.players_ready_label.set_text(f"Players ready: {ready}/{players}")
 
     def restart_weapon_animation(self):
@@ -232,11 +240,20 @@ def on_server_disconnection(resources: Resources, _: ServerDisonnectedEvent):
 
 @run_if(resource_exists, IngameGUI)
 def on_players_ready_command(resources: Resources, command: PlayersReadyCommand):
+    "When we receive a new players ready command, we would like to update our game label"
+
     gui = resources[IngameGUI]
     gui.update_players_ready(command.players_ready, command.players)
 
 @run_if(resource_exists, IngameGUI)
 def on_game_notification(resources: Resources, command: GameNotificationCommand):
+    """
+    This hook listens for game notifications and changes the UI based on the notification received.
+    On game started, we would like to hide lobby GUI (like players ready and so on),
+    and on victory we would like to change our current subscene to the victory one (with the victory
+    label) and schedule our return home in a specific amount of time.
+    """
+
     gui = resources[IngameGUI]
     scheduler = resources[SystemScheduler]
 
@@ -259,6 +276,8 @@ def go_back_to_menu(resources: Resources):
 
 @run_if(resource_exists, IngameGUI)
 def on_player_weapon_use(resources: Resources, event: CharacterUsedWeaponEvent):
+    "When the main player uses a weapon, we would like to play an animation"
+
     gui = resources[IngameGUI]
     
     if event.is_main:
@@ -266,10 +285,14 @@ def on_player_weapon_use(resources: Resources, event: CharacterUsedWeaponEvent):
 
 @run_if(resource_exists, IngameGUI)
 def on_main_player_crook_revelation(resouces: Resources, _):
+    "When our main player is a crook, we would like to change its weapon sprites to different ones"
+
     resouces[IngameGUI].use_robber_weapon()
 
 @run_if(resource_exists, IngameGUI)
 def on_main_player_death(resouces: Resources, _):
+    "When our main player dies, we should enter the spectator mode and disable most GUIs"
+
     resouces[IngameGUI].enter_spectator_mode()
 
 class IngameGUIPlugin(Plugin):

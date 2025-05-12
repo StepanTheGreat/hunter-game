@@ -23,7 +23,9 @@ class CurrentPerspectiveAttached:
         "This perspective isn't attached to anything"
         self.attached_entity = None
 
-def move_perspective(resources: Resources):
+def move_perspective_system(resources: Resources):
+    "Move all neccessary components to the currently attached perspective (for example move the camera)"
+
     world = resources[WorldECS]
     camera = resources[Camera3D]
     pespective_attached = resources[CurrentPerspectiveAttached]
@@ -48,4 +50,4 @@ def move_perspective(resources: Resources):
 class PerspectivePlugin(Plugin):
     def build(self, app):
         app.insert_resource(CurrentPerspectiveAttached())
-        app.add_systems(Schedule.PreDraw, move_perspective)
+        app.add_systems(Schedule.PreDraw, move_perspective_system)

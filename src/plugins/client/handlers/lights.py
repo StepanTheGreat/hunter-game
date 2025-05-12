@@ -27,6 +27,8 @@ def change_lighting_on_game_notification(resources: Resources, command: GameNoti
     lights.lights_enabled = not lights_enabled
     
 def on_reset_lights_command(resources: Resources, _):
+    "When we receive a reset lights command, we would like to... reset our lights to clear"
+
     lights = resources[LightManager]
 
     lights.set_ambient_color(CLEAR_LIGHTING)

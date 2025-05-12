@@ -7,7 +7,7 @@ from .gui import GUIPlugin
 from .perspective import PerspectivePlugin
 # from .telemetry import TelemetryMenuPlugin
 
-from .minimap import MinimapPlugin
+# from .minimap import MinimapPlugin
 from .maprender import MapRendererPlugin
 
 class ClientServicesPlugin(Plugin):
@@ -16,7 +16,7 @@ class ClientServicesPlugin(Plugin):
             GraphicsPlugin(),
 
             MapRendererPlugin(),
-            MinimapPlugin(),
+            # MinimapPlugin(),
 
             GUIPlugin(),
             PlayerStatsPlugin(),

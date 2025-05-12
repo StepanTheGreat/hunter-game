@@ -10,6 +10,7 @@ class PlayerStats:
 
     def update_health(self, new_health: float):
         assert 0 <= new_health <= 1
+        
         self.health = new_health
 
     def get_health(self) -> float:

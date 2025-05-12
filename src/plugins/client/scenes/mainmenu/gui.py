@@ -18,6 +18,8 @@ from plugins.rpcs.listener import AvailableServerCommand
 from plugins.server import ServerExecutor
 
 class MainMenuGUI:
+    "Our main game GUI"
+
     BUTTON_SIZE = (312, 64)
 
     def __init__(self, resources: Resources):
@@ -105,9 +107,13 @@ class MainMenuGUI:
 
 @run_if(resource_exists, MainMenuGUI)
 def on_connection_accepted(resources: Resources, _: ServerConnectedEvent):
+    "When a connection is accepted by the server - we would like to switch the current scene and load the game"
+
     resources[EventWriter].push_event(CheckoutSceneCommand(CheckoutScene.InGame))
 
 def on_available_server(resources: Resources, command: AvailableServerCommand):
+    "The currently lazy approach is to simply automatically connect to any available server this client sees."
+
     new_client = Client(resources, CLIENT_RPCS)
     new_client.try_connect(command.addr)
     insert_network_actor(resources, new_client)

@@ -63,6 +63,8 @@ def on_new_main_player(resources: Resources, event: ComponentsAddedEvent):
         resources[EventWriter].push_event(ResetPlayerStatsHealthCommand())
 
 def on_sync_health_command(resources: Resources, command: SyncHealthCommand):
+    "When we receive a health sync packet - we should change the amount of health our player has"
+
     world = resources[WorldECS]
 
     # When we receive this command, we would like to syncronize our health

@@ -3,6 +3,12 @@ from plugins.shared.components import *
 
 @component
 class RenderPosition:
+    """
+    A render position is an interpolated physics position. Because fixed ticks are independent from
+    the frame rate, and thus it's possible for us to render more frequently than update physics - we must
+    interpolate our positions to avoid the lag. That's exactly what render components are about
+    """
+
     def __init__(self):
         self.positions = Interpolated(pg.Vector2(0, 0))
         self.interpolated = self.positions.get_value()
@@ -18,6 +24,7 @@ class RenderPosition:
 
 @component
 class RenderAngle:
+    "Essentially the same as RenderPosition, but for angles"
     def __init__(self):
         self.angles = InterpolatedDegrees(0)
         self.interpolated = self.angles.get_value()

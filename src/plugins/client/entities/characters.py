@@ -22,6 +22,7 @@ def make_client_policeman(
     ismain: bool,
     assets: AssetManager
 ) -> tuple:
+    "Essentially the same as the shared version, but for the client version (graphics + other components)"
 
     texture = assets.load(Texture, "images/sprites.atl#policeman")
 

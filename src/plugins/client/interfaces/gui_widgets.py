@@ -320,6 +320,7 @@ class TextureRect(SizedBox):
         renderer.draw_texture(self.texture, (x, y), (w, h), self.color)
 
 class Label(GUIElement):
+    "A GUI element that simply renders text"
     def __init__(
             self, 
             font: FontGPU, 
