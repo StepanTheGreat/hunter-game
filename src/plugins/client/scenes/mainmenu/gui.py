@@ -31,8 +31,6 @@ class MainMenuGUI:
     def enter_mainmenu_subscene(self):
         font = self.assets.load(FontGPU, "fonts/font.ttf")
 
-        background = ColorRect((0, 0, 255))
-
         # def insert_ingame_scene(as_server: bool):
             # self.resources[SceneManager].insert_scene(IngameScene(self.resources, as_server))
 
@@ -67,28 +65,25 @@ class MainMenuGUI:
         *_, tree_w, tree_h =  create_btn.measure_tree()
         create_btn.set_margin(-tree_w/2, -tree_h/2)
 
-        self.ewriter.push_event(ReplaceGUICommand([background, create_btn]))
+        self.ewriter.push_event(ReplaceGUICommand([create_btn]))
 
     def enter_settings_subscene(self):
         font = self.assets.load(FontGPU, "fonts/font.ttf")
-
-        background = ColorRect((100, 100, 100))
 
         def go_back():
             self.enter_mainmenu_subscene()
 
         back_btn = (TextButton(font, "<<", (0, 0), (64, 64))
-            .attached_to(background)
             .with_callback(go_back))
 
-        resolution_label = Label(font, "Resolution: ", (0.5, 0.5), text_scale=0.5).attached_to(background)
+        resolution_label = Label(font, "Resolution: ", (0.5, 0.5), text_scale=0.5)
         keys_label = Label(font, "Keys: ", (0, 1), text_scale=0.5).attached_to(resolution_label)
         vsync = Label(font, "Vsync: ", (0, 1), text_scale=0.5).attached_to(keys_label)
 
         *_, tree_w, tree_h =  resolution_label.measure_tree()
         resolution_label.set_margin(-tree_w/2, -tree_h/2)
         
-        self.ewriter.push_event(ReplaceGUICommand([background]))
+        self.ewriter.push_event(ReplaceGUICommand([back_btn, resolution_label]))
 
 @run_if(resource_exists, MainMenuGUI)
 def on_connection_accepted(resources: Resources, _: ServerConnectedEvent):

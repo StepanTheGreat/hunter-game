@@ -3,13 +3,15 @@
 import numpy as np
 import moderngl as gl
 
-from plugin import Resources, Plugin, Schedule, run_if, resource_exists
+from plugin import Resources, Plugin, Schedule
 
 from typing import Optional
 
 from plugins.shared.interfaces.map import *
 from plugins.client.events import WorldMapLoadedEvent, WorldMapUnloadedEvent
+from plugins.client.entities import make_map_camera
 
+from plugins.client.components import Camera
 from plugins.client.services.graphics.render3d import * 
 
 from core.graphics import *
@@ -286,47 +288,85 @@ class MapModel:
             model.release()
         self.models.clear()
 
-@run_if(resource_exists, MapModel)
-def render_map(resources: Resources):
-    map_model = resources[MapModel]
-    renderer = resources[ModelRenderer]
+class MapRenderer:
+    "A map model renderer. Optionally holds the current map model and renders it if present"
 
-    renderer.set_skybox(map_model.skybox)
-    for model in map_model.get_models():
-        renderer.push_model(*model)
+    def __init__(self):
+        self.map_model: Optional[MapModel] = None
 
-def unload_map_model(resources: Resources):
+    def render(self, renderer: ModelRenderer):
+        map_model = self.map_model
+        if map_model is None:
+            return
+
+        renderer.set_skybox(map_model.skybox)
+        for model in map_model.get_models():
+            renderer.push_model(*model)
+
+    def set_map_model(self, to: Optional[MapModel]):
+        "Swap the current map model with a new one. If a map model is already present - will clean it up"
+
+        if self.map_model is not None:
+            self.map_model.release()
+
+        self.map_model = to
+
+def render_map_system(resources: Resources):
+    resources[MapRenderer].render(resources[ModelRenderer])
+
+def _unload_map_model(resources: Resources):
     "A helper function that will perform map model clean up if present"
+    
+    world = resources[WorldECS]
+    renderer = resources[MapRenderer]
+    
+    # Remove all existing map cameras
+    with world.command_buffer() as cmd:
+        for ent, _ in world.query_component(Camera):
+            cmd.remove_entity(ent)
 
-    if MapModel in resources:
-        resources[MapModel].release()
-        resources.remove(MapModel)
+    # Clean up our current map model
+    renderer.set_map_model(None)
 
-def load_map_model(resources: Resources, wmap: WorldMap):
+def _load_map_model(resources: Resources, wmap: WorldMap):
     "A helper function that will load a new map model and clean up the old map model if present"
+    
+    world = resources[WorldECS]
+    renderer = resources[MapRenderer]
 
-    unload_map_model(resources)
+    # First unload our existing map and its camera
+    _unload_map_model(resources)
 
-    resources.insert(MapModel(
-        resources[GraphicsContext], 
-        resources[AssetManager], 
-        resources[ModelRenderer], 
-        wmap
-    ))
+    # Now, create our new map camera
+    world.create_entity(
+        *make_map_camera(wmap.get_map_camera())
+    )
+
+    # And load our new map model
+    renderer.set_map_model(
+        MapModel(
+            resources[GraphicsContext], 
+            resources[AssetManager], 
+            resources[ModelRenderer], 
+            wmap
+        )
+    )
 
 def on_worldmap_loaded(resources: Resources, _):
     "When a world map is loaded, we would like to generate a map model for it"
 
-    load_map_model(resources, resources[WorldMap])
+    _load_map_model(resources, resources[WorldMap])
 
 def on_worldmap_unloaded(resources: Resources, _):
     "If a world map is unloaded - we will clean up the map model"
 
-    unload_map_model(resources)
+    _unload_map_model(resources)
 
 class MapRendererPlugin(Plugin):
     def build(self, app):
-        app.add_systems(Schedule.PostDraw, render_map)
+        app.insert_resource(MapRenderer())
+
+        app.add_systems(Schedule.PostDraw, render_map_system)
 
         app.add_event_listener(WorldMapLoadedEvent, on_worldmap_loaded)
         app.add_event_listener(WorldMapUnloadedEvent, on_worldmap_unloaded)

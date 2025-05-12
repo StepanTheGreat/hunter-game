@@ -1,0 +1,27 @@
+{   
+    "size": 1,
+
+    "wall_height": 1,
+    "wall_width": 1,
+    
+    "wall_map": [[0]],
+    "floor_map": [[0]],
+    "ceiling_map": [[0]],
+
+    "wall_props": {},
+    "platform_props": {},
+
+    "map_camera": {
+        "x": 0,
+        "y": 20,
+        "height": 40,
+        "angle": 60,
+        "angle_vel": 0.02
+    },
+    "map_skybox": {
+        "left": "images/skybox.atl#normal",
+        "front": "images/skybox.atl#moon",
+        "right": "images/skybox.atl#normal",
+        "back": "images/skybox.atl#normal"
+    }
+}

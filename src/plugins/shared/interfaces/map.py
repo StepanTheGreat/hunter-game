@@ -1,3 +1,5 @@
+import numpy as np
+
 from core.ecs import WorldECS
 
 from plugins.shared.events.map import *
@@ -95,7 +97,8 @@ WORLDMAP_JSON_SCHEMA = {
                 "height": {"type": "number"},
 
                 # The direction of the camera in degrees
-                "angle": {"type": "number"}
+                "angle": {"type": "number"},
+                "angle_vel": {"type": "number"}
             },
             "required": ["x", "y", "height", "angle"]
         },
@@ -203,10 +206,11 @@ class MapSkybox:
 class MapCamera:
     "The map scene camera (when there are no players). Especially useful for game menus"
 
-    def __init__(self, pos: tuple[float, float], height: float, angle: float):
+    def __init__(self, pos: tuple[float, float], height: float, angle: float, angle_vel: float):
         self.pos = pos
         self.height = height
-        self.angle = angle
+        self.angle = np.radians(angle)
+        self.angle_vel = angle_vel
 
 class WorldMap:
     def __init__(

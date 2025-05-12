@@ -22,3 +22,7 @@ class Sprite:
         self.y: float = y
         self.texture: Texture = texture
         self.size: pg.Vector2 = pg.Vector2(size[0], size[1])
+
+@component
+class Camera:
+    "Simply a marker for entities who's entire purpose is to see the world"

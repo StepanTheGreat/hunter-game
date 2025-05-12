@@ -2,6 +2,9 @@ from plugin import Plugin, Resources
 
 from modules.scene import SceneBundle
 
+from plugins.client.commands import *
+
+from plugins.shared.interfaces.map import WorldMap
 from plugins.shared.services.network import BroadcastListener, insert_network_actor, clean_network_actors
 from plugins.rpcs.listener import LISTENER_PORT, LISTENER_RPCS
 
@@ -13,6 +16,13 @@ class MainMenuScene(SceneBundle):
         self.add_auto_resources(
             MainMenuGUI(resources),
         )
+    
+
+    def pre_init(self, resources):
+        assets = resources[AssetManager]
+
+        wmap = assets.load(WorldMap, "maps/mainmenu.json")
+        resources[EventWriter].push_event(LoadMapCommand(wmap))
 
     def post_init(self, resources):
         # We're going to listen for server events right when we connect

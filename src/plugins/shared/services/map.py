@@ -47,11 +47,21 @@ def loader_world_map(resources: Resources, path: str) -> WorldMap:
 
     # Finally, construct the `MapCamera` object from the given data
     map_camera = map_json["map_camera"]
-    map_camera = MapCamera((map_camera["x"], map_camera["y"]), map_camera["height"], map_camera["angle"])
+    map_camera = MapCamera(
+        (map_camera["x"], map_camera["y"]), 
+        map_camera["height"], 
+        map_camera["angle"],
+        map_camera.get("angle_vel", 0)
+    )
 
     map_skybox = map_json.get("map_skybox")
     if map_skybox is not None:
-        map_skybox = MapSkybox(map_skybox["left"], map_skybox["front"], map_skybox["right"], map_skybox["back"])
+        map_skybox = MapSkybox(
+            map_skybox["left"], 
+            map_skybox["front"], 
+            map_skybox["right"], 
+            map_skybox["back"]
+        )
 
     # And return our world map object!
     return WorldMap(
