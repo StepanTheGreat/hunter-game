@@ -31,6 +31,15 @@ class MainMenuGUI:
     def enter_mainmenu_subscene(self):
         font = self.assets.load(FontGPU, "fonts/font.ttf")
 
+        game_title_label = Label(
+            font,
+            "Hunter Game",
+            (0.5, 0),
+            (0.5, 0),
+            (255, 200, 50),
+            0.5
+        ).with_margin(0, 10)
+
         music_credits_label = Label(
             font, 
             "Music made by Karl Casey @ White Bat Audio", 
@@ -70,7 +79,11 @@ class MainMenuGUI:
         *_, tree_w, tree_h =  create_btn.measure_tree()
         create_btn.set_margin(-tree_w/2, -tree_h/2)
 
-        self.ewriter.push_event(ReplaceGUICommand([music_credits_label, create_btn]))
+        self.ewriter.push_event(ReplaceGUICommand([
+            game_title_label,
+            music_credits_label,
+            create_btn
+        ]))
 
     def enter_settings_subscene(self):
         font = self.assets.load(FontGPU, "fonts/font.ttf")

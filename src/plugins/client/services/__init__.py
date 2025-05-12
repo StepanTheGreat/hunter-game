@@ -5,7 +5,7 @@ from .session import SessionPlugin
 from .graphics import GraphicsPlugin
 from .gui import GUIPlugin
 from .perspective import PerspectivePlugin
-from .telemetry import TelemetryMenuPlugin
+# from .telemetry import TelemetryMenuPlugin
 
 from .minimap import MinimapPlugin
 from .maprender import MapRendererPlugin
@@ -22,5 +22,5 @@ class ClientServicesPlugin(Plugin):
             PlayerStatsPlugin(),
             SessionPlugin(),
             PerspectivePlugin(),
-            TelemetryMenuPlugin()
+            # TelemetryMenuPlugin()
         )
