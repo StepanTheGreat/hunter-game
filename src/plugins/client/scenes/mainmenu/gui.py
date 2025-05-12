@@ -1,6 +1,7 @@
 from plugin import Resources, Plugin, EventWriter, run_if, resource_exists
 
 from core.assets import AssetManager
+from core.events import QuitEvent
 
 from plugins.client.services.graphics import FontGPU
 from plugins.client.interfaces.gui_widgets import TextButton, ColorRect, Label
@@ -55,7 +56,7 @@ class MainMenuGUI:
             .attached_to(create_btn))
         
         def quit_game():
-            exit()
+            self.ewriter.push_event(QuitEvent(None))
 
         quit_btn = (TextButton(font, "Quit", (0, 1), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
             .with_margin(0, 10)

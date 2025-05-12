@@ -64,31 +64,35 @@ class Screen:
     def update_resolution(self, new_width: int, new_height: int):
         "This method can only be called from the event listener when the screen resolution has changed"
         self.width, self.height = new_width, new_height
-    
-def update_sceen_size(resources: Resources, event: WindowResizeEvent):
-    resources[Screen].update_resolution(event.new_width, event.new_height)
+
+class ShouldQuit:
+    "The sole purpose of this resource is to just let apps control when the app should quit"
+    def __init__(self):
+        self.quit: bool = False
+
+    def queue_quit(self):
+        self.quit = True
+
+    def should_quit(self) -> bool:
+        return self.quit
 
 def pygame_runner(app: App):
     event_writer = app.get_resource(EventWriter)
     event_map = app.get_resource(PygameEventMap)
     clock = app.get_resource(Clock)
-    should_quit = False
-
+    should_quit = app.get_resource(ShouldQuit)
     caught_exception = None
 
     app.startup()
 
     try:
-        while not should_quit:
+        while not should_quit.should_quit():
             clock.update()
 
             for event in pg.event.get():
-                if event.type != pg.QUIT:
-                    event_writer.push_event(
-                        event_map.map_event(event)
-                    )
-                else:
-                    should_quit = True
+                event_writer.push_event(
+                    event_map.map_event(event)
+                )
 
             app.update(clock.get_fixed_updates())
             app.render()
@@ -107,16 +111,24 @@ def pygame_runner(app: App):
 
     if caught_exception is not None:
         raise caught_exception
+    
+def update_sceen_size(resources: Resources, event: WindowResizeEvent):
+    resources[Screen].update_resolution(event.new_width, event.new_height)
+
+def on_quit_event(resources: Resources, _):
+    resources[ShouldQuit].queue_quit()
 
 class PygamePlugin(Plugin):
     def build(self, app):
         app.insert_resource(PygameEventMap())
         app.insert_resource(Screen(CONFIG.width, CONFIG.height, CONFIG.title, VIDEO_FLAGS, CONFIG.vsync))
         app.insert_resource(Clock(CONFIG.fps, CONFIG.fixed_fps))
+        app.insert_resource(ShouldQuit())
         app.set_runner(pygame_runner)
 
         add_pygame_event_maps(
             app,
+            (pg.QUIT, QuitEvent),
             (pg.MOUSEMOTION, MouseMotionEvent),
             (pg.VIDEORESIZE, WindowResizeEvent),
             (pg.MOUSEBUTTONDOWN, MouseButtonDownEvent),
@@ -124,3 +136,4 @@ class PygamePlugin(Plugin):
         )
 
         app.add_event_listener(WindowResizeEvent, update_sceen_size)
+        app.add_event_listener(QuitEvent, on_quit_event)

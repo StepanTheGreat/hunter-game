@@ -37,3 +37,9 @@ class MouseButtonUpEvent:
         self.x = event.pos[0]
         self.y = event.pos[1]
         self.button = event.button
+
+@event
+class QuitEvent:
+    "An event that gets fired when the user would like to quit. This will stop the entire application"
+    def __init__(self, _):
+        pass
