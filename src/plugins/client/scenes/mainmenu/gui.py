@@ -110,13 +110,9 @@ class MainMenuGUI:
 
         background = ColorRect((0, 0, 255))
         
-        def go_to_play_menu():
-            print("testtesttest")
-            self.enter_play_subscene()
 
-        play_btn = (TextButton(font, "Play", (0.5, 0.5), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
-            #.with_callback(lambda: insert_ingame_scene(False)))
-            .with_callback(go_to_play_menu))
+        play_btn = (TextButton(font, "Create Server", (0.5, 0.5), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
+            .with_callback(lambda: insert_ingame_scene(False)))
 
         
 
@@ -165,50 +161,6 @@ class MainMenuGUI:
         
         self.gui.replace_gui([
             background, back_btn, resolution_label, 
-        ])
-
-    def enter_play_subscene(self):
-        font = self.assets.load(FontGPU, "fonts/font.ttf")
-        
-
-        def start_game_session(as_server: bool):
-            # self.resources[SceneManager].insert_scene(IngameScene(self.resources))
-            # return
-            new_client = Client(self.resources, CLIENT_RPCS)
-            if as_server:
-                print("Pressed as the server")
-                addr = self.resources[ServerExecutor].start_server()
-            else:
-                print("Pressed as a client")
-                addr = input("Address: ")
-                ip, port = addr.split(":")
-                addr = (ip, int(port))
-
-            new_client.try_connect(addr)
-            insert_network_actor(self.resources, new_client)
-
-        background = ColorRect((0, 100, 100))
-
-        def go_back():
-            self.enter_mainmenu_subscene()
-
-        back_btn = (TextButton(font, "<<", (0, 0), (64, 64))
-            .with_callback(go_back))
-
-        join_btn = (TextButton(font, "Join Game", (0.5, 0.5), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
-            .with_callback(lambda: start_game_session(False))
-            )
-        
-        create_btn = (TextButton(font, "Create Game", (0, 1), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
-            .with_callback(lambda: start_game_session(True))
-            .with_margin(0, 10)
-            .attached_to(join_btn))
-
-        *_, tree_w, tree_h =  join_btn.measure_tree()
-        join_btn.set_margin(-tree_w/2, -tree_h/2)
-        
-        self.gui.replace_gui([
-            background, back_btn, join_btn,
         ])
 
 
