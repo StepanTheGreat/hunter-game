@@ -42,28 +42,32 @@ class MainMenuGUI:
                 new_client.try_connect(addr)
                 insert_network_actor(self.resources, new_client)            
 
-        join_btn = (TextButton(font, "Join Game", (0.5, 0.5), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
-            .attached_to(background)
-            .with_callback(lambda: start_game_session(False)))
-        
-        create_btn = (TextButton(font, "Create Game", (0, 1), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
+        create_btn = (TextButton(font, "Create Game", (0.5, 0.5), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
             .with_callback(lambda: start_game_session(True))
-            .with_margin(0, 4)
-            .attached_to(join_btn))
+            )
 
         def go_to_settings():
             self.enter_settings_subscene()
 
         settings_btn = (TextButton(font, "Settings", (0, 1), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
-            .with_margin(0, 4)
+            .with_margin(0, 10)
             .with_callback(go_to_settings)
             .attached_to(create_btn))
         
-        # These 2 lines will measure the tree, and using margin try to align them
-        *_, tree_w, tree_h =  join_btn.measure_tree()
-        join_btn.set_margin(-tree_w/2, -tree_h/2)
+        def quit_game():
+            print("testtest")
+            exit()
 
-        self.ewriter.push_event(ReplaceGUICommand([background]))
+        quit_btn = (TextButton(font, "Quit", (0, 1), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
+            .with_margin(0, 10)
+            .with_callback(quit_game)
+            .attached_to(settings_btn))
+        
+        # These 2 lines will measure the tree, and using margin try to align them
+        *_, tree_w, tree_h =  create_btn.measure_tree()
+        create_btn.set_margin(-tree_w/2, -tree_h/2)
+
+        self.ewriter.push_event(ReplaceGUICommand([background, create_btn]))
 
     def enter_settings_subscene(self):
         font = self.assets.load(FontGPU, "fonts/font.ttf")

@@ -370,6 +370,7 @@ class BaseButton(GUIElement):
         self.clicked = False
         self.immediate = True
         self.callback: Callable[[], None] = None
+        self.hovering = False
 
     def _call_callback(self):
         if self.callback is not None:
@@ -398,8 +399,9 @@ class BaseButton(GUIElement):
 
     def on_event(self, event):
         rect = self.get_rect()
-
-        if not self.clicked and type(event) == MouseButtonDownEvent:
+        if type(event) == MouseMotionEvent:
+            self.hovering = rect.collidepoint((event.x, event.y))
+        elif not self.clicked and type(event) == MouseButtonDownEvent:
             if rect.collidepoint((event.x, event.y)):
                 if self.immediate:
                     self._call_callback()
@@ -456,7 +458,11 @@ class TextButton(BaseButton):
     def draw(self, renderer):
         rect = self.get_rect()
         
-        bg_color = (40, 40, 40) if self.clicked else (100, 100, 100)
+        bg_color = (100, 100, 100)
+        if self.clicked:
+            bg_color = (40,40,40) 
+        elif self.hovering:
+            bg_color = (80,80,80)
 
         renderer.draw_rect((rect.x, rect.y, rect.w, rect.h), bg_color)
 
