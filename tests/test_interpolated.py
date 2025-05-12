@@ -1,5 +1,5 @@
 from ward import test
-from modules.inteprolation import Interpolated, InterpolatedAngle
+from modules.inteprolation import Interpolated, InterpolatedDegrees
 
 import numpy as np
 
@@ -23,7 +23,7 @@ def _():
 def _():
     rad = lambda degrees: np.radians(degrees)-np.pi
 
-    i = InterpolatedAngle(rad(350))
+    i = InterpolatedDegrees(rad(350))
 
     i.push_value(rad(10))
 
