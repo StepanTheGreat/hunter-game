@@ -356,6 +356,7 @@ class Renderer2D:
         x, y = pos
         w, h = size if size is not None else texture.texture.size
         uv_x, uv_y, uv_w, uv_h = texture.region
+        uv_w, uv_h = uv_x+uv_w, uv_y+uv_h
 
         return DrawCall(make_quad(
             ((x,    y),    (uv_x,     uv_y),         color),

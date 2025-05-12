@@ -305,18 +305,17 @@ class ColorRect(FillBox):
         x, y, w, h = self.get_rect()
         renderer.draw_rect((x, y, w, h), self.color)
 
-class TextureRect(FillBox):
+class TextureRect(SizedBox):
     "A texture element"
-    def __init__(self, texture: Texture):
-        super().__init__()
+    def __init__(self, texture: Texture, size: tuple[float, float], edge: tuple[float, float], pivot: tuple[float, float]):
+        super().__init__(edge, pivot, size)
 
         self.texture = texture
         self.color = (255, 255, 255)
-        self.uv_rect = (0, 0, 1, 1)
 
     def draw(self, renderer):
         x, y, w, h = self.get_rect()
-        renderer.draw_texture(self.texture, (x, y), (w, h), self.color, self.uv_rect)
+        renderer.draw_texture(self.texture, (x, y), (w, h), self.color)
 
 class Label(GUIElement):
     def __init__(

@@ -3,6 +3,7 @@
     "sources": {
         "character": "character.png",
         "meteorite": "meteorite.png",
-        "diamond": "diamond.png"
+        "diamond": "diamond.png",
+        "crosshair": "crosshair.png"
     }
 }

@@ -1,10 +1,10 @@
 from plugin import Plugin, Resources, EventWriter, resource_exists, run_if
 
 from core.assets import AssetManager
-from core.graphics import FontGPU
+from core.graphics import FontGPU, Texture
 from core.time import SystemScheduler
 
-from plugins.client.interfaces.gui_widgets import GUIElement, TextButton, Label
+from plugins.client.interfaces.gui_widgets import GUIElement, TextButton, Label, TextureRect
 from plugins.client.services.playerstats import PlayerStats
 from plugins.shared.services.network import Client, clean_network_actors
 
@@ -64,6 +64,7 @@ class IngameGUI:
         self.assets = resources[AssetManager]
         self.dispatcher = resources[ClientActionDispatcher]
 
+
         self.font = self.assets.load(FontGPU, "fonts/font.ttf")
 
         def on_quit():
@@ -75,6 +76,13 @@ class IngameGUI:
 
         self.healthbar = PlayerHealthbar((1, 0), (1, 0), (260, 32), 6, self.resources[PlayerStats])
         self.players_ready_label = Label(self.font, "Players ready: 0/0", (0.5, 1), (0.5, 1), (255, 255, 255), 0.3)
+
+        self.crosshair = TextureRect(
+            self.assets.load(Texture, "images/sprites.atl#crosshair"),
+            (32, 32),
+            (0.5, 0.5),
+            (0.5, 0.5)
+        )
 
         self.ewriter.push_event(ClearGUICommand())
         self.enter_waiting_stage()
@@ -102,7 +110,8 @@ class IngameGUI:
     def enter_game_stage(self):
         self.ewriter.push_event(ReplaceGUICommand([
             self.healthbar,
-            self.quit_btn
+            self.quit_btn,
+            self.crosshair
         ]))
 
     def enter_finish_stage(self, policemen_won: bool):
@@ -113,6 +122,7 @@ class IngameGUI:
 
         self.ewriter.push_event(ReplaceGUICommand([
             self.healthbar,
+            self.crosshair,
             victory_label
         ]))
 
