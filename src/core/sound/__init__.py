@@ -13,11 +13,12 @@ pg.mixer.init()
 
 class Sound:
     "A sound container for pygame sounds"
-    def __init__(self, sound: pg.mixer.Sound):
+    def __init__(self, sound: pg.mixer.Sound):        
         self.sound: pg.mixer.Sound = sound
 
     def play(self, volume: float = 1):
-        self.sound.play().set_volume(volume)
+        self.sound.set_volume(volume)
+        self.sound.play()
 
 class SoundPack:
     """

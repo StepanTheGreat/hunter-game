@@ -12,6 +12,8 @@ def play_sound_on_lights_on(resources: Resources, command: GameNotificationComma
     notification = command.notification
     if notification is GameNotification.LightsOn:
         sounds.play_sound("sounds/sirene.wav")
+    elif notification in (GameNotification.PolicemenWon, GameNotification.RobberWon):
+        sounds.play_sound("sounds/game_end.wav")
 
 class SessionSoundHandlersPlugin(Plugin):
     def build(self, app):
