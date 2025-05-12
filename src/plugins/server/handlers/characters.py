@@ -13,7 +13,7 @@ from plugins.server.services.state import CurrentGameState, GameState, LightsOn
 
 import random
 
-def on_game_started(resources: Resources, _):
+def teleport_and_buff_on_game_started(resources: Resources, _):
     """
     A procedure that essentially is going to take a random player, give it robber components,
     and also dispatch appropriate action to notify all other players.
@@ -52,6 +52,16 @@ def on_game_started(resources: Resources, _):
     for _, robber_pos in world.query_component(Position, including=Robber):
         _, new_spawnpoint = random.choice(robber_spawnpoints)
         robber_pos.set_position(*new_spawnpoint.get_position())
+
+    # Now we're going to buff policemen
+
+    policemen = world.query_component(Policeman)    
+    damage_mult = 1/max(len(policemen), 1) 
+    # We're going to reduce the damage based on the amount of policemen. More = less
+
+    # Add to each a damage multiplier component with said damage rate
+    for ent, _ in policemen:
+        world.add_components(ent, DamageMultiplier(damage_mult))
 
 def on_robber_death(resources: Resources, event: ComponentsRemovedEvent):
     "This handler changes the current state of the game and pushed the victory notifications whenever the robber has died"
@@ -97,10 +107,11 @@ def on_policeman_death(resources: Resources, event: ComponentsRemovedEvent):
 
     dispatcher.dispatch_action(GameNotificationAction(GameNotification.LightsOn))
     ewriter.push_event(LightsOnEvent())
+    
 
 class CharactersHandlersPlugin(Plugin):
     def build(self, app):
-        app.add_event_listener(GameStartedEvent, on_game_started)
+        app.add_event_listener(GameStartedEvent, teleport_and_buff_on_game_started)
 
         app.add_event_listener(ComponentsRemovedEvent, on_robber_death)
         app.add_event_listener(ComponentsRemovedEvent, on_policeman_death)

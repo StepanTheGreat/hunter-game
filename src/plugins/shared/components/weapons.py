@@ -71,7 +71,7 @@ class ProjectileFactory:
             self.user_components
         )
 
-    def make_projectile(self, pos: tuple[float, float], direction: tuple[float, float]) -> tuple:
+    def make_projectile(self, pos: tuple[float, float], direction: tuple[float, float], dmg_mult: float) -> tuple:
         "Construct a projectile component bundle (ready to spawn)"
         
         pos = (pos[0] + direction[0]*self.spawn_offset, pos[1] + direction[1]*self.spawn_offset)
@@ -85,7 +85,7 @@ class ProjectileFactory:
 
             # For every user component function, we're going to call it and collect into our components
             *(user_comp() for user_comp in self.user_components),
-            Projectile(self.damage, self.pierce),
+            Projectile(self.damage*dmg_mult, self.pierce),
             GameEntity()
         )
 
@@ -94,6 +94,13 @@ class WeaponStats:
     def __init__(self, cooldown: float = 1, automatic: bool = False):
         self.cooldown = cooldown
         self.automatic = automatic
+
+@component
+class DamageMultiplier:
+    "A component that simply multiplies all damage to projectiles for entities with said component by the provided amount"
+
+    def __init__(self, by: float):
+        self.by = by
 
 @component
 class Weapon:
@@ -119,7 +126,7 @@ class Weapon:
         "Is the weapon's cooldown down AND it's actively used?"
         return self.is_shooting and self.on_cooldown <= 0
     
-    def shoot(self, pos: tuple[float, float], direction: tuple[float, float]) -> tuple:
+    def shoot(self, pos: tuple[float, float], direction: tuple[float, float], dmg_mult: float = 1) -> tuple:
         "Reset all timers and produce a projectile to shoot"
         assert self.may_shoot(), "Can only shoot when the cooldown is down and the weapon is used"
 
@@ -127,7 +134,7 @@ class Weapon:
         if not self.automatic:
             self.is_shooting = False
 
-        return self.projectile_factory.make_projectile(pos, direction)
+        return self.projectile_factory.make_projectile(pos, direction, dmg_mult)
 
     def start_shooting(self):
         self.is_shooting = True

@@ -9,12 +9,12 @@ ROBBER_PROJECTILE = ProjectileFactory(
     True,
     speed=10,
     radius=20,
-    damage=50,
+    damage=100,
     lifetime=0.1,
     spawn_offset=15,
 )
 
-ROBBER_WEAPON_STATS = WeaponStats(0.2, True)
+ROBBER_WEAPON_STATS = WeaponStats(0.4, True)
 
 POLICEMAN_HEALTH = 500
 POLICEMAN_SPEED = 200
@@ -23,12 +23,12 @@ POLICEMAN_PROJECTILE = ProjectileFactory(
     False,
     speed=700,
     radius=5,
-    damage=100,
+    damage=200,
     lifetime=1,
     spawn_offset=0,
 )
 
-POLICEMAN_WEAPON_STATS = WeaponStats(0.4, True)
+POLICEMAN_WEAPON_STATS = WeaponStats(0.5, True)
     
 def make_policeman(uid: int, pos: tuple[float, float]) -> tuple:
     components = (
