@@ -16,8 +16,8 @@ class Sound:
     def __init__(self, sound: pg.mixer.Sound):
         self.sound: pg.mixer.Sound = sound
 
-    def play(self):
-        self.sound.play()
+    def play(self, volume: float = 1):
+        self.sound.play().set_volume(volume)
 
 class SoundPack:
     """
@@ -29,10 +29,10 @@ class SoundPack:
 
         self.sounds = sounds
     
-    def play(self):
+    def play(self, volume: float = 1):
         "Play a random sound from this soundpack"
 
-        rand_choice(self.sounds).play()
+        rand_choice(self.sounds).play(volume)
 
 SOUND_PACK_JSON_SCHEMA = {
     "type": "array",
@@ -62,8 +62,11 @@ def loader_soundpack(resources: Resources, path: str) -> SoundPack:
     return SoundPack(tuple(sounds))
 
 class SoundManager:
-    def __init__(self, assets: AssetManager, music_volume: float):
+    def __init__(self, assets: AssetManager, music_volume: float, sound_volume: float):
         self.assets = assets
+
+        self.music_volume = music_volume
+        self.sound_volume = sound_volume
 
         # Set the default volume to the provided value
         pg.mixer_music.set_volume(music_volume)
@@ -74,7 +77,7 @@ class SoundManager:
         If there are too many sounds - will not add this sound to the source list until
         it's freed.
         """
-        self.assets.load(Sound, path).play()
+        self.assets.load(Sound, path).play(self.sound_volume)
 
     def play_soundpack(self, path: str):
         """
@@ -85,7 +88,7 @@ class SoundManager:
         This will play a random sound from the soundpack
         """
 
-        self.assets.load(SoundPack, path).play()
+        self.assets.load(SoundPack, path).play(self.sound_volume)
 
     def queue_music(self, music_path: str, loops: int = 0):
         pg.mixer_music.queue(self.assets.asset_path(music_path), loops=loops)
@@ -102,7 +105,11 @@ class SoundManager:
 
 class SoundPlugin(Plugin):
     def build(self, app):
-        app.insert_resource(SoundManager(app.get_resource(AssetManager), CONFIG.music_volume))
+        app.insert_resource(SoundManager(
+            app.get_resource(AssetManager), 
+            CONFIG.music_volume,
+            CONFIG.sound_volume
+        ))
 
         add_loaders(app,
             (Sound, loader_sound),
