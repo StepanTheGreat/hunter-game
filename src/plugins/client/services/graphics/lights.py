@@ -24,10 +24,20 @@ class LightManager:
         
         self.light_index = 0
 
+        self.lights_enabled: bool = True
+        """
+        A public attribute that signals if lights are enabled. When lights are disabled - the lights passed
+        to this manager will not get used in rendering. This can be useful when the overall brightness
+        of your scene changes and lights are redundant. 
+        """
+
     def set_ambient_color(self, to: tuple[float, float, float]):
         self.ambient_color = to
 
     def push_light(self, light: Light, pos: RenderPosition):
+        if not self.lights_enabled:
+            return
+
         x, y = pos.get_position()
 
         self.light_positions[self.light_index] = (x, light.y, -y)
@@ -64,6 +74,10 @@ def clear_lights(resources: Resources):
 
 def push_lights(resources: Resources):
     lights = resources[LightManager]
+
+    # If lights are disabled - there's no reason for us to perform any queries or push anything
+    if not lights.lights_enabled:
+        return
 
     for ent, (light, pos) in resources[WorldECS].query_components(Light, RenderPosition)[:lights.max_lights]:
         lights.push_light(light, pos)
