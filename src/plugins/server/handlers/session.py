@@ -7,12 +7,12 @@ from random import choice as rand_choice
 
 from plugins.server.events import AddedClientEvent, RemovedClientEvent, GameStartedEvent
 
-from plugins.server.components import Client, OwnedByClient, NetEntity, Position, OwnsEntity, IsReady, PlayerSpawnpoint
+from plugins.server.components import *
 from plugins.server.entities.characters import make_server_policeman
 from plugins.shared.services.uidman import EntityUIDManager
 from plugins.shared.services.network import Server
 
-from plugins.server.commands import SignalPlayerReadyCommand
+from plugins.server.commands import SignalPlayerReadyCommand, StopServerBroadcastingCommand
 
 from plugins.server.actions import *
 
@@ -149,6 +149,7 @@ def on_client_ready(resources: Resources, command: SignalPlayerReadyCommand):
 
 def on_game_started(resources: Resources, _):
     resources[Server].accept_incoming_connections(False)
+    resources[EventWriter].push_event(StopServerBroadcastingCommand())
 
 class SessionHandlersPlugin(Plugin):
     def build(self, app):
