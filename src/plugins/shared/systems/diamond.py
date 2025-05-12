@@ -6,7 +6,7 @@ from core.ecs import WorldECS
 from plugins.shared.components import *
 from plugins.shared.events.entities import *
 
-DIAMOND_PICKUP_DISTANCE = 64
+DIAMOND_PICKUP_DISTANCE = 80
 
 def tick_diamonds_system(resources: Resources):
     "Update all in-game diamonds and if they're getting picked-up - push events"

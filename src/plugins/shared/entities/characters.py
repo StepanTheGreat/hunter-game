@@ -23,7 +23,7 @@ POLICEMAN_PROJECTILE = ProjectileFactory(
     False,
     speed=700,
     radius=5,
-    damage=200,
+    damage=250,
     lifetime=1,
     spawn_offset=0,
 )
