@@ -55,7 +55,6 @@ class MainMenuGUI:
             .attached_to(create_btn))
         
         def quit_game():
-            print("testtest")
             exit()
 
         quit_btn = (TextButton(font, "Quit", (0, 1), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
