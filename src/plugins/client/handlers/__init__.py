@@ -6,6 +6,7 @@ from .diamond import DiamondHandlersPlugin
 from .entities import EntitiesHandlersPlugin
 from .lights import LightsHandlersPlugin
 from .sounds import SoundHandlersPlugin
+from .music import MusicHandlersPlugin
 
 class ClientHandlersPlugin(Plugin):
     def build(self, app):
@@ -15,5 +16,6 @@ class ClientHandlersPlugin(Plugin):
             DiamondHandlersPlugin(),
             EntitiesHandlersPlugin(),
             LightsHandlersPlugin(),
-            SoundHandlersPlugin()
+            SoundHandlersPlugin(),
+            MusicHandlersPlugin()
         )

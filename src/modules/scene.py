@@ -50,11 +50,9 @@ class SceneBundle:
 
 class SceneManager:
     "Simply a global resource for checking app's state"
-    def __init__(self, resources: Resources, default_scene: SceneBundle):
+    def __init__(self, resources: Resources):
         self.resources = resources
         self.current_scene = None
-
-        self.insert_scene(default_scene)
 
     def insert_scene(self, new_scene: SceneBundle):
         "Insert a new scene bundle into this scene manager. The previous scene will get deinitialized and overwritten"

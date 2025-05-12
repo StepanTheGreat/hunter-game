@@ -6,7 +6,6 @@ This makes it possible to create multiple cameras, and select one based on prior
 from plugin import Resources, Schedule, Plugin
 
 from core.graphics.camera import Camera3D
-from core.sound import SoundManager
 from core.ecs import WorldECS
 
 from plugins.client.components import RenderPosition, RenderAngle, PerspectiveAttachment
@@ -27,7 +26,6 @@ class CurrentPerspectiveAttached:
 def move_perspective(resources: Resources):
     world = resources[WorldECS]
     camera = resources[Camera3D]
-    sound_manager = resources[SoundManager]
     pespective_attached = resources[CurrentPerspectiveAttached]
 
     candidates = world.query_component(PerspectiveAttachment, including=(RenderPosition, RenderAngle))
@@ -44,9 +42,6 @@ def move_perspective(resources: Resources):
     camera.set_angle(angle.get_angle())
     camera.set_pos(pos)
     camera.set_y(attachment.height)
-
-    # Then our listener
-    sound_manager.set_listener_position(pos)
 
     pespective_attached.attach_to(candiate_ent)
 

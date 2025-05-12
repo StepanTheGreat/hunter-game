@@ -16,7 +16,6 @@ class MainMenuScene(SceneBundle):
         self.add_auto_resources(
             MainMenuGUI(resources),
         )
-    
 
     def pre_init(self, resources):
         assets = resources[AssetManager]

@@ -7,6 +7,10 @@ from core.assets import AssetManager, add_loaders
 from random import choice as rand_choice
 from file import load_json_and_validate, get_file_dir
 
+from app_config import CONFIG
+
+pg.mixer.init()
+
 LISTENER_RADIUS = 100
 
 class Sound:
@@ -60,13 +64,11 @@ def loader_soundpack(resources: Resources, path: str) -> SoundPack:
     return SoundPack(tuple(sounds))
 
 class SoundManager:
-    def __init__(self, assets: AssetManager):
-        pg.mixer.init()
-
+    def __init__(self, assets: AssetManager, music_volume: float):
         self.assets = assets
 
-        self.listener_pos: pg.Vector2 = pg.Vector2(0, 0)
-        self.listener_radius: float = LISTENER_RADIUS
+        # Set the default volume to the provided value
+        pg.mixer_music.set_volume(music_volume)
 
     def play_sound(self, path: str):
         """
@@ -99,17 +101,10 @@ class SoundManager:
     def stop_music(self):
         pg.mixer_music.stop()
         pg.mixer_music.unload()
-    
-    def set_listener_position(
-        self, 
-        position: tuple[float, float], 
-    ):
-        self.listener_pos.x = position[0]
-        self.listener_pos.y = position[1]
 
 class SoundPlugin(Plugin):
     def build(self, app):
-        app.insert_resource(SoundManager(app.get_resource(AssetManager)))
+        app.insert_resource(SoundManager(app.get_resource(AssetManager), CONFIG.music_volume))
 
         add_loaders(app,
             (Sound, loader_sound),

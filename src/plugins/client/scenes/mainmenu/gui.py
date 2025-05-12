@@ -31,18 +31,23 @@ class MainMenuGUI:
     def enter_mainmenu_subscene(self):
         font = self.assets.load(FontGPU, "fonts/font.ttf")
 
-        # def insert_ingame_scene(as_server: bool):
-            # self.resources[SceneManager].insert_scene(IngameScene(self.resources, as_server))
+        music_credits_label = Label(
+            font, 
+            "Music made by Karl Casey @ White Bat Audio", 
+            (0, 1), 
+            (0, 1), 
+            (255, 255, 255), 
+            0.3
+        )
 
-        def start_game_session(as_server: bool):
-            if as_server:
-                new_client = Client(self.resources, CLIENT_RPCS)
-                addr = self.resources[ServerExecutor].start_server()
-                new_client.try_connect(addr)
-                insert_network_actor(self.resources, new_client)            
+        def start_game_session():
+            new_client = Client(self.resources, CLIENT_RPCS)
+            addr = self.resources[ServerExecutor].start_server()
+            new_client.try_connect(addr)
+            insert_network_actor(self.resources, new_client)            
 
         create_btn = (TextButton(font, "Create Game", (0.5, 0.5), MainMenuGUI.BUTTON_SIZE, text_scale=0.5)
-            .with_callback(lambda: start_game_session(True))
+            .with_callback(start_game_session)
             )
 
         def go_to_settings():
@@ -65,7 +70,7 @@ class MainMenuGUI:
         *_, tree_w, tree_h =  create_btn.measure_tree()
         create_btn.set_margin(-tree_w/2, -tree_h/2)
 
-        self.ewriter.push_event(ReplaceGUICommand([create_btn]))
+        self.ewriter.push_event(ReplaceGUICommand([music_credits_label, create_btn]))
 
     def enter_settings_subscene(self):
         font = self.assets.load(FontGPU, "fonts/font.ttf")

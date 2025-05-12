@@ -12,6 +12,7 @@ class AppConfig:
     vsync: bool = True
     fps: int = 60
     fixed_fps: int = 30
+    music_volume: float = 0.5
     title: str = "Hunter Game"
     assets_dir: str = localize_path("assets")
     keys: str = "keys/azerty.json"

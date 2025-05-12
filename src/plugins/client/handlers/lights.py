@@ -5,7 +5,6 @@ from plugins.client.commands import GameNotificationCommand, ResetSceneLightsCom
 from plugins.client.services.graphics.lights import LightManager
 
 from plugins.shared.interfaces.stage import GameNotification
-from plugins.client.components import GameEntity
 
 CLEAR_LIGHTING = (0.9, 0.9, 0.9)
 NO_LIGHTING = (0.05, 0.1, 0.05)

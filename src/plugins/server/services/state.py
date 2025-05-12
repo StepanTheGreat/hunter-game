@@ -1,6 +1,6 @@
 from plugin import Plugin, Resources
 
-from plugins.server.events import GameFinishedEvent, GameStartedEvent
+from plugins.server.events import GameFinishedEvent, GameStartedEvent, LightsOnEvent
 
 from enum import Enum, auto
 
@@ -50,3 +50,4 @@ class GameStatePlugin(Plugin):
 
         app.add_event_listener(GameStartedEvent, on_start_game_command)
         app.add_event_listener(GameFinishedEvent, on_finish_game_command)
+        app.add_event_listener(LightsOnEvent, on_lights_on_command)
