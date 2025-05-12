@@ -35,7 +35,7 @@ def _crookify_client_policeman(world: WorldECS, ent: int, assets: AssetManager):
     )
 
     is_main = world.has_component(ent, MainPlayer)
-    texture = assets.load(Texture, "images/sprites.atl#meteorite")
+    texture = assets.load(Texture, "images/sprites.atl#robber")
     
     world.add_components(
         ent,
@@ -43,7 +43,7 @@ def _crookify_client_policeman(world: WorldECS, ent: int, assets: AssetManager):
         # If the player is main, we would like to obviously prioritize its perspective, but if not - 
         # we shouldn't spectat the robber at all
         PerspectiveAttachment(28, (-1 if is_main else 1)),
-        Sprite(0, texture, (38, 68)),
+        Sprite(0, texture, (48, 48)),
         Weapon(CLIENT_ROBBER_PROJECTILE, ROBBER_WEAPON_STATS)
     )
 

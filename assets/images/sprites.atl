@@ -1,8 +1,8 @@
 {
     "dynamic": true,
     "sources": {
-        "character": "character.png",
-        "meteorite": "meteorite.png",
+        "policeman": "policeman.png",
+        "robber": "robber.png",
         "diamond": "diamond.png",
         "crosshair": "crosshair.png"
     }
