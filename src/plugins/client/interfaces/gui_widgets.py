@@ -182,7 +182,7 @@ class GUIElement:
         _, _, tree_w, tree_h = self.measure_tree()
         self.set_position(x-tree_w*pivot_x, y-tree_h*pivot_y)
 
-    def draw(self, renderer: Renderer2D):
+    def draw(self, renderer: Renderer2D, dt: float):
         "Element's draw logic"
 
     def on_event(self, event: object):
@@ -229,7 +229,7 @@ class GUIElement:
 
         return (rect[0], rect[1], rect[2]-rect[0], rect[3]-rect[1])
 
-    def draw_root(self, renderer: Renderer2D):
+    def draw_root(self, renderer: Renderer2D, dt: float):
         "Draw the box tree from the root"
 
         # This code is a dublicate, since we need it to be a bit more customized.
@@ -252,7 +252,7 @@ class GUIElement:
             element, element_z = queue.popleft()
 
             renderer.current_z = element_z
-            element.draw(renderer)
+            element.draw(renderer, dt)
             
             for child in element.get_children():
                 child_z = element_z + child.is_parent_contained() if child.z is None else child.z
@@ -301,7 +301,7 @@ class ColorRect(FillBox):
         super().__init__()
         self.color = color
         
-    def draw(self, renderer):
+    def draw(self, renderer: Renderer2D, dt: float):
         x, y, w, h = self.get_rect()
         renderer.draw_rect((x, y, w, h), self.color)
 
@@ -313,7 +313,7 @@ class TextureRect(SizedBox):
         self.texture = texture
         self.color = (255, 255, 255)
 
-    def draw(self, renderer):
+    def draw(self, renderer: Renderer2D, dt: float):
         x, y, w, h = self.get_rect()
         renderer.draw_texture(self.texture, (x, y), (w, h), self.color)
 
@@ -351,7 +351,7 @@ class Label(GUIElement):
         self.set_size(textw*self.text_scale, texth*self.text_scale)
         self._cached_drawcall = None
 
-    def draw(self, renderer):
+    def draw(self, renderer: Renderer2D, dt: float):
         rect = self.get_rect()
 
         if not self._cached_drawcall or self._last_rect != rect:
@@ -454,7 +454,7 @@ class TextButton(BaseButton):
 
         self.text_size = (text_w*self.text_scale, text_h*self.text_scale)
 
-    def draw(self, renderer):
+    def draw(self, renderer: Renderer2D, dt: float):
         rect = self.get_rect()
         
         bg_color = (100, 100, 100)
@@ -497,7 +497,7 @@ class TextureButton(BaseButton):
 
         self.set_size(*self.size)
 
-    def draw(self, renderer):
+    def draw(self, renderer: Renderer2D, dt: float):
         rect = self.get_rect()
         renderer.draw_texture(self.texture, (rect.x, rect.y), (rect.w, rect.h), self.color, self.uv_rect)
 
@@ -527,7 +527,7 @@ class Slider(GUIElement):
         elif self.sliding and type(event) == MouseButtonUpEvent:
             self.sliding = False
 
-    def draw(self, renderer):
+    def draw(self, renderer: Renderer2D, dt: float):
         rect = self.get_rect()
 
         value = self.value

@@ -55,6 +55,7 @@ even this has some performance cost.
 
 from plugin import Plugin, Schedule, Resources
 
+from core.time import Clock
 from core.events.pg import *
 
 from plugins.client.interfaces.gui_widgets import *
@@ -102,7 +103,7 @@ class GUIManager:
         "Should be called every time the screen changes its size"
         self.document.set_size(new_width, new_height)
 
-    def draw(self, renderer: Renderer2D):
+    def draw(self, renderer: Renderer2D, dt: float):
         "Draw the entire GUI from the root element"
         
         # We will save the Z coordinate, as it we would like to reset it later
@@ -110,7 +111,7 @@ class GUIManager:
 
         # Set our Z coordinate
         renderer.current_z = self.z
-        self.document.draw_root(renderer)
+        self.document.draw_root(renderer, dt)
 
         # Reset back
         renderer.current_z = prev_z
@@ -148,7 +149,9 @@ class GUIBundleManager:
 
 
 def draw_gui(resources: Resources):
-    resources[GUIManager].draw(resources[Renderer2D])
+    dt = resources[Clock].get_delta()
+
+    resources[GUIManager].draw(resources[Renderer2D], dt)
 
 def update_gui(resources: Resources, event: object):
     resources[GUIManager].pass_event(event)
