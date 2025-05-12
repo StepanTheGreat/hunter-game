@@ -2,10 +2,10 @@ from plugin import Plugin, Resources, EventWriter
 
 from plugins.client.commands import CrookifyPolicemanCommand, SpawnPlayerCommand
 
-from core.ecs import WorldECS
+from core.ecs import WorldECS, ComponentsRemovedEvent
 from core.assets import AssetManager
 
-from plugins.client.events import WeaponUseEvent, CharacterUsedWeaponEvent
+from plugins.client.events import *
 from plugins.client.entities import *
 from plugins.shared.entities import crookify_policeman
 from plugins.shared.services.uidman import EntityUIDManager
@@ -22,7 +22,7 @@ def on_spawn_player_command(resources: Resources, command: SpawnPlayerCommand):
         *make_client_policeman(command.uid, command.pos, command.is_main, assets)
     )
 
-def _crookify_client_policeman(world: WorldECS, ent: int, assets: AssetManager):
+def _crookify_client_policeman(ewriter: EventWriter, world: WorldECS, ent: int, assets: AssetManager):
     "Crookify the policeman entity, but with additional client-side components"
 
     crookify_policeman(world, ent)
@@ -50,6 +50,7 @@ def _crookify_client_policeman(world: WorldECS, ent: int, assets: AssetManager):
 
     if is_main:
         world.add_components(ent, Light(14, (0.9, 1, 0.9), 50000, 1.2))
+        ewriter.push_event(MainPlayerIsACrookEvent())
 
 def on_crookify_policeman_command(resources: Resources, command: CrookifyPolicemanCommand):
     "React on the crookify command by turning the specified policeman into a robber"
@@ -57,11 +58,12 @@ def on_crookify_policeman_command(resources: Resources, command: CrookifyPolicem
     world = resources[WorldECS]
     assets = resources[AssetManager]
     uidman = resources[EntityUIDManager]
+    ewrtier = resources[EventWriter]
 
     ent = uidman.get_ent(command.uid)
 
     if ent is not None:
-        _crookify_client_policeman(world, ent, assets)
+        _crookify_client_policeman(ewrtier, world, ent, assets)
     
 def on_weapon_use_event(resources: Resources, event: WeaponUseEvent):
     """
@@ -79,6 +81,11 @@ def on_weapon_use_event(resources: Resources, event: WeaponUseEvent):
         is_main = world.has_component(ent, MainPlayer)
         ewriter.push_event(CharacterUsedWeaponEvent(is_policeman, is_main))
 
+def on_main_player_death(resources: Resources, event: ComponentsRemovedEvent):
+    "When the main player dies, we would like to push events notifying of that"
+
+    if MainPlayer in event.components:
+        resources[EventWriter].push_event(MainPlayerDiedEvent())
 
 class CharacterHandlersPlugin(Plugin):
     def build(self, app):
@@ -86,3 +93,4 @@ class CharacterHandlersPlugin(Plugin):
         app.add_event_listener(SpawnPlayerCommand, on_spawn_player_command)
 
         app.add_event_listener(WeaponUseEvent, on_weapon_use_event)
+        app.add_event_listener(ComponentsRemovedEvent, on_main_player_death)

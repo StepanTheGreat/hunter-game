@@ -17,6 +17,9 @@ from plugins.client.commands import PlayersReadyCommand, GameNotificationCommand
 GO_BACK_TO_MENU_IN = 8
 "The amount of time to wait during the victory stage to automatically go back"
 
+POLICEMAN_WEAPON_SPEED = 15
+ROBBER_WEAPON_SPEED = 20
+
 class PlayerHealthbar(GUIElement):
     BG_COLOR = (40, 40, 40)
     HEALTH_COLOR = (40, 255, 70)
@@ -134,9 +137,9 @@ class IngameGUI:
         self.player_weapon = PlayerWeapon(
             (1, 1), 
             (1, 1), 
-            (160, 160), 
+            (256, 256), 
             self.assets.load(TextureAtlas, "images/sprites.atl").get_sprite_textures("gun_shot"),
-            10
+            POLICEMAN_WEAPON_SPEED
         )
         self.players_ready_label = Label(self.font, "Players ready: 0/0", (0.5, 1), (0.5, 1), (255, 255, 255), 0.3)
 
@@ -196,7 +199,24 @@ class IngameGUI:
         self.players_ready_label.set_text(f"Players ready: {ready}/{players}")
 
     def restart_weapon_animation(self):
+        "Start the weapon's animation all over again"
+
         self.player_weapon.start_animation()
+
+    def enter_spectator_mode(self):
+        "Disable most of player's GUI (healthbar, weapon and crosshair)"
+
+        for element in (self.healthbar, self.player_weapon, self.crosshair):
+            element.hide(True)
+
+    def use_robber_weapon(self):
+        "Switch this player's policeman's weapon to robber's"
+
+        self.player_weapon.set_sprites(
+            self.assets.load(TextureAtlas, "images/sprites.atl")
+                .get_sprite_textures("knife_shot")
+        )
+        self.player_weapon.animation_speed = ROBBER_WEAPON_SPEED
 
 @run_if(resource_exists, IngameGUI)
 def on_server_disconnection(resources: Resources, _: ServerDisonnectedEvent):
@@ -244,6 +264,14 @@ def on_player_weapon_use(resources: Resources, event: CharacterUsedWeaponEvent):
     if event.is_main:
         gui.restart_weapon_animation()
 
+@run_if(resource_exists, IngameGUI)
+def on_main_player_crook_revelation(resouces: Resources, _):
+    resouces[IngameGUI].use_robber_weapon()
+
+@run_if(resource_exists, IngameGUI)
+def on_main_player_death(resouces: Resources, _):
+    resouces[IngameGUI].enter_spectator_mode()
+
 class IngameGUIPlugin(Plugin):
     def build(self, app):
         app.add_event_listener(PlayersReadyCommand, on_players_ready_command)
@@ -251,3 +279,6 @@ class IngameGUIPlugin(Plugin):
 
         app.add_event_listener(GameNotificationCommand, on_game_notification)
         app.add_event_listener(CharacterUsedWeaponEvent, on_player_weapon_use)
+
+        app.add_event_listener(MainPlayerIsACrookEvent, on_main_player_crook_revelation)
+        app.add_event_listener(MainPlayerDiedEvent, on_main_player_death)

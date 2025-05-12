@@ -2,10 +2,13 @@
 import pygame as pg
 
 from typing import Union, Any
-from plugin import App, AppBuilder, Resources, Plugin, EventWriter, event
+from plugin import App, AppBuilder, Resources, Plugin, EventWriter
 
 from core.events.pg import *
 from core.time import Clock
+
+# Actually, don't ask me why this pre-init, I just found that it's better for general audio playback speed
+pg.mixer.pre_init(44100, -16, 1, 512)
 
 pg.font.init()
 

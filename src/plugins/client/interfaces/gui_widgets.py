@@ -110,7 +110,6 @@ class GUIElement:
         pivotx, pivoty = self.pivot
         edgex, edgey = self.edge
 
-        tree_margin = (0, 0)
         if self.parent is None:
             assert self.position is not None, "The root element's position must be defined"
 
@@ -250,6 +249,9 @@ class GUIElement:
 
         while len(queue) > 0:
             element, element_z = queue.popleft()
+
+            if element.is_hidden():
+                continue
 
             renderer.current_z = element_z
             element.draw(renderer, dt)

@@ -1,6 +1,6 @@
 import pygame as pg
 
-from plugin import Plugin, Schedule, Resources
+from plugin import Plugin, Resources
 
 from core.assets import AssetManager, add_loaders
 
@@ -10,8 +10,6 @@ from file import load_json_and_validate, get_file_dir
 from app_config import CONFIG
 
 pg.mixer.init()
-
-LISTENER_RADIUS = 100
 
 class Sound:
     "A sound container for pygame sounds"

@@ -8,6 +8,11 @@
         "gun_shot": [
             "gun_shot1.png",
             "gun_shot2.png"
+        ],
+        "knife_shot": [
+            "knife_shot1.png",
+            "knife_shot2.png",
+            "knife_shot3.png"
         ]
     }
 }
