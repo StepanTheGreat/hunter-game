@@ -1,10 +1,11 @@
-from plugin import Plugin, Resources, Schedule
+from plugin import Plugin, Resources, EventWriter
 
 from plugins.client.commands import CrookifyPolicemanCommand, SpawnPlayerCommand
 
 from core.ecs import WorldECS
 from core.assets import AssetManager
 
+from plugins.client.events import WeaponUseEvent, CharacterUsedWeaponEvent
 from plugins.client.entities import *
 from plugins.shared.entities import crookify_policeman
 from plugins.shared.services.uidman import EntityUIDManager
@@ -61,8 +62,27 @@ def on_crookify_policeman_command(resources: Resources, command: CrookifyPolicem
 
     if ent is not None:
         _crookify_client_policeman(world, ent, assets)
+    
+def on_weapon_use_event(resources: Resources, event: WeaponUseEvent):
+    """
+    Listen for weapon use events and propagate them to the internal systems with more context
+    (i.e. was it fired by the main player, or was it fired by a policeman or a robber)
+    """
+
+    world = resources[WorldECS]
+    ewriter = resources[EventWriter]
+
+    ent = event.ent
+
+    if world.contains_entity(ent):
+        is_policeman = world.has_component(ent, Policeman)
+        is_main = world.has_component(ent, MainPlayer)
+        ewriter.push_event(CharacterUsedWeaponEvent(is_policeman, is_main))
+
 
 class CharacterHandlersPlugin(Plugin):
     def build(self, app):
         app.add_event_listener(CrookifyPolicemanCommand, on_crookify_policeman_command)
         app.add_event_listener(SpawnPlayerCommand, on_spawn_player_command)
+
+        app.add_event_listener(WeaponUseEvent, on_weapon_use_event)

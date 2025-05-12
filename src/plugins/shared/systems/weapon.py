@@ -1,12 +1,14 @@
-from plugin import Plugin, Resources, Schedule
+from plugin import Plugin, Resources, Schedule, EventWriter
 
 from core.time import Clock
 from core.ecs import WorldECS
 
+from plugins.shared.events import WeaponUseEvent
 from plugins.shared.components import *
 
 def shoot_weapons_system(resources: Resources):
     world = resources[WorldECS]
+    ewriter = resources[EventWriter]
 
     dt = resources[Clock].get_fixed_delta()
 
@@ -22,8 +24,8 @@ def shoot_weapons_system(resources: Resources):
                 damage_multiplier = world.get_component(ent, DamageMultiplier).by
 
             if weapon.may_shoot():
-                # Safety: projectiles don't contain neither Angle nor Weapon components, thus it is safe
-                # to create them in this iteration 
+                ewriter.push_event(WeaponUseEvent(ent))
+                
                 cmd.create_entity(*
                     weapon.shoot(pos.get_position(), angle.get_vector(), damage_multiplier)
                 )

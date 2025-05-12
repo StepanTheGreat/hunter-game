@@ -1,15 +1,15 @@
 from plugin import Plugin, Resources, EventWriter, resource_exists, run_if
 
 from core.assets import AssetManager
-from core.graphics import FontGPU, Texture
+from core.graphics import FontGPU, Texture, TextureAtlas
 from core.time import SystemScheduler
 
 from plugins.client.interfaces.gui_widgets import GUIElement, TextButton, Label, TextureRect
 from plugins.client.services.playerstats import PlayerStats
 from plugins.shared.services.network import Client, clean_network_actors
 
-from plugins.client.commands import ClearGUICommand, ReplaceGUICommand, CheckoutSceneCommand, CheckoutScene
-from plugins.client.events import ServerDisonnectedEvent
+from plugins.client.commands import *
+from plugins.client.events import *
 from plugins.client.actions import ClientActionDispatcher, SignalPlayerReadyAction
 
 from plugins.client.commands import PlayersReadyCommand, GameNotificationCommand, GameNotification
@@ -20,6 +20,7 @@ GO_BACK_TO_MENU_IN = 8
 class PlayerHealthbar(GUIElement):
     BG_COLOR = (40, 40, 40)
     HEALTH_COLOR = (40, 255, 70)
+
     def __init__(
         self, 
         edge: tuple[int, int], 
@@ -37,7 +38,7 @@ class PlayerHealthbar(GUIElement):
         self.set_size(*size)
         self.set_margin(*margin)
 
-    def draw(self, renderer):
+    def draw(self, renderer, dt: float):
         x, y, w, h = self.get_rect()
         m = self.bar_margin
 
@@ -55,6 +56,62 @@ class PlayerHealthbar(GUIElement):
             health_h
         ), PlayerHealthbar.HEALTH_COLOR)
 
+class PlayerWeapon(GUIElement):
+    def __init__(
+        self, 
+        edge: tuple[int, int], 
+        pivot: tuple[int, int], 
+        size: tuple[int, int],
+        sprites: tuple[Texture, ...],
+        animation_speed: float
+    ):
+        super().__init__(edge, pivot)
+        assert len(sprites) > 0, "No sprites were given to the weapon animator"
+
+        self.sprites: tuple[Texture, ...] = sprites
+
+        self.animation_speed = animation_speed
+        self.animation_at = 0
+
+        self.set_size(*size)
+
+    def set_sprites(self, new_sprites: tuple[Texture, ...]):
+        "Change the currently animated sequence of sprites"
+
+        assert len(new_sprites) > 0, "Can't set an empty sequence of sprites"
+
+        self.sprites = new_sprites
+
+    def start_animation(self):
+        "Restart the animation from the start"
+
+        # Yep, we're cutting corners here
+        self.animation_at = 0.001
+
+    def draw(self, renderer, dt):
+
+        # To really simplify the logic here... The animation logic runs only if the `animation_at`
+        # attribute isn't 0. That means it's negative or positive. Doesn't matter.
+        if self.animation_at != 0:
+
+            # We're going to add to this counter our new delta time
+            self.animation_at += dt * self.animation_speed
+
+            # And now, if the current animation time is bigger than the amount of sprites we have - reset it
+            # to zero, essentially stopping the animation entirely
+            if self.animation_at > len(self.sprites):
+                self.animation_at = 0
+
+        # Of course render our animation at the current frame
+        x, y, w, h = self.get_rect()
+        renderer.draw_texture(
+            self.sprites[int(self.animation_at)], 
+            (x, y), 
+            (w, h), 
+            (255, 255, 255)
+        )
+
+
 class IngameGUI:
     BUTTON_SIZE = (312, 64)
 
@@ -63,7 +120,6 @@ class IngameGUI:
         self.ewriter = resources[EventWriter]
         self.assets = resources[AssetManager]
         self.dispatcher = resources[ClientActionDispatcher]
-
 
         self.font = self.assets.load(FontGPU, "fonts/font.ttf")
 
@@ -75,6 +131,13 @@ class IngameGUI:
         self.quit_btn.set_callback(on_quit)
 
         self.healthbar = PlayerHealthbar((1, 0), (1, 0), (260, 32), 6, self.resources[PlayerStats])
+        self.player_weapon = PlayerWeapon(
+            (1, 1), 
+            (1, 1), 
+            (160, 160), 
+            self.assets.load(TextureAtlas, "images/sprites.atl").get_sprite_textures("gun_shot"),
+            10
+        )
         self.players_ready_label = Label(self.font, "Players ready: 0/0", (0.5, 1), (0.5, 1), (255, 255, 255), 0.3)
 
         self.crosshair = TextureRect(
@@ -82,7 +145,7 @@ class IngameGUI:
             (32, 32),
             (0.5, 0.5),
             (0.5, 0.5)
-        )
+        ).with_z(-1)
 
         self.ewriter.push_event(ClearGUICommand())
         self.enter_waiting_stage()
@@ -104,6 +167,7 @@ class IngameGUI:
         self.ewriter.push_event(ReplaceGUICommand([ 
             ready_btn,
             self.players_ready_label,
+            self.player_weapon,
             self.quit_btn
         ]))
 
@@ -111,6 +175,7 @@ class IngameGUI:
         self.ewriter.push_event(ReplaceGUICommand([
             self.healthbar,
             self.quit_btn,
+            self.player_weapon,
             self.crosshair
         ]))
 
@@ -123,11 +188,15 @@ class IngameGUI:
         self.ewriter.push_event(ReplaceGUICommand([
             self.healthbar,
             self.crosshair,
+            self.player_weapon,
             victory_label
         ]))
 
     def update_players_ready(self, ready: int, players: int):
         self.players_ready_label.set_text(f"Players ready: {ready}/{players}")
+
+    def restart_weapon_animation(self):
+        self.player_weapon.start_animation()
 
 @run_if(resource_exists, IngameGUI)
 def on_server_disconnection(resources: Resources, _: ServerDisonnectedEvent):
@@ -168,9 +237,17 @@ def go_back_to_menu(resources: Resources):
     """
     resources[EventWriter].push_event(CheckoutSceneCommand(CheckoutScene.MainMenu))
 
+@run_if(resource_exists, IngameGUI)
+def on_player_weapon_use(resources: Resources, event: CharacterUsedWeaponEvent):
+    gui = resources[IngameGUI]
+    
+    if event.is_main:
+        gui.restart_weapon_animation()
+
 class IngameGUIPlugin(Plugin):
     def build(self, app):
         app.add_event_listener(PlayersReadyCommand, on_players_ready_command)
         app.add_event_listener(ServerDisonnectedEvent, on_server_disconnection)
 
         app.add_event_listener(GameNotificationCommand, on_game_notification)
+        app.add_event_listener(CharacterUsedWeaponEvent, on_player_weapon_use)

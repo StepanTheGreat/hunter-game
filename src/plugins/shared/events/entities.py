@@ -13,3 +13,10 @@ class ProjectileHitEvent:
     def __init__(self, target_ent: int, damage: float):
         self.target_ent = target_ent
         self.damage = damage
+
+@event
+class WeaponUseEvent:
+    "Fired whenever there's an active use of a weapon (i.e. the weapon has created a projectile)"
+    
+    def __init__(self, ent: int):
+        self.ent = ent
