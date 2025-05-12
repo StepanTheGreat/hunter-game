@@ -4,6 +4,10 @@
         "policeman": "policeman.png",
         "robber": "robber.png",
         "diamond": "diamond.png",
-        "crosshair": "crosshair.png"
+        "crosshair": "crosshair.png",
+        "gun_shot": [
+            "gun_shot1.png",
+            "gun_shot2.png"
+        ]
     }
 }
