@@ -27,7 +27,7 @@ def make_client_policeman(
 
     components = make_policeman(uid, pos) + (
         RenderPosition(),
-        Light(32, (1, 1, 1), 5000, 1.2),
+        Light(32, (1, 1, 1), 2500, 1.2),
         Sprite(0, texture, (32, 64)),
         RenderAngle(),
         PerspectiveAttachment(24, -1 if ismain else 0),
