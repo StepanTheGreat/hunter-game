@@ -1,5 +1,5 @@
 # Hunter game
-![gameplay](https://github.com/user-attachments/assets/9af31592-ff8b-44b1-94e5-6863c004d892)
+![gameplay](./gameplay.gif)
 
 A simple, 3D real-time multiplayer action game for up to 5 players per session. The essential idea is that in the game there are 2 teams: the police team (up to 4 players) and the
 robber team (a single character chosen randomly). The goal of the robber is to collect all the diamonds on the map, while the policemen should defeat him before this happens. 
